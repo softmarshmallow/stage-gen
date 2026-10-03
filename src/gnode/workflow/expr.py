@@ -327,6 +327,15 @@ class Template:
         return None
 
 
+_COMMENT = re.compile(r"<!--.*?-->\n?", re.DOTALL)
+
+
+def prompt_text(source: str) -> str:
+    """A prompt file as it is sent: without its ``<!-- -->`` notes to its authors."""
+
+    return _COMMENT.sub("", source)
+
+
 def template(source: str) -> Template | None:
     """The expressions in ``source``, or ``None`` when it has none."""
 
@@ -691,6 +700,7 @@ def _kind(value: Any) -> str:
 
 __all__ = [
     "FUNCTIONS",
+    "prompt_text",
     "Every",
     "Field",
     "Index",

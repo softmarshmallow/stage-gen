@@ -31,18 +31,33 @@ def safe(path: str) -> str:
     return "".join(out).strip("_") or "step"
 
 
+def _keyed(key: str) -> str:
+    """A key as a relative path: its ``/`` make folders, and no segment leaves them."""
+
+    return "/".join(
+        "_" if segment in {"", ".", ".."} else safe(segment) for segment in key.split("/")
+    )
+
+
+def _named(label: str, kind: str) -> str:
+    """``label`` with its kind's suffix, unless a key already ends with it."""
+
+    ending = suffix(kind)
+    return label if ending and label.endswith(ending) else f"{label}{ending}"
+
+
 def step_file(path: str, port: str, kind: str, *, key: str | None, index: int, count: int) -> str:
     """``files/<step path>/<port><suffix>``; one file of several is ``<port>/<key or index>``."""
 
-    label = port if count == 1 else f"{port}/{key or index}"
-    return f"files/{safe(path)}/{label}{suffix(kind)}"
+    label = port if count == 1 else f"{port}/{_keyed(key) if key else index}"
+    return f"files/{safe(path)}/{_named(label, kind)}"
 
 
 def output_file(name: str, kind: str, *, key: str | None, index: int, single: bool) -> str:
     """``outputs/<name><suffix>``; an element of a list or collection is ``<name>/<key>``."""
 
-    label = name if single else f"{name}/{key or index}"
-    return f"outputs/{label}{suffix(kind)}"
+    label = name if single else f"{name}/{_keyed(key) if key else index}"
+    return f"outputs/{_named(label, kind)}"
 
 
 def view_file(digest: str, kind: str) -> str:

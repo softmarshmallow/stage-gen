@@ -1,26 +1,21 @@
 gnode: workflow/v1
 id: case
 title: Tiered price
-inputs:
-  picture: { type: file, kind: image }
 steps:
   small:
     uses: gnode/video.generate@1
     requires: [first_last_frame]
     with:
       prompt: a lantern sways
-      first_frame: ${{ inputs.picture }}
       duration: 3
       resolution: 360p
   large:
     uses: gnode/video.generate@1
     with:
       prompt: a lantern sways
-      first_frame: ${{ inputs.picture }}
       duration: 8
       resolution: 4k
   unknown:
     uses: gnode/video.generate@1
     with:
       prompt: a lantern sways
-      first_frame: ${{ inputs.picture }}

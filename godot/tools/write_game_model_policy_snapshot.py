@@ -39,17 +39,6 @@ from stage_gen.model_policy_maintenance import (
     render_model_policy_snapshot,
 )
 from stage_gen.model_routes import IMAGE_ROUTE_CATALOG, image_workload_policies
-from stage_gen.workflows.universe.universe_graph import (
-    build_universe_gallery_graph,
-    build_universe_semantic_graph,
-    universe_graph_profile,
-)
-from stage_gen.workflows.universe.universe_request import (
-    admitted_universe_from_document,
-    read_universe_document,
-    resolve_sample_ledger,
-    resolve_universe_source,
-)
 from the_grain_pipeline.dialogue_scene.scene_executor import DialogueSceneExecutor
 from the_grain_pipeline.pointclick_room.room_executor import PointClickRoomExecutor
 
@@ -63,8 +52,6 @@ RUNNER_FIXTURE = "godot/games/iron_petal_unit/inputs"
 DIALOGUE_FIXTURE = "godot/games/the_grain/inputs"
 POINTCLICK_FIXTURE = "godot/games/the_grain/inputs/rooms/window"
 SURVIVAL_FIXTURE = "godot/games/ember_hollow/inputs"
-UNIVERSE_FIXTURE = "src/stage_gen/workflows/universe/inputs/lantern_ferry"
-UNIVERSE_ADMITTED_FIXTURE = "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
 
 PLATFORMER_DOCUMENT = "godot/games/bellweather/docs/generation-pipeline.md"
 RUNNER_DOCUMENT = "godot/games/iron_petal_unit/docs/runner.md"
@@ -167,35 +154,12 @@ def _planned_graphs() -> tuple[dict[str, Graph], dict[str, dict[str, str]]]:
         for scope in SURVIVAL_SCOPES
     }
 
-    universe_root = REPOSITORY_ROOT / UNIVERSE_FIXTURE
-    universe = resolve_universe_source(read_universe_document(universe_root), root=universe_root)
-    admitted = admitted_universe_from_document(
-        REPOSITORY_ROOT / UNIVERSE_ADMITTED_FIXTURE,
-        poster_sha256=universe.poster_sha256,
-    )
-    samples = resolve_sample_ledger(
-        universe_id=admitted.universe_id,
-        entity_ids=admitted.entity_ids(),
-    )
-    universe_semantic = build_universe_semantic_graph(
-        universe,
-        profile=universe_graph_profile(config, images=False),
-    )
-    universe_gallery = build_universe_gallery_graph(
-        universe,
-        admitted,
-        samples=samples,
-        profile=universe_graph_profile(config, images=True),
-        config=config,
-    )
     graphs: dict[str, Graph] = {
         "dialogue_scene": dialogue,
         "oblique_survival": survival_graphs["full"],
         "pointclick_room": pointclick,
         "sideview_platformer": platformer,
         "sideview_runner": runner,
-        "universe_gallery": universe_gallery,
-        "universe_semantic": universe_semantic,
     }
     survival_cache_keys = {
         scope: {node.node_id: node.cache_key for node in graph.nodes}
@@ -212,7 +176,7 @@ def _generated_file_checks(
     runner = graphs["sideview_runner"]
     survival = graphs["oblique_survival"]
 
-    # The product workflows' own contract blocks, universe's included, are checked by
+    # The product workflows' own contract blocks are checked by
     # scripts/write_workflow_contracts.py; these are the documents the games own.
     document_checks: tuple[tuple[str, str, str | None, dict[str, object]], ...] = (
         (
@@ -295,8 +259,6 @@ def build_snapshot() -> ModelPolicySnapshotV1:
                 "pointclick_room": POINTCLICK_FIXTURE,
                 "sideview_platformer": PLATFORMER_FIXTURE,
                 "sideview_runner": RUNNER_FIXTURE,
-                "universe_gallery": UNIVERSE_FIXTURE,
-                "universe_semantic": UNIVERSE_FIXTURE,
             }[recipe_id],
             graph,
         )

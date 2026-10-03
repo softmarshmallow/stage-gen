@@ -36,6 +36,25 @@ describe("view contexts", () => {
     expect(sent.outputs.manifest.value).toEqual({});
   });
 
+  test("a workflow's own view reads every step by name, and the run's outputs", () => {
+    const image = { kind: "image/png", digest: "d".repeat(64), size: 3, key: null, ref: `views/files/${"d".repeat(64)}.png` };
+    const whole = {
+      kind: "gnode-view-context-v1",
+      scope: "workflow",
+      node_id: null,
+      template: TEMPLATE,
+      run: { id: "2026-10-03-1", workflow: "universe", status: "succeeded", cost_usd: 0 },
+      outputs: {},
+      steps: { entity: { instances: [{ key: "ferry", status: "succeeded", steps: { draw: { outputs: { image } } } }] } },
+    };
+    const [view] = parseViewContexts({ kind: "gnode-view-contexts-v1", views: [whole] }).views;
+    expect([view.scope, view.nodeId, view.title]).toEqual(["workflow", null, "universe"]);
+    const sent = withUrls(view, (ref) => `/a/${ref}`) as Record<string, any>;
+    expect(sent.steps.entity.instances[0].steps.draw.outputs.image.url).toBe(`/a/${image.ref}`);
+    const escaping = { ...whole, steps: { draw: { outputs: { image: { ...image, ref: "../x.png" } } } } };
+    expect(() => parseViewContexts({ kind: "gnode-view-contexts-v1", views: [escaping] })).toThrow();
+  });
+
   test("a template outside the run's kept views, or a file escaping the run, is refused", () => {
     expect(() => parseViewContexts(contexts({ template: "../x.html" }))).toThrow();
     expect(() => parseViewContexts(contexts({ template: "files/compose/x.html" }))).toThrow();

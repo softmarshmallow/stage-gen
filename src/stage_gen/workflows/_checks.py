@@ -297,7 +297,7 @@ def identity(workflow: LoadedWorkflow, golden: Mapping[str, Any]) -> list[str]:
     stated = workflow.identity
     prefix = f"{workflow.id}: identity"
     document = stated.get("graph_document")
-    if isinstance(document, Mapping) and pinned["graph_documents"].get(
+    if isinstance(document, Mapping) and pinned.get("graph_documents", {}).get(
         document.get("recipe")
     ) != dict(document):
         problems.append(f"{prefix} graph document differs from the golden")

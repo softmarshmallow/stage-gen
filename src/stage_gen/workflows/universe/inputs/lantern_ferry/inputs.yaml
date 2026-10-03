@@ -1,0 +1,16 @@
+# The committed fixture world: small on purpose, original and brand-neutral, so the
+# contracts are exercised end to end without anything a reviewer would have to judge.
+universe_id: lantern_ferry
+title: The Lantern Ferry
+medium: anime_2d
+poster: references/poster.png
+synopsis: synopsis.md
+direction: expansion-direction.md
+census:
+  min_entities: 6
+  max_entities: 10
+rights:
+  status: unreviewed
+  basis:
+    - Original brand-neutral fixture world authored in this repository for the universe workflow's contract tests.
+    - The poster is drawn deterministically by scripts/author_universe_fixture_poster.py from fixed constants, with no provider call and no third-party input.

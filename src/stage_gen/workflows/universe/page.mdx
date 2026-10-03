@@ -1,18 +1,17 @@
-A universe is something to explore rather than play: typed entities, their relationships, the tensions between them and the questions the source leaves open, with exactly one concept image for each entity. It starts from a poster, a synopsis and an expansion direction, and keeps their roles apart: the poster is visual evidence only, and the synopsis holds the world's facts. The semantic phase proposes the world, and it must pass an independent review before anything is drawn. The gallery phase then gives each admitted entity one concept image, reviewed by a model that did not draw it. The set is judged as a whole: a reader who has not seen the synopsis should be able to explain how the world works, who disagrees, and why.
+A universe is something to explore rather than play: typed entities, their relationships, the tensions between them and the questions the source leaves open, with exactly one concept image for each entity. It starts from a poster, a synopsis and an expansion direction, and keeps their roles apart: the poster is visual evidence only, and the synopsis holds the world's facts. The world is proposed first, and it must pass an independent review before anything is drawn. Then each admitted entity gets one concept image, reviewed against its record. The set is judged as a whole: a reader who has not seen the synopsis should be able to explain how the world works, who disagrees, and why.
 
 ## Run it yourself
 
-The committed `lantern_ferry` package is a complete source: a poster, a synopsis and an expansion
-direction. Plan the semantic phase offline, and try it with deterministic fake operations before
-any spend:
+The committed `lantern_ferry` world is a complete source: a poster, a synopsis, an expansion
+direction and the `inputs.yaml` that names them. Plan it offline, before any spend:
 
 ```sh
-uv run stage-gen plan universe --phase semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry
-uv run stage-gen run universe --phase semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry --output out/universe-try --cache-dir out/cache --dry-run
-uv run stage-gen inspect out/universe-try
+uv run gnode plan universe --inputs src/stage_gen/workflows/universe/inputs/lantern_ferry/inputs.yaml
 ```
 
-A live semantic run needs `--live` in place of `--dry-run`, and an OpenRouter key. The gallery phase
-is planned and run from an admitted live semantic run with `--phase gallery --semantic-run DIR`;
-a dry-run semantic run is never admitted. The
-[contract](contract.md) holds the source roles, both phases, their reviews and their graphs.
+The plan prices the world phase exactly and the gallery at its ceiling, since how many entities
+there are is a result of the world. A live run needs `--live`, an OpenRouter key and a ceiling: with
+`--max-usd 1` it stops before the gallery, and running it again with a higher ceiling draws the
+gallery from the admitted world without proposing it again. The run's own view shows the gallery,
+one card per entity, with a red dot on an image its review rejected. The [contract](contract.md)
+holds the source roles, both phases, the judges and the graph.

@@ -35,11 +35,6 @@ from iron_petal_unit_pipeline.runner_graph import (
 from stage_gen.orchestration.graph_executor import GraphExecutor
 from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_handler import CachedNodeHandler
-from stage_gen.workflows.universe.universe_executor import UniverseExecutor
-from stage_gen.workflows.universe.universe_graph import (
-    UNIVERSE_GRAPH_SCHEMA_VERSION,
-    UniverseGraph,
-)
 from the_grain_pipeline.dialogue_scene.scene_executor import DialogueSceneExecutor
 from the_grain_pipeline.dialogue_scene.scene_graph import (
     DIALOGUE_GRAPH_SCHEMA_VERSION,
@@ -62,7 +57,6 @@ GRAPHS: tuple[tuple[type[GraphDocument], str, int], ...] = (
     (SideviewRunnerGraph, "sideview-runner", RUNNER_GRAPH_SCHEMA_VERSION),
     (PointClickRoomGraph, "pointclick-room", POINTCLICK_GRAPH_SCHEMA_VERSION),
     (DialogueSceneGraph, "dialogue-scene", DIALOGUE_GRAPH_SCHEMA_VERSION),
-    (UniverseGraph, "universe", UNIVERSE_GRAPH_SCHEMA_VERSION),
     (ObliqueSurvivalGraph, "oblique-survival", OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION),
 )
 
@@ -71,7 +65,6 @@ EXECUTORS = (
     SideviewRunnerExecutor,
     PointClickRoomExecutor,
     DialogueSceneExecutor,
-    UniverseExecutor,
     ObliqueSurvivalExecutor,
 )
 
@@ -153,10 +146,17 @@ def test_no_recipe_redefines_a_substrate_helper() -> None:
 
 
 def _recipe_modules() -> list[ModuleType]:
+    """Each graph executor's ``prepared_*`` handler modules, beside the executor."""
+
     import importlib
+    import sys
 
     modules: list[ModuleType] = []
-    for path in sorted(path for root in WORKFLOW_ROOTS for path in root.rglob("prepared_*.py")):
-        relative = path.relative_to(SOURCE_ROOT.parent).with_suffix("")
-        modules.append(importlib.import_module(".".join(relative.parts)))
+    for executor in EXECUTORS:
+        module = sys.modules[executor.__module__]
+        assert module.__file__ is not None
+        folder = Path(module.__file__).parent
+        package = executor.__module__.rsplit(".", 1)[0]
+        for path in sorted(folder.glob("prepared_*.py")):
+            modules.append(importlib.import_module(f"{package}.{path.stem}"))
     return modules

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections import Counter
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -339,10 +340,114 @@ def _holds_files(value: Mapping[str, Any]) -> bool:
     return bool(items) and all(_holds_files(item) for item in items)
 
 
+_SEGMENT = re.compile(r"(?P<name>[A-Za-z_][A-Za-z0-9_-]*)(?:\[(?P<key>'(?:[^'\\]|\\.)*')\])?")
+
+
+def _path_parts(path: str) -> list[tuple[str, str | None]]:
+    """``entity['bellwright'].draw`` as ``[("entity", "bellwright"), ("draw", None)]``."""
+
+    parts: list[tuple[str, str | None]] = []
+    position = 0
+    while position < len(path):
+        match = _SEGMENT.match(path, position)
+        if match is None:
+            return [(path, None)]
+        key = match["key"]
+        unquoted = None if key is None else re.sub(r"\\(.)", r"\1", key[1:-1])
+        parts.append((match["name"], unquoted))
+        position = match.end()
+        if position < len(path):
+            if path[position] != ".":
+                return [(path, None)]
+            position += 1
+    return parts
+
+
+def _place_step(tree: dict[str, Any], path: str, entry: dict[str, Any]) -> None:
+    """File one step's entry under its groups: a repeat holds ``instances`` by key."""
+
+    node = tree
+    parts = _path_parts(path)
+    for name, key in parts[:-1]:
+        if key is None:
+            node = node.setdefault(name, {"steps": {}})["steps"]
+            continue
+        instances = node.setdefault(name, {"instances": []})["instances"]
+        instance = next((i for i in instances if i["key"] == key), None)
+        if instance is None:
+            instance = {"key": key, "status": "succeeded", "steps": {}}
+            instances.append(instance)
+        if entry["status"] != "succeeded":
+            instance["status"] = entry["status"]
+        node = instance["steps"]
+    name, key = parts[-1]
+    if key is None:
+        node[name] = entry
+        return
+    instances = node.setdefault(name, {"instances": []})["instances"]
+    instances[:] = [i for i in instances if i["key"] != key]
+    instances.append({"key": key, **entry})
+
+
+def _workflow_context(
+    run_dir: Path,
+    plan: Mapping[str, Any],
+    events: list[dict[str, Any]],
+    run: Mapping[str, Any],
+    facts_reader: FactsReader | None,
+) -> dict[str, Any]:
+    """The whole run, as a workflow's own view reads it: every step by name, and outputs."""
+
+    declared: Mapping[str, Mapping[str, Any]] = plan.get("steps", {})
+    started: dict[str, Mapping[str, Any]] = {}
+    tree: dict[str, Any] = {}
+    statuses = {"node_finished": "succeeded", "node_failed": "failed", "node_skipped": "skipped"}
+    for event in events:
+        name = event.get("event")
+        identifier = event.get("id")
+        if name == "node_started" and isinstance(identifier, str):
+            started[identifier] = event
+        if name not in statuses or not isinstance(identifier, str):
+            continue
+        start = started.get(identifier, {})
+        path = str(event.get("path", identifier))
+        step = declared.get(str(start.get("step", "")), {})
+        takes = start.get("take") or [1]
+        _place_step(
+            tree,
+            path,
+            {
+                "path": path,
+                "title": step.get("title") or path.rsplit(".", 1)[-1],
+                "status": statuses[name],
+                "take": takes[-1],
+                "facts": event.get("facts", {}),
+                "outputs": {
+                    output: _context_value(run_dir, value, facts_reader)
+                    for output, value in event.get("outputs", {}).items()
+                },
+            },
+        )
+    finished = [event for event in events if event.get("event") == "run_finished"]
+    outputs = finished[-1].get("outputs", {}) if finished else {}
+    return {
+        "kind": VIEW_CONTEXT_KIND,
+        "scope": "workflow",
+        "node_id": None,
+        "template": plan["view"],
+        "steps": tree,
+        "outputs": {
+            name: _context_value(run_dir, value, facts_reader) for name, value in outputs.items()
+        },
+        "run": run,
+    }
+
+
 def view_contexts(
     run_dir: Path, *, facts_reader: FactsReader | None = None
 ) -> list[dict[str, Any]]:
-    """Each finished step with a view, as its view reads it (``gnode-view-context-v1``).
+    """Each finished step with a view, as its view reads it (``gnode-view-context-v1``),
+    then the whole run, when the workflow has a view of its own (``scope: workflow``).
 
     ``step`` is the step: its path, title, status, take, cost and every resolved ``with``
     value; ``inputs`` are the files among them and ``outputs`` the files it made, each
@@ -412,6 +517,8 @@ def view_contexts(
                 "run": run,
             }
         )
+    if isinstance(plan.get("view"), str):
+        contexts.append(_workflow_context(run_dir, plan, events, run, facts_reader))
     return contexts
 
 

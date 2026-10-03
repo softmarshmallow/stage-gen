@@ -1,4 +1,5 @@
-# Only what the code cannot know. Steps, identity and the sample plan live in workflow.py.
+# Only what the workflow file cannot say. Steps, titles and the sample plan come from
+# workflow.yaml through gnode.
 schema_version = 1
 kind = "stage-gen-workflow-v1"
 id = "universe"
@@ -10,17 +11,21 @@ independent reviewer must admit; a gallery phase then draws exactly one reviewed
 for each admitted entity."""
 
 [try]
-input = "The committed lantern_ferry package in inputs/lantern_ferry"
+input = "The committed lantern_ferry world in inputs/lantern_ferry: a poster, a synopsis, an expansion direction and the inputs.yaml that names them"
 commands = [
-  "stage-gen plan universe --phase semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry",
-  "stage-gen run universe --phase semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry --output out/universe-try --cache-dir out/cache --dry-run",
-  "stage-gen inspect out/universe-try",
+  "gnode plan universe --inputs src/stage_gen/workflows/universe/inputs/lantern_ferry/inputs.yaml",
+  "gnode run universe --inputs src/stage_gen/workflows/universe/inputs/lantern_ferry/inputs.yaml --live --max-usd 1",
+  "gnode inspect universe --verify",
 ]
 
 [[outputs]]
-artifact_ref = "semantic/universe.json"
-description = "The admitted storyworld: entities, relationships and open questions"
+artifact_ref = "outputs/universe.json"
+description = "The admitted storyworld: entities, relationships and open questions, with the review it passed"
 
 [[outputs]]
-artifact_ref = "semantic/admission.json"
-description = "Why the world was admitted, with the review it passed"
+artifact_ref = "outputs/gallery/"
+description = "Each entity's concept image, record and readable page"
+
+[[outputs]]
+artifact_ref = "outputs/manifest.json"
+description = "Every entity's status and class, and the rights the run was given"

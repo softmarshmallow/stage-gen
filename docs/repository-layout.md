@@ -148,8 +148,11 @@ src/stage_gen/workflows/
 │   └── inputs/supplied_clip/          # Original geometric actor: a still and a lossless clip
 ├── portrait_motion/                   # Generation, qualification, budgets and recovery
 │   └── inputs/                        # The four-card and face-crop specifications
-├── universe/                          # No example.py; executor modules, not pipeline.py
-│   └── inputs/lantern_ferry/          # Existing self-contained storyworld input
+├── universe/                          # A workflow file: world, look, entity, close
+│   ├── nodes/, prompts/, schemas/     # Judges and projections; templates; answer schemas
+│   ├── views/gallery.html             # The workflow's own view: the gallery
+│   ├── models.py, medium.py, ontology.py  # The contract models, mediums and vocabulary
+│   └── inputs/lantern_ferry/          # The committed fixture world and its inputs.yaml
 └── character_3d/                      # Declaration, CLI and importer only; no inputs/
     └── examples/tavi-parts.mdx        # Prose for one pinned example
 
@@ -160,8 +163,8 @@ docs/sdk/pipelines/
 └── portrait_processing.py             # Component composition and preserved-pixel proof
 ```
 
-A workflow written as a workflow file has the shape `looping_parallax/` and `movie_sprite/`
-show. The tree lists
+A workflow written as a workflow file has the shape `looping_parallax/`, `movie_sprite/` and
+`universe/` show. The tree lists
 only what differs. Sample inputs and their scripts live in a
 workflow's `inputs/`; cross-component
 SDK samples live in `docs/sdk/pipelines`. A future component example should likewise live
@@ -174,11 +177,8 @@ hidden layers from one finished reference image. That operation can be added as 
 upstream generation stage with its own validation, while the repeat/composition/preview
 stages remain reusable.
 
-The universe workflow keeps its own scoped TOML. Portrait motion's pipeline belongs to its
-workflow; component-level crop/render/reconstruction remains in the component. Universe seals
-a `GraphDocument` (`stage_gen.pipeline.graph_document`) and runs through `GraphExecutor`
-(`stage_gen.orchestration.graph_executor`) at the composition root, because it builds
-`RunServices`; it does not define the SDK.
+Portrait motion's pipeline belongs to its workflow; component-level
+crop/render/reconstruction remains in the component.
 
 Examples are not committed. `stage-gen example promote` and `demo-games example export`
 write frozen exports into the local, gitignored store `out/examples/<owner>/<id>/`, and each

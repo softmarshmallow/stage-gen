@@ -164,13 +164,14 @@ def test_product_gate_runs_the_workflows_through_their_command_lines() -> None:
         for command in commands
         if command[:2] == ("stage-gen", "run") and command[-1] != "--help"
     ]
-    assert {command[2] for command in runs} == {"universe"}
-    assert all("--dry-run" in command for command in runs)
+    assert runs == []
     files = {w.id for w in discover() if w.root.joinpath("workflow.yaml").is_file()}
-    assert files == {"looping-parallax", "movie-sprite"}
-    for workflow in files:
+    assert files == {"looping-parallax", "movie-sprite", "universe"}
+    for workflow in files - {"universe"}:
         assert ("gnode", "run", workflow) in {command[:3] for command in commands}
         assert ("gnode", "inspect", workflow, "--verify") in commands
+    # Universe's run is all paid calls: the gate plans it, phases and ceilings included.
+    assert ("gnode", "plan", "universe") in {command[:3] for command in commands}
     assert {("gnode", "lock", workflow, "--check") for workflow in files} <= set(commands)
     assert ("stage-gen", "list") in commands
     assert any(command[:3] == ("stage-gen", "catalog", "export") for command in commands)

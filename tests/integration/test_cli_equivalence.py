@@ -53,8 +53,6 @@ class Probe:
     behaviour: Behaviour
 
 
-_UNIVERSE = "stage_gen.workflows.universe.universe_executor.UniverseExecutor"
-
 #: The final internal calls of every renamed command, and the calls on the way to them.
 PROBES: tuple[Probe, ...] = (
     Probe("stage_gen.pipeline.load_definition", "definition"),
@@ -68,10 +66,6 @@ PROBES: tuple[Probe, ...] = (
     Probe("stage_gen.workflows.portrait_motion.pipeline.run_pipeline", "stop"),
     Probe("stage_gen.workflows.portrait_motion.pipeline.verify_run", "stop"),
     Probe("stage_gen.orchestration.character_3d.launch.main", "argv"),
-    Probe(f"{_UNIVERSE}.dry_run_semantic", "stop"),
-    Probe(f"{_UNIVERSE}.run_semantic", "stop"),
-    Probe(f"{_UNIVERSE}.dry_run_gallery", "stop"),
-    Probe(f"{_UNIVERSE}.run_gallery", "stop"),
     Probe("stage_gen.capabilities.generate_image_artifact", "stop"),
     Probe("stage_gen.capabilities.remove_background", "stop"),
     Probe("stage_gen.capabilities.generate_music", "stop"),
@@ -80,7 +74,6 @@ PROBES: tuple[Probe, ...] = (
     Probe("stage_gen.capabilities.generate_video", "stop"),
     Probe("stage_gen.capabilities.inspect_video", "stop"),
     Probe("stage_gen.orchestration.env_import.import_provider_env", "stop"),
-    Probe("stage_gen.workflows.universe.universe_view.build_universe_view", "view"),
     Probe("gnode.write_run_view", "stop"),
 )
 
@@ -354,7 +347,6 @@ def test_every_retired_entry_point_has_a_case() -> None:
     old = {_entry(case["old_argv"]) for case in cases}
     for program in (
         "stage-gen pipeline",
-        "stage-gen universe",
         "stage-gen-portrait-motion prepare",
         "stage-gen-portrait-motion run",
         "stage-gen-portrait-motion verify",
@@ -367,7 +359,6 @@ def test_every_retired_entry_point_has_a_case() -> None:
         "demo-games remove-background",
         "demo-games inspect-video",
         "demo-games import-env",
-        "demo-games export-view",
     ):
         assert program in old, program
     assert all(case["new_argv"][0] == "stage-gen" for case in cases)

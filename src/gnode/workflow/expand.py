@@ -458,12 +458,10 @@ class Expander:
                 self.problems.append(Problem(f"{where}.for_each", "must be a list"))
                 into.kind = "absent"
                 return
-            if declared.max is not None and len(listed) > declared.max:
+            limit = self._max(frame, declared, where)
+            if limit is not None and len(listed) > limit:
                 self.problems.append(
-                    Problem(
-                        f"{where}.for_each",
-                        f"{len(listed)} items exceed max: {declared.max}",
-                    )
+                    Problem(f"{where}.for_each", f"{len(listed)} items exceed max: {limit}")
                 )
             phase = self._phase_of(reads, frame)
             seen: set[str] = set()
@@ -504,6 +502,23 @@ class Expander:
             if child.kind == "expanding":
                 child.kind = "absent"
 
+    def _max(self, frame: _Frame, declared: Step, where: str) -> int | None:
+        """A repeat's ``max:``, a number or an expression the plan can evaluate."""
+
+        if declared.max is None or isinstance(declared.max, int):
+            limit = declared.max
+        else:
+            limit = self._evaluate(frame, declared.max, f"{where}.max")
+            if contains_pending(limit):
+                self.problems.append(Problem(f"{where}.max", "max: must be known while planning"))
+                return None
+        if limit is None or limit is MISSING:
+            return None
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10_000:
+            self.problems.append(Problem(f"{where}.max", "max: is a whole number from 1 to 10000"))
+            return None
+        return limit
+
     def _pending_repeat(
         self,
         frame: _Frame,
@@ -513,7 +528,8 @@ class Expander:
         into: _StepExpansion,
         waiting: list[Any],
     ) -> None:
-        if declared.max is None:
+        limit = self._max(frame, declared, where)
+        if limit is None:
             self.problems.append(
                 Problem(
                     where,
@@ -529,7 +545,7 @@ class Expander:
         self.pending.append(
             PendingRepeat(
                 path=f"{frame.prefix}{name}",
-                max=declared.max or 1,
+                max=limit or 1,
                 waiting_on=frozenset(refs),
                 per_instance_low_usd=low,
                 per_instance_high_usd=high,
@@ -1036,6 +1052,7 @@ class Expander:
     ) -> tuple[dict[str, Any], set[str]]:
         values: dict[str, Any] = {}
         reads: set[str] = set()
+        templates: set[str] = set()
         for name, raw in declared.with_.items():
             if name not in spec.inputs and name not in spec.params:
                 self.problems.append(
@@ -1056,6 +1073,7 @@ class Expander:
                 value = self._files(frame, value, port, f"{where}.with.{name}")
             elif spec.params[name].get("x-gnode-template") and _is_project_path(value):
                 value = self._project_file(frame, value, f"{where}.with.{name}")
+                templates.add(name)
             values[name] = value
         for name, port in spec.inputs.items():
             if name not in values and not port.optional:
@@ -1067,7 +1085,31 @@ class Expander:
                 values[name] = schema["default"]
             elif not schema.get("optional", False):
                 self.problems.append(Problem(f"{where}.with", f"{spec.name} needs setting {name}"))
+        for name in templates:
+            if isinstance(values[name], FileValue):
+                values[name] = self._render(frame, values[name], values, f"{where}.with.{name}")
         return values, reads
+
+    def _render(
+        self, frame: _Frame, template: FileValue, values: Mapping[str, Any], where: str
+    ) -> Any:
+        """A prompt file, rendered: its ``${{ }}`` see the step's ``vars`` and ``inputs``.
+
+        A value a run has not produced yet leaves the prompt pending, like any other.
+        """
+
+        if template.location is None:
+            self.problems.append(Problem(where, f"{template.name} has no text to render"))
+            return MISSING
+        source = expr.prompt_text(Path(template.location).read_text(encoding="utf-8"))
+        parsed = expr.template(source)
+        if parsed is None:
+            return source
+        try:
+            return expr.render(parsed, _TemplateScope(values.get("vars") or {}, frame.inputs))
+        except ExpressionError as error:
+            self.problems.append(Problem(where, f"{template.name}: {error}"))
+            return MISSING
 
     def _project_file(self, frame: _Frame, value: str, where: str) -> Any:
         try:
@@ -1216,6 +1258,24 @@ class _StepScope(Scope):
         if isinstance(value, Failed) or value is MISSING:
             return value
         return super().facts(value)
+
+
+class _TemplateScope(Scope):
+    """What a prompt template sees: the step's ``vars``, each also by its own name, and the
+    workflow's ``inputs``."""
+
+    def __init__(self, variables: Any, inputs: Mapping[str, Any]) -> None:
+        self.variables = variables
+        self.inputs = inputs
+
+    def root(self, name: str) -> Any:
+        if name == "vars":
+            return self.variables
+        if name == "inputs":
+            return self.inputs
+        if isinstance(self.variables, Mapping) and name in self.variables:
+            return self.variables[name]
+        raise ExpressionError(f"a prompt sees vars and inputs, not {name!r}")
 
 
 class _Lets:

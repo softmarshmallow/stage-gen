@@ -85,3 +85,50 @@ async def test_a_run_keeps_its_views_and_projects_their_contexts(tmp_path: Path)
     }
     (image,) = measured["draw"]["outputs"].values()
     assert (image["facts"]["width"], image["facts"]["height"]) == (1, 1)
+
+
+WHOLE = """
+gnode: workflow/v1
+id: flow
+title: Flow
+steps:
+  words:
+    for_each: [harbour, lantern]
+    key: ${{ item }}
+    steps:
+      loud:
+        title: Shout it
+        uses: ./nodes/test_nodes.py#shout
+        with: { text: "${{ item }}" }
+  draw:
+    uses: gnode/image.generate@1
+    with: { prompt: a lantern }
+outputs:
+  image: ${{ steps.draw.outputs.image }}
+view: ./views/whole.html
+"""
+
+
+async def test_a_workflow_view_reads_the_whole_run(tmp_path: Path) -> None:
+    path = project(tmp_path, WHOLE, **{"views/whole.html": WORDS})
+    planner = make_planner(
+        path, cwd=tmp_path, builtins=standard_types(), routes=ROUTES, facts_reader=file_facts
+    )
+    run_dir = tmp_path / "runs/one"
+    provider = FakeProvider(planner.store)
+    outcome = await WorkflowRun(
+        await make_plan(planner), run_dir=run_dir, services=provider.services()
+    ).run()
+    assert outcome.ok, outcome.failed
+
+    (whole,) = [c for c in view_contexts(run_dir) if c["scope"] == "workflow"]
+    jsonschema.validate(whole, document_schemas()["gnode-view-context-v1.schema.json"])
+    assert (run_dir / whole["template"]).read_text(encoding="utf-8") == WORDS
+    instances = whole["steps"]["words"]["instances"]
+    assert [instance["key"] for instance in instances] == ["harbour", "lantern"]
+    loud = instances[1]["steps"]["loud"]
+    assert (loud["title"], loud["status"]) == ("Shout it", "succeeded")
+    assert (run_dir / loud["outputs"]["text"]["ref"]).read_text() == "LANTERN"
+    image = whole["outputs"]["image"]
+    assert image["kind"] == "image/png" and (run_dir / image["ref"]).is_file()
+    assert whole["run"]["status"] == "succeeded"

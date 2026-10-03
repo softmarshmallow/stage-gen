@@ -383,14 +383,13 @@ def test_identity_must_agree_with_the_identity_golden(loaded: dict[str, LoadedWo
     for workflow in loaded.values():
         assert checks.identity(workflow, GOLDEN) == []
     moved = json.loads(json.dumps(GOLDEN))
-    moved["identities"]["cache"]["universe_namespace"] = "universe-nodes-v2"
     moved["identities"]["node_types"] = [
         entry
         for entry in moved["identities"]["node_types"]
-        if entry[0] not in {"looping_parallax/compose", "movie_sprite/take"}
+        if entry[0] not in {"looping_parallax/compose", "movie_sprite/take", "universe/close"}
     ]
     assert checks.identity(loaded["universe"], moved) == [
-        "universe: identity cache constant universe_namespace differs from the golden"
+        "universe: identity node type universe/close is not in the golden inventory"
     ]
     assert checks.identity(loaded["movie-sprite"], moved) == [
         "movie-sprite: identity node type movie_sprite/take is not in the golden inventory"

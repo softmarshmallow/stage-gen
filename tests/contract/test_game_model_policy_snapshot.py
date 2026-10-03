@@ -71,8 +71,6 @@ def test_active_snapshot_covers_every_policy_route_and_canonical_recipe() -> Non
         "pointclick_room",
         "sideview_platformer",
         "sideview_runner",
-        "universe_gallery",
-        "universe_semantic",
     }
     assert all(
         binding.route_id in route_ids for recipe in snapshot.recipes for binding in recipe.bindings

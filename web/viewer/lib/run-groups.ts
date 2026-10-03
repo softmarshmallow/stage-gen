@@ -9,7 +9,6 @@
 // otherwise other runs: an older build's, a calibration's, a user's own pipeline's.
 
 import type { Catalog, CatalogWorkflow } from "@stage-gen/ui/contracts/catalog";
-import { GALLERY_MANIFEST_KIND } from "@/lib/universe/contract";
 
 /** What a run's anchor document and its view declare. */
 export interface RunIdentity {
@@ -30,11 +29,6 @@ export const SDK_VIEW_KIND = "pipeline-execution-view-v1";
 
 /** Documents a game writes for its own host to play. */
 const CONSUMER_DOCUMENTS = new Set(["manifest.json", "bundle.json", "case.json"]);
-
-/** Output documents whose reader the viewer carries, by the workflow whose runs write them. */
-const OUTPUT_DOCUMENT_WORKFLOWS: Readonly<Record<string, string>> = {
-  [GALLERY_MANIFEST_KIND]: "universe",
-};
 
 function texts(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
@@ -96,10 +90,6 @@ export function workflowOf(identity: RunIdentity, catalog: Catalog): string | nu
         workflow.identity.graphKinds.includes(identity.kind),
     );
     return named?.id ?? null;
-  }
-  const output = identity.kind === null ? undefined : OUTPUT_DOCUMENT_WORKFLOWS[identity.kind];
-  if (output !== undefined && catalog.workflows.some((workflow) => workflow.id === output)) {
-    return output;
   }
   return catalog.workflows.find((workflow) => claims(identity, claimsOf(workflow)))?.id ?? null;
 }

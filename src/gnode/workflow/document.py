@@ -80,7 +80,8 @@ class Step(_Document):
     for_each: Any = None
     as_: Name = Field(default="item", alias="as")
     key: str | None = None
-    max: int | None = Field(default=None, ge=1, le=10_000)
+    #: The most items a repeat may run: a number, or an expression known while planning.
+    max: int | str | None = None
     matrix: dict[Name, Any] | None = None
     steps: dict[Name, Step] | None = None
     judges: Name | None = None

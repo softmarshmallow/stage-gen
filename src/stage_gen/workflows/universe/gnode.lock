@@ -1,0 +1,14 @@
+# gnode.lock: the source behind each versioned node type; commit it
+nodes:
+  nodes/entities.py#entity_context@1: c5658710502d27c23f7ac9a8b1230d295ee5c7670cec8364a9fff6d5ca55aaa6
+  nodes/entities.py#image_prompt@1: c5658710502d27c23f7ac9a8b1230d295ee5c7670cec8364a9fff6d5ca55aaa6
+  nodes/entities.py#record@1: c5658710502d27c23f7ac9a8b1230d295ee5c7670cec8364a9fff6d5ca55aaa6
+  nodes/entities.py#review_record@1: c5658710502d27c23f7ac9a8b1230d295ee5c7670cec8364a9fff6d5ca55aaa6
+  nodes/judges.py#direction_ok@1: 952aed80bef97d1047aebf2466e7691791282d8f4d0acf153fb54fd112044b6e
+  nodes/judges.py#grammar_ok@1: 952aed80bef97d1047aebf2466e7691791282d8f4d0acf153fb54fd112044b6e
+  nodes/judges.py#plan_ok@1: 952aed80bef97d1047aebf2466e7691791282d8f4d0acf153fb54fd112044b6e
+  nodes/judges.py#proposal_ok@1: 952aed80bef97d1047aebf2466e7691791282d8f4d0acf153fb54fd112044b6e
+  nodes/world.py#admit@1: ffcc870b174113751e34fec8d5aaecfaf2ef6cb6789ac3768813604fad8e0ac7
+  nodes/world.py#grammar_projection@1: ffcc870b174113751e34fec8d5aaecfaf2ef6cb6789ac3768813604fad8e0ac7
+  nodes/world.py#projection@1: ffcc870b174113751e34fec8d5aaecfaf2ef6cb6789ac3768813604fad8e0ac7
+  nodes/world.py#source@1: ffcc870b174113751e34fec8d5aaecfaf2ef6cb6789ac3768813604fad8e0ac7

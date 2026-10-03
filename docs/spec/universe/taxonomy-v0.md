@@ -156,8 +156,9 @@ been activated by a public consumer.
 
 Universe inputs belong to their caller or to an example beside the independent
 universe recipe. They do not live in the games collection unless a particular
-game explicitly chooses to consume them. The executable recipe now accepts its
-own `universe.toml`; the format is independent of prepared `game.toml` closures.
+game explicitly chooses to consume them. The executable workflow takes its own
+inputs (an `inputs.yaml` naming the poster, synopsis and direction); the format is
+independent of prepared `game.toml` closures.
 
 The universe contract will own semantic subjects, entity concept images, and
 text-explanation requirements. A future consumer will own browsing, layout,

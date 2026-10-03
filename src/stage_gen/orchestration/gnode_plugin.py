@@ -9,18 +9,26 @@ check that every Stage Gen image call already goes through.
 
 It also contributes ``video.generate`` on fal's first-and-last-frame route, as a long
 job: one submission to fal's queue, whose handle gnode keeps, so a run that stops while
-the clip renders collects it next time instead of paying for it again.
+the clip renders collects it next time instead of paying for it again; and
+``structured.generate`` on the configured text model through OpenRouter, whose answer is
+held to the step's JSON Schema inside the structured service's one retry owner.
 """
 
 from __future__ import annotations
 
 import base64
+import io
+import json
 import tempfile
+from collections import Counter
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 import yaml
+from PIL import Image
 
 from gnode import (
     CallRecord,
@@ -38,6 +46,9 @@ from gnode import (
     RoutePrice,
     RouteTable,
     Store,
+    StructuredGenerationRequest,
+    StructuredOutputSchema,
+    StructuredReference,
     VideoGenerationRequest,
     VideoReference,
     retry_with_backoff,
@@ -56,6 +67,13 @@ from stage_gen.model_routes import (
     resolve_image_route,
 )
 from stage_gen.orchestration.image_routing import RoutedImageGenerationService
+from stage_gen.orchestration.runtime import create_structured_service
+from stage_gen.orchestration.services import OPENROUTER_BASE_URL
+from stage_gen.pipeline.structured_transport import (
+    decode_completion_wrapper,
+    inline_local_schema_refs,
+    known_cost,
+)
 
 #: How long one edit may take before the service gives up on it.
 _TIMEOUT_SECONDS = 600
@@ -386,6 +404,159 @@ def video_job(
     return LongJob(start, collect)
 
 
+# ------------------------------------------------------------------------ structured
+
+#: The configured text model's price per call on OpenRouter, from its universe calibration
+#: (2026-09-02): a call is cents unless it is long, and the dearest seen stayed under 0.60.
+_STRUCTURED_PRICE = RoutePrice(0.02, 0.60)
+_STRUCTURED_MAX_TOKENS = 16_000
+_STRUCTURED_TIMEOUT_SECONDS = 1_800
+#: The long edge a picture in a call's context is reduced to before it is sent.
+_CONTEXT_LONG_EDGE = 1_600
+
+StructuredServiceFactory = Callable[..., Any]
+
+
+def structured_routes(config: StageGenConfig) -> list[Route]:
+    """The configured text model, answering to a JSON Schema, with pictures in its context."""
+
+    return [
+        Route(
+            capability="structured.generate",
+            model=config.text_model,
+            provider="openrouter",
+            price=_STRUCTURED_PRICE,
+            features=frozenset({"structured_output", "image_input"}),
+            concurrency=4,
+            contract={"adapter": "openrouter-structured", "adapter_behavior": 1},
+        )
+    ]
+
+
+def _context_picture(file: FileValue, matte: str) -> StructuredReference:
+    """A picture of the context, reduced and flattened onto ``matte``, as a PNG data URL."""
+
+    if file.location is None:
+        raise _NotSent(f"{file.name} has no bytes to send")
+    with Image.open(file.location) as opened:
+        picture = opened.convert("RGBA")
+    picture.thumbnail((_CONTEXT_LONG_EDGE, _CONTEXT_LONG_EDGE), Image.Resampling.LANCZOS)
+    ground = Image.new("RGBA", picture.size, matte)
+    ground.alpha_composite(picture)
+    buffer = io.BytesIO()
+    ground.convert("RGB").save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return StructuredReference(f"data:image/png;base64,{encoded}", file.name)
+
+
+def _context_text(file: FileValue) -> str:
+    if file.location is None:
+        raise _NotSent(f"{file.name} has no bytes to send")
+    return f"--- {file.name} ---\n{Path(file.location).read_text(encoding='utf-8')}"
+
+
+@dataclass(frozen=True, slots=True)
+class _StructuredAsk:
+    """One structured call as it is sent: the prompt with its text context, the pictures."""
+
+    prompt: str
+    system: str | None
+    schema: dict[str, Any]
+    name: str
+    pictures: tuple[StructuredReference, ...]
+
+    @classmethod
+    def of(cls, request: Mapping[str, Any]) -> _StructuredAsk:
+        prompt = request.get("prompt")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise _NotSent("a structured call needs its prompt as text")
+        schema_file = request.get("schema")
+        if not isinstance(schema_file, FileValue) or schema_file.location is None:
+            raise _NotSent("a structured call needs its schema as a JSON file")
+        schema = json.loads(Path(schema_file.location).read_text(encoding="utf-8"))
+        if not isinstance(schema, dict):
+            raise _NotSent("a structured call's schema is a JSON object")
+        matte = str(request.get("matte") or "#ffffff")
+        context = [f for f in request.get("context") or [] if isinstance(f, FileValue)]
+        texts = [_context_text(f) for f in context if not f.kind.startswith("image")]
+        name = str(schema.get("title") or Path(schema_file.name).stem)
+        system = request.get("system")
+        return cls(
+            prompt="\n\n".join([prompt, *texts]),
+            system=system if isinstance(system, str) and system.strip() else None,
+            schema=schema,
+            name="".join(c if c.isalnum() else "_" for c in name)[:64],
+            pictures=tuple(
+                _context_picture(f, matte) for f in context if f.kind.startswith("image")
+            ),
+        )
+
+
+def structured_job(
+    config: StageGenConfig,
+    store: Store,
+    *,
+    factory: StructuredServiceFactory = create_structured_service,
+) -> CapabilityHandler:
+    """``structured.generate``: one answer held to the step's JSON Schema.
+
+    The schema check runs inside the structured service's retry owner, so an answer that
+    does not fit is drawn again there; what the answer means is the workflow's judges' to
+    say. Pictures in ``context`` are reduced and shown; text and JSON follow the prompt.
+    """
+
+    del store
+
+    async def handle(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
+        del take
+        try:
+            ask = _StructuredAsk.of(request)
+            if not config.open_router_api_key:
+                raise _NotSent("OPENROUTER_API_KEY is not set")
+        except _NotSent as error:
+            raise CallRefused(str(error)) from error
+        schema = ask.schema
+        validator = jsonschema.Draft202012Validator(schema)
+
+        def parse(value: object) -> object:
+            decoded = decode_completion_wrapper(value, Counter())
+            problems = sorted(validator.iter_errors(decoded), key=lambda e: list(e.path))
+            if problems:
+                where = "/".join(str(part) for part in problems[0].path) or "the answer"
+                raise ValueError(f"{where}: {problems[0].message}"[:500])
+            return decoded
+
+        service = factory(
+            api_key=config.open_router_api_key,
+            model=route.model,
+            base_url=config.open_router_base_url or OPENROUTER_BASE_URL,
+        )
+        try:
+            with tempfile.TemporaryDirectory(prefix="gnode-structured-") as scratch:
+                result = await service.generate(
+                    StructuredGenerationRequest(
+                        prompt=ask.prompt,
+                        system=ask.system,
+                        references=ask.pictures,
+                        artifact_path=Path(scratch) / "answer.json",
+                        schema=StructuredOutputSchema(
+                            name=ask.name,
+                            json_schema=inline_local_schema_refs(schema),
+                            description=str(schema.get("description") or "") or None,
+                        ),
+                        parse=parse,
+                        max_tokens=int(request.get("max_tokens") or _STRUCTURED_MAX_TOKENS),
+                        timeout_seconds=_STRUCTURED_TIMEOUT_SECONDS,
+                    )
+                )
+        finally:
+            await service.aclose()
+        data = {"json": result.value, "attempts": result.attempts}
+        return CallRecord({}, data, known_cost(result.response_metadata.usage))
+
+    return handle
+
+
 def published_workflows() -> dict[str, Path]:
     """Every first-party workflow written as a workflow file, by id."""
 
@@ -403,10 +574,13 @@ def plugin() -> Plugin:
     config = load_config()
     return Plugin(
         name="stage_gen",
-        routes=image_routes(config).merged(RouteTable(video_routes())),
+        routes=image_routes(config).merged(
+            RouteTable([*video_routes(), *structured_routes(config)])
+        ),
         capabilities=lambda store: {
             **image_capabilities(config, store),
             "video.generate": video_job(config, store),
+            "structured.generate": structured_job(config, store),
         },
         workflows=published_workflows(),
     )
@@ -417,6 +591,8 @@ __all__ = [
     "image_routes",
     "plugin",
     "published_workflows",
+    "structured_job",
+    "structured_routes",
     "video_job",
     "video_routes",
 ]

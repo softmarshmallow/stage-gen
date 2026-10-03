@@ -105,7 +105,7 @@ node bodies.
 | M0 | Remove storefront and portrait's engine-wide fingerprint; record this ruling. |
 | M1 | One runner and run record, with v1 keys byte-identical. |
 | M2 | The documents, expander, identity v2, call cache, protocol host, CLI and a language-neutral conformance suite. |
-| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once: the ported workflow replays offline and each paid call is answered only by the old result whose provenance records the identical request (`scripts/rekey_v1_runs.py`). A standard type gets its body only when a port uses it: movie-sprite gave `video.generate` its route, video file facts and the `video` view, while `image.key`, `image.contact_sheet` and `video.probe` stay declared, because its finishing keys, checks and samples frames in one local step. |
+| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once: the ported workflow replays offline and each paid call is answered only by the old result whose provenance records the identical request (`scripts/rekey_v1_runs.py`). A standard type gets its body only when a port uses it: movie-sprite gave `video.generate` its route, video file facts and the `video` view, while `image.key`, `image.contact_sheet` and `video.probe` stay declared, because its finishing keys, checks and samples frames in one local step. Universe gave `structured.generate` (prompt templates rendered with `vars:` and `inputs`), `image.resize`, `package` and the workflow's own view their bodies; its two reviews keep their tuned schemas as `structured.generate` answers read by local steps, so `structured.review` and `vision.review` wait for portrait-motion. |
 | M8 | Port the Godot game pipelines onto the public contract, and retire the viewer's motion-atlas player with the game runs it plays. |
 | M9 | Delete v1 identity, the rekey tool, `GraphExecutor`, the old SDK and the `stage-gen` command; publish the user guide. |
 | M10 | The paid requalification of character-3d. |
@@ -135,6 +135,11 @@ said TOML; the amendment is posted on issue #3 with the owner's go.
   byte, so it paired with nothing refused, and its finished loop decodes to the v1 run's
   frames. The cover example's take came from an earlier template, so it stays pinned as a
   record of that version.
+- **M5 re-key.** Universe's paid runs on disk all come from the spike's earlier graph
+  (`universe-v1-execution-graph-v1`), drawn with prompts the promoted workflow no longer sends;
+  no run of the current version exists, so nothing could pair, and nothing is lost by the port.
+  The offline run answers every call from committed constants instead, and the identity golden
+  pins all 105 of its step identities and call keys.
 - **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
   pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
   USD 5.6), about double if a cohort fails.

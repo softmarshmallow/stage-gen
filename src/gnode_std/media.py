@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import io
 import json
+import re
+from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageOps
 
-from gnode import Ctx, NodeFailure
+from gnode import Ctx, FileValue, NodeFailure
 
 #: The largest picture a standard node makes; past it a layer is not a texture but a mistake.
 MAX_EDGE_PX = 16_384
@@ -154,6 +157,58 @@ def files_copy(ctx: Ctx) -> dict[str, Any]:
     return {"file": ctx.out.bytes(file.read_bytes(), file.kind)}
 
 
+#: A destination inside the package: relative, portable, no traversal; ``{key}`` once at most.
+_DESTINATION = re.compile(r"^(?!/)[A-Za-z0-9_.{}-]+(?:/[A-Za-z0-9_.{}-]+)*$")
+_TEXT_KINDS = {".md": "text/markdown", ".txt": "text/plain"}
+
+
+def _laid_out(ctx: Ctx, value: Any, destination: str) -> Any:
+    """One value as a file of the package: a file as it is, text as text, data as JSON."""
+
+    if isinstance(value, FileValue):
+        if value.location is None:
+            raise NodeFailure(f"{destination}: {value.name} has no bytes")
+        return ctx.out.bytes(Path(value.location).read_bytes(), value.kind)
+    if isinstance(value, str):
+        return ctx.out.text(value, _TEXT_KINDS.get(Path(destination).suffix, "text/plain"))
+    return ctx.out.json(value)
+
+
+def _manifest_value(value: Any) -> Any:
+    if isinstance(value, FileValue):
+        return {"digest": value.digest, "kind": value.kind, "name": value.name}
+    if isinstance(value, Mapping):
+        return {str(key): _manifest_value(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_manifest_value(item) for item in value]
+    return value
+
+
+def package(ctx: Ctx) -> dict[str, Any]:
+    """Lay results out as a folder by destination path, beside a manifest written in YAML.
+
+    A destination with ``{key}`` takes a keyed collection, one file per key; any other takes
+    one value. A missing value (a step that did not run) leaves its file out.
+    """
+
+    files: dict[str, Any] = {}
+    for destination, value in ctx.params["files"].items():
+        if not _DESTINATION.match(destination) or ".." in destination.split("/"):
+            raise NodeFailure(f"{destination!r} is not a relative path inside the package")
+        if "{key}" not in destination:
+            if value is not None:
+                files[destination] = _laid_out(ctx, value, destination)
+            continue
+        if not isinstance(value, Mapping):
+            raise NodeFailure(f"{destination} names {{key}}, so it takes a keyed collection")
+        for key, item in value.items():
+            if item is not None:
+                path = destination.replace("{key}", str(key))
+                files[path] = _laid_out(ctx, item, path)
+    manifest = {"files": sorted(files), **_manifest_value(ctx.params["manifest"])}
+    return {"files": files, "manifest": ctx.out.json(manifest)}
+
+
 BODIES = {
     "image.mirror_repeat": mirror_repeat,
     "image.check_alpha": check_alpha,
@@ -163,4 +218,5 @@ BODIES = {
     "image.pad": pad,
     "json.merge": json_merge,
     "files.copy": files_copy,
+    "package": package,
 }

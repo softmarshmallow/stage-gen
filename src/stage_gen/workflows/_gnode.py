@@ -129,11 +129,9 @@ class GnodeWorkflow:
             return False
         return bool(read_plan(run_dir).get("workflow", {}).get("id") == self.description.id)
 
-    def sample_plan(self, scratch: Path, make_inputs: Path) -> SamplePlan:
-        written = runpy.run_path(str(make_inputs))["write_inputs"](scratch / "inputs")
-        planned = asyncio.run(
-            plan_async(self.description.id, input_files=[Path(written)], cwd=scratch)
-        )
+    def sample_plan(self, scratch: Path, inputs: Path) -> SamplePlan:
+        scratch.mkdir(parents=True, exist_ok=True)
+        planned = asyncio.run(plan_async(self.description.id, input_files=[inputs], cwd=scratch))
         if not planned.ok:
             problems = "; ".join(f"{p.where}: {p.message}" for p in planned.problems)
             raise ValueError(f"{self.description.id}: the sample does not plan: {problems}")
@@ -192,17 +190,21 @@ def _write_view(run_dir: Path, out_dir: Path) -> Path:
 def gnode_workflow(
     package: str,
     *,
-    make_inputs: str | None,
+    make_inputs: str | None = None,
+    sample_inputs: str | None = None,
     no_sample_plan: str | None = None,
     import_example: Callable[..., Any] | None = None,
     no_importer: str | None = None,
 ) -> WorkflowCode:
     """The ``CODE`` of a workflow folder written as ``workflow.yaml``.
 
-    ``make_inputs`` is the folder-relative script whose ``write_inputs(target)`` draws the
-    sample and returns its inputs file; the sample plan is gnode's plan of it.
+    The sample plan is gnode's plan of the sample: ``make_inputs`` is the folder-relative
+    script whose ``write_inputs(target)`` draws one and returns its inputs file, and
+    ``sample_inputs`` a committed inputs file instead.
     """
 
+    if make_inputs is not None and sample_inputs is not None:
+        raise ValueError("a sample is drawn by make_inputs or committed as sample_inputs")
     workflow = GnodeWorkflow.read(package)
 
     def identity() -> Identity:
@@ -212,9 +214,12 @@ def gnode_workflow(
         }
 
     def sample_plan(scratch: Path) -> SamplePlan | None:
-        if make_inputs is None:
-            return None
-        return workflow.sample_plan(scratch, workflow.root / make_inputs)
+        if make_inputs is not None:
+            written = runpy.run_path(str(workflow.root / make_inputs))["write_inputs"]
+            return workflow.sample_plan(scratch, Path(written(scratch / "inputs")))
+        if sample_inputs is not None:
+            return workflow.sample_plan(scratch, workflow.root / sample_inputs)
+        return None
 
     return WorkflowCode(
         steps=workflow.steps(),

@@ -162,7 +162,6 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
     clip = scratch / "movie-sprite-inputs"
     # A scratch folder with no gnode.yaml: the runs and their cache stay inside it.
     project = scratch / "parallax-project"
-    cache = ("--cache-dir", str(scratch / "asset-cache"))
     files = [w for w in discover() if w.root.joinpath("workflow.yaml").is_file()]
     return (
         *(Step(("gnode", "lock", workflow.id, "--check")) for workflow in files),
@@ -182,20 +181,20 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
         # any gnode implementation must pass, run through the gnode command only.
         Step((python, "scripts/write_gnode_schemas.py", "--check")),
         Step((python, "tests/conformance/run.py")),
+        # universe: the plan prices the world phase exactly and the gallery at its ceiling.
         Step(
             (
-                "stage-gen",
-                "run",
+                "gnode",
+                "plan",
                 "universe",
-                "--phase",
-                "semantic",
-                "--input",
-                "src/stage_gen/workflows/universe/inputs/lantern_ferry",
-                "--dry-run",
-                "--output",
-                str(scratch / "lantern-ferry"),
-                *cache,
-            )
+                "--inputs",
+                str(
+                    REPOSITORY_ROOT
+                    / "src/stage_gen/workflows/universe/inputs/lantern_ferry/inputs.yaml"
+                ),
+                "--check",
+            ),
+            cwd=project,
         ),
         Step((python, "scripts/write_model_policy_snapshot.py")),
         Step(("stage-gen", "--help")),

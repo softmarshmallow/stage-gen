@@ -370,14 +370,18 @@ def view_context_schema() -> dict[str, Any]:
     }
     return _with_head(
         "gnode-view-context-v1",
-        "gnode view context: what a step's view reads, as `context()` returns it",
+        "gnode view context: what a step's or a workflow's view reads from `context()`",
         {
             "type": "object",
-            "required": ["kind", "scope", "node_id", "template", "step", "inputs", "outputs"],
+            "required": ["kind", "scope", "template", "outputs", "run"],
+            "if": {"properties": {"scope": {"const": "node"}}},
+            "then": {"required": ["node_id", "step", "inputs"]},
+            "else": {"required": ["steps"]},
             "properties": {
                 "kind": {"const": "gnode-view-context-v1"},
-                "scope": {"const": "node"},
-                "node_id": {"type": "string"},
+                "scope": {"enum": ["node", "workflow"]},
+                "node_id": {"type": ["string", "null"]},
+                "steps": {"type": "object"},
                 "template": {"type": "string", "pattern": "^views/[0-9a-f]{64}\\.html$"},
                 "step": {
                     "type": "object",

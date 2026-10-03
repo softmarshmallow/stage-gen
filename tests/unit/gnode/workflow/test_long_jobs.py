@@ -67,6 +67,10 @@ class Interrupted(Exception):
     """The connection, or the process, died here."""
 
 
+class ProcessDied(BaseException):
+    """The process went away mid-call: nothing ran after this, no handler answered."""
+
+
 class FakeVideo:
     """A provider whose jobs take one submission and one collection."""
 
@@ -176,3 +180,49 @@ async def test_a_crash_while_submitting_stops_for_a_person(
     outcome = await _run(path, tmp_path / "runs/two", again)
     assert outcome.ok, outcome.failed
     assert again.submitted == ["job-1"]
+
+
+async def test_any_call_interrupted_mid_flight_stops_the_next_run_for_a_person(
+    tmp_path: Path,
+) -> None:
+    """Not only long jobs: a call whose process died while it was out is never re-sent."""
+
+    path = _project(tmp_path)
+    store = _planner(path).store
+    sent: list[str] = []
+
+    async def interrupted(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
+        sent.append("first")
+        raise ProcessDied
+
+    async def answered(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
+        sent.append("second")
+        return CallRecord(
+            {"video": store.put_bytes(MP4, kind="video/mp4", name="video")}, None, 0.1
+        )
+
+    async def run(handler: Any, run: str) -> Any:
+        services = HostServices(store=store, capabilities={"video.generate": handler}, live=True)
+        plan = await make_plan(_planner(path))
+        return await WorkflowRun(plan, run_dir=tmp_path / "runs" / run, services=services).run()
+
+    with pytest.raises(ProcessDied):
+        await run(interrupted, "one")
+    assert [job.state for job in store.jobs()] == ["submitting"]
+    outcome = await run(answered, "two")
+    assert not outcome.ok and sent == ["first"]
+    assert "gnode jobs forget" in (outcome.results["take#1"].error or "")
+
+
+async def test_a_call_that_failed_is_over_and_the_next_run_may_call_again(tmp_path: Path) -> None:
+    path = _project(tmp_path)
+    store = _planner(path).store
+
+    async def failing(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
+        raise RuntimeError("the provider said no")
+
+    services = HostServices(store=store, capabilities={"video.generate": failing}, live=True)
+    outcome = await WorkflowRun(
+        await make_plan(_planner(path)), run_dir=tmp_path / "runs/one", services=services
+    ).run()
+    assert not outcome.ok and list(store.jobs()) == []

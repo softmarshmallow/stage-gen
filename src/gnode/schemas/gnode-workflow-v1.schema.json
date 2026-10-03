@@ -303,9 +303,10 @@
     "max": {
      "anyOf": [
       {
-       "maximum": 10000,
-       "minimum": 1,
        "type": "integer"
+      },
+      {
+       "type": "string"
       },
       {
        "type": "null"

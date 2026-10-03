@@ -216,6 +216,8 @@ class Registry(Resolver):
         self.facts_reader = facts_reader
         self.lock_problems: list[str] = []
         self._files: dict[Path, FileValue] = {}
+        #: A project type, once resolved: its source does not change while a plan or run lasts.
+        self._types: dict[tuple[str, Path], TypeRef] = {}
 
     # --------------------------------------------------------------- uses
 
@@ -244,6 +246,12 @@ class Registry(Resolver):
         )
 
     def _project_type(self, uses: str, path: Path, attribute: str) -> TypeRef:
+        key = (uses, path.resolve())
+        if key not in self._types:
+            self._types[key] = self._resolve_project_type(uses, path, attribute)
+        return self._types[key]
+
+    def _resolve_project_type(self, uses: str, path: Path, attribute: str) -> TypeRef:
         if not path.is_file():
             raise RegistryError(f"{uses}: no file {path.name}")
         module = self.modules.load(path)

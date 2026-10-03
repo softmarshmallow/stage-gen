@@ -27,6 +27,16 @@
    "graph_sha256": "8d42f2cc86b218214d23815c0ffa64ac983114a2108e31571eddff72cf382639",
    "incomplete": false,
    "ok": true,
+   "outputs": {
+    "all": {
+     "file": {
+      "digest": "d21bb7e08a12208b181c47742af69509002e4f3314ad820a5c5aa0631d8ce6f6",
+      "kind": "text/plain",
+      "name": "joined/text",
+      "size": 13
+     }
+    }
+   },
    "stopped": null
   },
   "run_started": {

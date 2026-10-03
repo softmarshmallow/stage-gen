@@ -384,7 +384,7 @@ class Ctx:
 
         if path not in self.spec.resources:
             raise NodeFailure(f"{path} is not one of this node's declared resources")
-        source = (self._project_root / path).read_text(encoding="utf-8")
+        source = expr.prompt_text((self._project_root / path).read_text(encoding="utf-8"))
         return render_template(source, {**self.params, **variables})
 
     def tool(self, name: str) -> _Tool:
@@ -571,15 +571,18 @@ def render_template(source: str, variables: Mapping[str, Any]) -> str:
 
 
 def _staged_request(request: Mapping[str, Any]) -> dict[str, Any]:
-    staged: dict[str, Any] = {}
-    for key, value in request.items():
+    """A request with each staged input as the file it is, however deep it sits."""
+
+    def stage(value: Any) -> Any:
         if isinstance(value, InputFile):
-            staged[key] = value.value
-        elif isinstance(value, Output):
-            staged[key] = value
-        else:
-            staged[key] = value
-    return staged
+            return value.value
+        if isinstance(value, list):
+            return [stage(item) for item in value]
+        if isinstance(value, dict):
+            return {key: stage(item) for key, item in value.items()}
+        return value
+
+    return {key: stage(value) for key, value in request.items()}
 
 
 def _request_identity(request: Mapping[str, Any]) -> Any:
@@ -608,8 +611,9 @@ async def call_capability(
 ) -> CallResult:
     """One paid call: from the call cache when an identical request was answered.
 
-    A long job an interrupted run submitted is collected, not submitted again; one whose
-    submission may or may not have reached the provider stops the call for a person.
+    Every call is written down before it may leave. A call whose process died while it was
+    out stops the next run for a person, since nobody can say it did not bill; a long job an
+    interrupted run submitted is collected instead, never submitted again.
     """
 
     store = services.store
@@ -655,19 +659,28 @@ async def call_capability(
         if services.spending is not None
         else None
     )
+    log = JobLog(store, key, name, route.route_id, take)
     try:
         if isinstance(handler, LongJob):
-            log = JobLog(store, key, name, route.route_id, take)
             record = await handler.start(route, staged, take, log)
         else:
+            log.submitting()
             record = await handler(route, staged, take)
     except CallRefused:
         store.clear_job(key)
         if services.spending is not None and hold is not None:
             services.spending.settle(hold, 0.0)
         raise
+    except Exception:
+        # The handler answered, with a failure: the call is over, whatever it billed. A long
+        # job says itself whether anything of it is left to collect.
+        if not isinstance(handler, LongJob):
+            store.clear_job(key)
+        if services.spending is not None and hold is not None:
+            services.spending.settle(hold, None)
+        raise
     except BaseException:
-        # Nobody can say an interrupted call did not bill: its whole hold stays charged.
+        # Interrupted mid-call: it stays written down, and its whole hold stays charged.
         if services.spending is not None and hold is not None:
             services.spending.settle(hold, None)
         raise
@@ -826,7 +839,8 @@ async def _capability_node(ctx: Ctx, spec: NodeSpec) -> dict[str, Any]:
     """A built-in paid type: one call with its settings and inputs, its files as outputs."""
 
     assert spec.capability is not None
-    request = {**ctx.params, **ctx.inputs}
+    # ``vars`` only feeds the prompt templates, which the expander has already rendered.
+    request = {**{k: v for k, v in ctx.params.items() if k != "vars"}, **ctx.inputs}
     result = await ctx.capability(spec.capability, **request)
     outputs: dict[str, Any] = {}
     for name, port in spec.outputs.items():

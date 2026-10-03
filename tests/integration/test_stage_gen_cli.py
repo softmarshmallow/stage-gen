@@ -25,7 +25,6 @@ from stage_gen.provider_env import REQUIRED_PROVIDER_ENV_KEYS
 from stage_gen.workflows._registry import discover
 
 REPOSITORY = Path(__file__).resolve().parents[2]
-LANTERN_FERRY = REPOSITORY / "src/stage_gen/workflows/universe/inputs/lantern_ferry"
 PARALLAX_INPUTS = REPOSITORY / "src/stage_gen/workflows/looping_parallax/inputs/supplied_layers"
 CREDENTIALS = ("OPENAI_API_KEY", "OPENROUTER_API_KEY", "FAL_KEY", "ELEVENLABS_API_KEY")
 WORKFLOWS = {
@@ -36,7 +35,7 @@ WORKFLOWS = {
     "universe",
 }
 #: Workflows written as workflow files are planned and run with gnode, not stage-gen.
-WORKFLOW_FILES = {"looping-parallax", "movie-sprite"}
+WORKFLOW_FILES = {"looping-parallax", "movie-sprite", "universe"}
 
 
 @pytest.fixture(autouse=True)
@@ -170,7 +169,7 @@ def test_list_and_show_read_the_workflows() -> None:
 
 def test_unknown_arguments_are_refused_outside_a_forwarding_workflow() -> None:
     status, _, errors = _stage_gen(
-        "plan", "universe", "--phase", "semantic", "--input", str(LANTERN_FERRY), "--bogus"
+        "plan", "portrait-motion", "--source", "a.png", "--spec", "s.json", "--run", "r", "--bogus"
     )
     assert status == 2 and "unrecognized arguments: --bogus" in errors
 
@@ -209,133 +208,6 @@ def test_inspect_reads_a_workflow_file_run_and_writes_its_view(tmp_path: Path) -
     assert json.loads(output)["written_view"] == str(views / "execution-view.json")
     view = json.loads((views / "execution-view.json").read_text(encoding="utf-8"))
     assert view["kind"] == "gnode-run-view-v1"
-
-
-def test_universe_runs_both_phases_dry_and_writes_its_views(tmp_path: Path) -> None:
-    """Both phases, a reroll and the run views, with no provider anywhere."""
-    from tests.unit.workflows.universe._universe_fixture import materialize_semantic_run
-
-    admitted = REPOSITORY / "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
-    cache = ["--cache-dir", str(tmp_path / "cache")]
-    status, output, errors = _stage_gen(
-        "plan", "universe", "--phase", "semantic", "--input", str(LANTERN_FERRY)
-    )
-    assert status == 0, errors
-    assert len(json.loads(output)["graph"]["nodes"]) == 6
-
-    semantic = tmp_path / "semantic"
-    status, output, errors = _stage_gen(
-        "run",
-        "universe",
-        "--phase",
-        "semantic",
-        "--input",
-        str(LANTERN_FERRY),
-        "--output",
-        str(semantic),
-        *cache,
-        "--dry-run",
-        "--invocation-id",
-        "cli-semantic",
-    )
-    assert status == 0, errors
-    report = json.loads(output)
-    assert (report["recipe"], report["phase"], report["universe_id"]) == (
-        "universe",
-        "semantic",
-        "lantern_ferry",
-    )
-    assert report["node_count"] == 6
-
-    # The gallery phase starts from an admission rather than from the package, so stand
-    # one up from the committed fixture instead of paying for a semantic run.
-    materialize_semantic_run(
-        semantic, admitted=admitted, poster=LANTERN_FERRY / "references/poster.png"
-    )
-
-    def gallery(output_dir: Path, invocation: str, *extra: str) -> dict[str, object]:
-        status, output, errors = _stage_gen(
-            "run",
-            "universe",
-            "--phase",
-            "gallery",
-            "--input",
-            str(LANTERN_FERRY),
-            "--semantic-run",
-            str(semantic),
-            "--output",
-            str(output_dir),
-            *cache,
-            "--dry-run",
-            "--invocation-id",
-            invocation,
-            *extra,
-        )
-        assert status == 0, errors
-        report: dict[str, object] = json.loads(output)
-        return report
-
-    first = tmp_path / "gallery"
-    report = gallery(first, "cli-gallery")
-    assert report["phase"] == "gallery" and report["node_count"] == 42
-    counts = report["counts"]
-    assert isinstance(counts, dict) and sum(counts.values()) == 8
-    assert not (first / "consumer").exists()
-
-    # A reroll advances the ledger the first run left behind.
-    second = tmp_path / "gallery-2"
-    gallery(
-        second,
-        "cli-gallery-2",
-        "--reroll",
-        "low_marsh",
-        "--sample-ledger",
-        str(first / "sample-ledger.json"),
-    )
-    assert json.loads((second / "sample-ledger.json").read_bytes())["samples"]["low_marsh"] == 1
-
-    for run_dir in (semantic, first):
-        status, output, errors = _stage_gen(
-            "inspect", str(run_dir), "--write-view", str(run_dir), "--json"
-        )
-        assert status == 0, errors
-        record = json.loads(output)
-        assert record["workflow"] == "universe" and record["view"]["gaps"] == []
-        assert (run_dir / "execution-view.json").is_file()
-
-
-def test_universe_phase_flags_and_failure_injection_are_refused(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Injecting a failure is a dry-run affordance; a paid run must not take it."""
-    from stage_gen.workflows.universe.universe_executor import UniverseExecutor
-
-    def unreachable(*_: object, **__: object) -> NoReturn:
-        raise AssertionError("a refused command reached the executor")
-
-    monkeypatch.setattr(UniverseExecutor, "run_semantic", unreachable)
-    run_dir = tmp_path / "run"
-    status, _, errors = _stage_gen(
-        "run",
-        "universe",
-        "--phase",
-        "semantic",
-        "--input",
-        str(LANTERN_FERRY),
-        "--output",
-        str(run_dir),
-        "--cache-dir",
-        str(tmp_path / "cache"),
-        "--live",
-        "--failure-node",
-        "source-lock",
-    )
-    assert status == 2 and "available only with --dry-run" in errors
-    assert not run_dir.exists()
-    status, _, errors = _stage_gen(
-        "plan", "universe", "--phase", "gallery", "--input", str(LANTERN_FERRY)
-    )
-    assert status == 2 and "--phase gallery needs --semantic-run" in errors
 
 
 @pytest.mark.parametrize(

@@ -1,7 +1,7 @@
 "use client";
 
-// A step's own view: the template its run keeps, in a sandboxed frame of its own origin,
-// handed the step's context and nothing else. The frame asks for the context when it is
+// A step's or a workflow's own view: the template its run keeps, in a sandboxed frame of its
+// own origin, handed its context and nothing else. The frame asks for the context when it is
 // ready; files arrive as URLs the asset route serves, and the frame cannot reach the
 // viewer, the run's other files or the network beyond the origins its run declares.
 
@@ -9,7 +9,16 @@ import { useEffect, useRef } from "react";
 import { type ViewContext, withUrls } from "@stage-gen/ui/contracts/view-context";
 import { preparedAssetUrl, type RunRef } from "@/lib/shell/run-ref";
 
-export default function ViewFrame({ run, view }: { run: RunRef; view: ViewContext }) {
+export default function ViewFrame({
+  run,
+  view,
+  fill = false,
+}: {
+  run: RunRef;
+  view: ViewContext;
+  /** Fill the space it is given (a workflow's own view is the page), rather than a panel. */
+  fill?: boolean;
+}) {
   const frame = useRef<HTMLIFrameElement | null>(null);
   useEffect(() => {
     const target = frame.current;
@@ -31,7 +40,10 @@ export default function ViewFrame({ run, view }: { run: RunRef; view: ViewContex
     };
   }, [run, view]);
   return (
-    <div className="mb-2 resize-y overflow-hidden border border-border" style={{ height: 320 }}>
+    <div
+      className={fill ? "h-full overflow-hidden" : "mb-2 resize-y overflow-hidden border border-border"}
+      style={fill ? undefined : { height: 320 }}
+    >
       <iframe
         ref={frame}
         title={view.title}

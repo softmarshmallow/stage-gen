@@ -11,6 +11,8 @@ import zipfile
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 
+import yaml
+
 MODEL_POLICY_SNAPSHOT_RESOURCE = "stage_gen/model_policy_snapshot.json"
 MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT = 64_000
 PORTRAIT_FACE_MODULES = {
@@ -39,6 +41,22 @@ MOVIE_SPRITE_MODULES = {
         )
     ),
     "gnode_std/views/video.html",
+}
+UNIVERSE_WORKFLOW = {
+    f"stage_gen/workflows/universe/{name}"
+    for name in (
+        "workflow.yaml",
+        "gnode.yaml",
+        "gnode.lock",
+        "nodes/world.py",
+        "nodes/judges.py",
+        "nodes/entities.py",
+        "prompts/propose.md",
+        "prompts/review-image.md",
+        "schemas/proposal.json",
+        "schemas/image-review.json",
+        "views/gallery.html",
+    )
 }
 
 #: Each workflow's non-code facts ship with it; its prose stays in the checkout.
@@ -241,6 +259,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert wheel_entries.keys() >= PORTRAIT_FACE_MODULES
         assert wheel_entries.keys() >= MOVIE_SPRITE_MODULES
+        assert wheel_entries.keys() >= UNIVERSE_WORKFLOW
         assert wheel_entries.keys() >= WORKFLOW_MANIFESTS
         assert wheel_entries.keys() >= PARALLAX_WORKFLOW
         assert not any(
@@ -581,14 +600,10 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
                 "src/stage_gen/workflows/universe/inputs/lantern_ferry/references/poster.png"
             )
             example = repository / relative.parent.parent
-            contract = tomllib.loads((example / "universe.toml").read_text())
-            assert (
-                hashlib.sha256((repository / relative).read_bytes()).hexdigest()
-                == (contract["poster"]["source_sha256"])
-            )
-            assert contract["poster"]["rights_status"] == "unreviewed"
-            assert contract["poster"]["rights_basis"]
-            assert contract["rights"]["publication_authorized"] is False
+            inputs = yaml.safe_load((example / "inputs.yaml").read_text())
+            assert inputs["poster"] == "references/poster.png"
+            assert inputs["rights"]["status"] == "unreviewed"
+            assert inputs["rights"]["basis"]
         is_game_resource = relative.is_relative_to(
             "godot/tools/python/src/demo_game_collection/resources"
         )

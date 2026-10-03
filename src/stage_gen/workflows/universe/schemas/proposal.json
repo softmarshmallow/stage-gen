@@ -1,0 +1,699 @@
+{
+  "$defs": {
+    "DirectionCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "note": {
+          "minLength": 1,
+          "title": "Note",
+          "type": "string"
+        },
+        "requirement_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Requirement Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "satisfied",
+            "partial",
+            "unmet"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "requirement_id",
+        "status",
+        "evidence_ids",
+        "note"
+      ],
+      "title": "DirectionCoverage",
+      "type": "object"
+    },
+    "Entity": {
+      "additionalProperties": false,
+      "properties": {
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "entity_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "entity_kind": {
+          "minLength": 1,
+          "title": "Entity Kind",
+          "type": "string"
+        },
+        "facets": {
+          "items": {
+            "enum": [
+              "actor",
+              "collective",
+              "place",
+              "thing",
+              "kind",
+              "system",
+              "event",
+              "idea"
+            ],
+            "type": "string"
+          },
+          "title": "Facets",
+          "type": "array"
+        },
+        "facts": {
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Facts",
+          "type": "array"
+        },
+        "how_it_works_or_lives": {
+          "minLength": 1,
+          "title": "How It Works Or Lives",
+          "type": "string"
+        },
+        "present_tension": {
+          "minLength": 1,
+          "title": "Present Tension",
+          "type": "string"
+        },
+        "primary_class": {
+          "enum": [
+            "actor",
+            "collective",
+            "place",
+            "thing",
+            "kind",
+            "system",
+            "event",
+            "idea"
+          ],
+          "title": "Primary Class",
+          "type": "string"
+        },
+        "salience": {
+          "enum": [
+            "major",
+            "supporting",
+            "minor"
+          ],
+          "title": "Salience",
+          "type": "string"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_id",
+        "display_name",
+        "primary_class",
+        "facets",
+        "entity_kind",
+        "salience",
+        "summary",
+        "how_it_works_or_lives",
+        "present_tension",
+        "facts"
+      ],
+      "title": "Entity",
+      "type": "object"
+    },
+    "Fact": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "minLength": 1,
+          "title": "Basis",
+          "type": "string"
+        },
+        "claim": {
+          "minLength": 1,
+          "title": "Claim",
+          "type": "string"
+        },
+        "direction_requirement_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Direction Requirement Ids",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "fact_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Fact Id",
+          "type": "string"
+        },
+        "lineage": {
+          "enum": [
+            "explicit_source",
+            "visual_observation",
+            "conservative_inference",
+            "generated_extension"
+          ],
+          "title": "Lineage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fact_id",
+        "claim",
+        "lineage",
+        "basis",
+        "evidence_ids",
+        "direction_requirement_ids"
+      ],
+      "title": "Fact",
+      "type": "object"
+    },
+    "IdentityMarker": {
+      "additionalProperties": false,
+      "properties": {
+        "applied_use": {
+          "minLength": 1,
+          "title": "Applied Use",
+          "type": "string"
+        },
+        "direction_requirement_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Direction Requirement Ids",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "form": {
+          "minLength": 1,
+          "title": "Form",
+          "type": "string"
+        },
+        "historical_origin": {
+          "minLength": 1,
+          "title": "Historical Origin",
+          "type": "string"
+        },
+        "independently_admitted_thing_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,95}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Independently Admitted Thing Id"
+        },
+        "limits": {
+          "minLength": 1,
+          "title": "Limits",
+          "type": "string"
+        },
+        "lineage": {
+          "enum": [
+            "explicit_source",
+            "visual_observation",
+            "conservative_inference",
+            "generated_extension"
+          ],
+          "title": "Lineage",
+          "type": "string"
+        },
+        "marker_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Marker Id",
+          "type": "string"
+        },
+        "materials": {
+          "minLength": 1,
+          "title": "Materials",
+          "type": "string"
+        },
+        "meaning": {
+          "minLength": 1,
+          "title": "Meaning",
+          "type": "string"
+        },
+        "owner_entity_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Owner Entity Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "marker_id",
+        "owner_entity_id",
+        "form",
+        "materials",
+        "applied_use",
+        "meaning",
+        "limits",
+        "historical_origin",
+        "lineage",
+        "evidence_ids",
+        "direction_requirement_ids",
+        "independently_admitted_thing_id"
+      ],
+      "title": "IdentityMarker",
+      "type": "object"
+    },
+    "InstitutionalTension": {
+      "additionalProperties": false,
+      "properties": {
+        "competing_legitimate_needs": {
+          "minLength": 1,
+          "title": "Competing Legitimate Needs",
+          "type": "string"
+        },
+        "fact_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Fact Ids",
+          "type": "array"
+        },
+        "material_stakes": {
+          "minLength": 1,
+          "title": "Material Stakes",
+          "type": "string"
+        },
+        "participant_entity_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Participant Entity Ids",
+          "type": "array"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "tension_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Tension Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tension_id",
+        "summary",
+        "participant_entity_ids",
+        "fact_ids",
+        "material_stakes",
+        "competing_legitimate_needs"
+      ],
+      "title": "InstitutionalTension",
+      "type": "object"
+    },
+    "Relationship": {
+      "additionalProperties": false,
+      "properties": {
+        "direction_requirement_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Direction Requirement Ids",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "lineage": {
+          "enum": [
+            "explicit_source",
+            "visual_observation",
+            "conservative_inference",
+            "generated_extension"
+          ],
+          "title": "Lineage",
+          "type": "string"
+        },
+        "perspective": {
+          "minLength": 1,
+          "title": "Perspective",
+          "type": "string"
+        },
+        "relationship_family": {
+          "enum": [
+            "spatial",
+            "social_political",
+            "material_functional",
+            "taxonomic",
+            "causal_historical",
+            "symbolic"
+          ],
+          "title": "Relationship Family",
+          "type": "string"
+        },
+        "relationship_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Relationship Id",
+          "type": "string"
+        },
+        "relationship_kind": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Relationship Kind",
+          "type": "string"
+        },
+        "source_entity_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Source Entity Id",
+          "type": "string"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "target_entity_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Target Entity Id",
+          "type": "string"
+        },
+        "temporal_scope": {
+          "minLength": 1,
+          "title": "Temporal Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relationship_id",
+        "relationship_family",
+        "relationship_kind",
+        "source_entity_id",
+        "target_entity_id",
+        "summary",
+        "temporal_scope",
+        "perspective",
+        "lineage",
+        "evidence_ids",
+        "direction_requirement_ids"
+      ],
+      "title": "Relationship",
+      "type": "object"
+    },
+    "SourceConflict": {
+      "additionalProperties": false,
+      "properties": {
+        "conflict_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Conflict Id",
+          "type": "string"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "resolution": {
+          "minLength": 1,
+          "title": "Resolution",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "unresolved",
+            "resolved",
+            "deliberate_extension"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "conflict_id",
+        "detail",
+        "status",
+        "resolution",
+        "evidence_ids"
+      ],
+      "title": "SourceConflict",
+      "type": "object"
+    },
+    "Viewpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor_entity_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Anchor Entity Ids",
+          "type": "array"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "entry_question": {
+          "minLength": 1,
+          "title": "Entry Question",
+          "type": "string"
+        },
+        "initially_known": {
+          "minLength": 1,
+          "title": "Initially Known",
+          "type": "string"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "viewpoint_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Viewpoint Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "viewpoint_id",
+        "display_name",
+        "summary",
+        "anchor_entity_ids",
+        "initially_known",
+        "entry_question"
+      ],
+      "title": "Viewpoint",
+      "type": "object"
+    },
+    "VisualObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical_status": {
+          "enum": [
+            "evidence",
+            "uncertain",
+            "exclude_from_canon"
+          ],
+          "title": "Canonical Status",
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "subject",
+            "place",
+            "thing",
+            "system_cue",
+            "art_grammar",
+            "ambiguity",
+            "promotional_element"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "claim": {
+          "minLength": 1,
+          "title": "Claim",
+          "type": "string"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "observation_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Observation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "observation_id",
+        "category",
+        "claim",
+        "confidence",
+        "canonical_status"
+      ],
+      "title": "VisualObservation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "universe structured output for universe.propose",
+  "properties": {
+    "direction_coverage": {
+      "items": {
+        "$ref": "#/$defs/DirectionCoverage"
+      },
+      "title": "Direction Coverage",
+      "type": "array"
+    },
+    "entities": {
+      "items": {
+        "$ref": "#/$defs/Entity"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "identity_markers": {
+      "items": {
+        "$ref": "#/$defs/IdentityMarker"
+      },
+      "title": "Identity Markers",
+      "type": "array"
+    },
+    "institutional_tensions": {
+      "items": {
+        "$ref": "#/$defs/InstitutionalTension"
+      },
+      "title": "Institutional Tensions",
+      "type": "array"
+    },
+    "physical_ecological_rules": {
+      "items": {
+        "$ref": "#/$defs/Fact"
+      },
+      "title": "Physical Ecological Rules",
+      "type": "array"
+    },
+    "premise": {
+      "$ref": "#/$defs/Fact"
+    },
+    "present_state": {
+      "$ref": "#/$defs/Fact"
+    },
+    "relationships": {
+      "items": {
+        "$ref": "#/$defs/Relationship"
+      },
+      "title": "Relationships",
+      "type": "array"
+    },
+    "source_conflicts": {
+      "items": {
+        "$ref": "#/$defs/SourceConflict"
+      },
+      "title": "Source Conflicts",
+      "type": "array"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "universe_id": {
+      "pattern": "^[a-z][a-z0-9_]{1,95}$",
+      "title": "Universe Id",
+      "type": "string"
+    },
+    "unresolved_questions": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Unresolved Questions",
+      "type": "array"
+    },
+    "viewpoints": {
+      "items": {
+        "$ref": "#/$defs/Viewpoint"
+      },
+      "title": "Viewpoints",
+      "type": "array"
+    },
+    "visual_observations": {
+      "items": {
+        "$ref": "#/$defs/VisualObservation"
+      },
+      "title": "Visual Observations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "universe_id",
+    "title",
+    "premise",
+    "present_state",
+    "physical_ecological_rules",
+    "institutional_tensions",
+    "visual_observations",
+    "viewpoints",
+    "entities",
+    "relationships",
+    "identity_markers",
+    "direction_coverage",
+    "source_conflicts",
+    "unresolved_questions"
+  ],
+  "title": "UniverseProposal",
+  "type": "object"
+}

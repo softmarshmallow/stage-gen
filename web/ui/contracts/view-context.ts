@@ -1,12 +1,14 @@
 // gnode views: an HTML template and a read-only context, shown in a sandboxed frame.
 //
 // `view-contexts.json` (`gnode-view-contexts-v1`) sits beside a derived run view. Each
-// context (`gnode-view-context-v1`) is what the view's `context()` returns: the `step` it
-// shows (path, title, status, take, cost and every resolved `with` value), its `inputs`
-// and `outputs` files, its `facts` and its `run`. A file is `{kind, digest, size, key,
-// ref, facts}`, `ref` being where the run folder keeps it for the view; a small JSON file
-// carries its parsed `value` too. The viewer adds each file's `url` and hands the context
-// to the frame through `/_gnode/view.js`; the frame can do nothing but draw it.
+// context (`gnode-view-context-v1`) is what the view's `context()` returns. A step's view
+// (`scope: node`) gets the `step` it shows (path, title, status, take, cost and every
+// resolved `with` value), its `inputs` and `outputs` files, its `facts` and its `run`; a
+// workflow's own view (`scope: workflow`) gets every step by name, a repeat as its
+// `instances`, with the workflow's `outputs` and its `run`. A file is `{kind, digest,
+// size, key, ref, facts}`, `ref` being where the run folder keeps it for the view; a small
+// JSON file carries its parsed `value` too. The viewer adds each file's `url` and hands the
+// context to the frame through `/_gnode/view.js`; the frame can do nothing but draw it.
 
 import { artifactReference } from "./artifact-preview";
 
@@ -15,8 +17,9 @@ export const VIEW_CONTEXT_KIND = "gnode-view-context-v1";
 
 export interface ViewContext {
   readonly kind: typeof VIEW_CONTEXT_KIND;
-  readonly scope: "node";
-  readonly nodeId: string;
+  readonly scope: "node" | "workflow";
+  /** The step a node view shows; null for a workflow's own view. */
+  readonly nodeId: string | null;
   readonly title: string;
   /** Run-relative path of the view's HTML template. */
   readonly template: string;
@@ -76,8 +79,21 @@ export function parseViewContexts(value: unknown): ViewContexts {
     const template = artifactReference(view.template, `${label}.template`);
     if (!/^views\/[0-9a-f]{64}\.html$/.test(template))
       throw new Error(`${label}.template must be a view template the run keeps`);
-    checkFiles(view.inputs, `${label}.inputs`);
     checkFiles(view.outputs, `${label}.outputs`);
+    if (view.scope === "workflow") {
+      checkFiles(object(view.steps, `${label}.steps`), `${label}.steps`);
+      const run = object(view.run, `${label}.run`);
+      return Object.freeze({
+        kind: VIEW_CONTEXT_KIND,
+        scope: "workflow",
+        nodeId: null,
+        title: typeof run.workflow === "string" && run.workflow ? run.workflow : "run",
+        template,
+        document: Object.freeze({ ...view }),
+      });
+    }
+    if (view.scope !== "node") throw new Error(`${label}.scope must be node or workflow`);
+    checkFiles(view.inputs, `${label}.inputs`);
     checkFiles(object(view.step, `${label}.step`).with, `${label}.step.with`);
     return Object.freeze({
       kind: VIEW_CONTEXT_KIND,

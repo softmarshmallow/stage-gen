@@ -24,7 +24,7 @@ import os
 import shutil
 import time
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -333,6 +333,7 @@ class WorkflowRun:
         plan_path = self.run_dir / PLAN_FILE
         if not plan_path.is_file():
             document = _plan_document(self.plan, self.digest)
+            document["view"] = self._place_workflow_view()
             plan_path.write_text(
                 json.dumps(document, indent=1, sort_keys=True) + "\n", encoding="utf-8"
             )
@@ -395,6 +396,11 @@ class WorkflowRun:
             stopped=stopped,
             charged_usd=ledger.charged_usd,
             failed=self._failed,
+            outputs={
+                name: _encode(value)
+                for name, value in outputs.items()
+                if not contains_pending(value) and value is not MISSING
+            },
         )
         log.sink.close()
         return RunOutcome(
@@ -584,6 +590,8 @@ class WorkflowRun:
         if result.status == "succeeded":
             self._link_files(instance, result)
             view = self._place_view(instance, result)
+            if self._workflow_view is not None:
+                self._place_shown(files_in(result.outputs))
             facts = {k: v for k, v in result.facts.items() if k != "cached"}
             log.emit(
                 "node_finished",
@@ -701,17 +709,41 @@ class WorkflowRun:
         template = self._view_template(instance, result)
         if template is None or not template.is_file():
             return None
+        relative = self._keep_template(template)
+        self._place_shown([*files_in(instance.with_), *files_in(result.outputs)])
+        return relative
+
+    @property
+    def _workflow_view(self) -> Path | None:
+        view = self.planner.workflow.view
+        if view is None:
+            return None
+        return (self.planner.home.root / view).resolve()
+
+    def _place_workflow_view(self) -> str | None:
+        """Keep the whole-run view; every step's files are kept beside it as they finish."""
+
+        template = self._workflow_view
+        if template is None:
+            return None
+        if not template.is_file():
+            raise RunRefused(f"the workflow's view {self.planner.workflow.view} is not a file")
+        return self._keep_template(template)
+
+    def _keep_template(self, template: Path) -> str:
         data = template.read_bytes()
         relative = view_template(hashlib.sha256(data).hexdigest())
         target = self.run_dir / relative
         if not target.is_file():
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
-        for file in [*files_in(instance.with_), *files_in(result.outputs)]:
+        return relative
+
+    def _place_shown(self, files: Sequence[FileValue]) -> None:
+        for file in files:
             source = self.planner.store.file_path(file.digest)
             if source.is_file():
                 _place(source, self.run_dir / view_file(file.digest, file.kind))
-        return relative
 
     def _write_outputs(self, expansion: Expansion, outputs: Mapping[str, Any]) -> None:
         for name, value in outputs.items():

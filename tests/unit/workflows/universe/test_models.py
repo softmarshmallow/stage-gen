@@ -155,7 +155,6 @@ def test_image_review_verdict_must_agree_with_its_grades() -> None:
         models.ImageReview(
             review_id="universe_independent_image_review",
             entity_id="e00",
-            artifact_sha256="0" * 64,
             entity_identity="fail",
             action_legibility="pass",
             medium_fidelity="pass",
@@ -170,21 +169,6 @@ def test_image_review_verdict_must_agree_with_its_grades() -> None:
         )
 
 
-def test_sample_ledger_refuses_a_negative_draw() -> None:
-    with pytest.raises(ValidationError):
-        models.SampleLedger(
-            schema_version=1,
-            kind="universe-sample-ledger-v1",
-            universe_id="test_universe",
-            samples={"e00": -1},
-        )
-
-
-def test_census_bounds_must_be_ordered() -> None:
-    with pytest.raises(ValidationError):
-        models.Census(min_entities=10, max_entities=4)
-
-
 def test_proposal_evaluator_binds_the_universe_id() -> None:
     proposal = make_proposal()
     proposal.universe_id = "another_universe"
@@ -196,3 +180,15 @@ def test_only_declared_synopsis_ids_may_be_cited_as_evidence() -> None:
     proposal.entities[1].facts[0].evidence_ids = ["synopsis_p99"]
     errors = evaluate(proposal)["errors"]
     assert any("synopsis_p99" in error for error in errors)
+
+
+def test_the_workflow_schemas_are_the_models_schemas() -> None:
+    import json
+    from pathlib import Path
+
+    folder = Path(models.__file__).parent / "schemas"
+    files = {path.name for path in folder.glob("*.json")}
+    assert files == set(models.SCHEMA_MODELS)
+    for name, schema in models.json_schemas().items():
+        written = json.loads((folder / name).read_text(encoding="utf-8"))
+        assert written == schema, f"schemas/{name} drifted from its model; regenerate it"

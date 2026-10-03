@@ -7,8 +7,8 @@ imports and never the fixture. Each section prices what a change to it would cos
 
   character_frozen_set     every character_3d member and the package-map aliases (a change
                            needs a paid qualification cohort, not a carry-over)
-  identities               graph-document kinds, cache constants, the run-view version,
-                           provenance names and the product node-type inventory
+  identities               cache constants, the run-view version, provenance names and
+                           the product node-type inventory
   cache_keys               node_id -> cache_key for offline plans and free runs over
                            committed files or the constant bytes in
                            workflow-identity-inputs.json, and the key of each paid call a
@@ -29,19 +29,18 @@ import asyncio
 import base64
 import hashlib
 import json
+import re
 import sys
 import tempfile
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path, PurePosixPath
-from types import ModuleType
-from typing import Any, get_args
+from typing import Any
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import stage_gen
 import stage_gen.identity as provenance_identities
-import stage_gen.workflows.universe.universe_types as universe_types
 from gnode import (
     CallRecord,
     Graph,
@@ -60,21 +59,13 @@ from gnode import (
 from gnode import run as gnode_run
 from stage_gen.components.portrait_motion.face_location import locator_node_type
 from stage_gen.components.portrait_motion.nodes import portrait_motion_node_types
-from stage_gen.config import load_config
 from stage_gen.pipeline import (
     PipelineGraph,
 )
 from stage_gen.pipeline.dry_run import DRY_RUN_CACHE_NAMESPACE, DRY_RUN_CACHE_RECORD_KIND
-from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_cache import NODE_CACHE_SCHEMA_VERSION
 from stage_gen.workflows._gnode import GnodeWorkflow
 from stage_gen.workflows._registry import discover
-from stage_gen.workflows.universe.universe_executor import UniverseExecutor
-from stage_gen.workflows.universe.universe_graph import (
-    UNIVERSE_CACHE_NAMESPACE,
-    UNIVERSE_CACHE_RECORD_KIND,
-    UniverseGraph,
-)
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = REPOSITORY_ROOT / "tests/contract/fixtures"
@@ -82,11 +73,11 @@ GOLDEN_PATH = FIXTURES / "workflow-identity.json"
 INPUTS_PATH = FIXTURES / "workflow-identity-inputs.json"
 
 PACKAGE_ROOT = Path(stage_gen.__file__).parent
-UNIVERSE_INPUT = Path(universe_types.__file__).parent / "inputs/lantern_ferry"
+UNIVERSE_INPUTS = PACKAGE_ROOT / "workflows/universe/inputs/lantern_ferry/inputs.yaml"
+UNIVERSE_ANSWERS = FIXTURES / "universe/lantern_ferry.answers.json"
 #: Every package that holds character_3d members; their paths and bytes are frozen.
 CHARACTER_OWNERS = ("recipes", "orchestration", "components", "providers", "resources")
 #: Modules whose NodeType constants are product node types.
-NODE_TYPE_MODULES: tuple[ModuleType, ...] = (universe_types,)
 
 type Section = dict[str, Any]
 
@@ -112,24 +103,7 @@ def character_frozen_set(scratch: Path) -> Section:
     return {"files": files, "package_map_aliases": package_map["aliases"]}
 
 
-def _graph_document(document: type[GraphDocument]) -> Section:
-    (recipe,) = get_args(document.model_fields["recipe"].annotation)
-    return {
-        "recipe": recipe,
-        "current_kind": document.CURRENT_KIND,
-        "current_schema_version": document.CURRENT_SCHEMA_VERSION,
-        "legacy_graph_identities": sorted(
-            [version, kind] for version, kind in document.LEGACY_GRAPH_IDENTITIES
-        ),
-        "run_summary_kind": document.RUN_SUMMARY_KIND,
-        "projection_kind": document.PROJECTION_KIND,
-        "view_kind": document.VIEW_KIND,
-    }
-
-
 def _node_types() -> Iterable[NodeType]:
-    for module in NODE_TYPE_MODULES:
-        yield from (value for value in vars(module).values() if isinstance(value, NodeType))
     yield from portrait_motion_node_types()
     yield locator_node_type()
     # A workflow file's steps, each titled and typed by the gnode type it uses.
@@ -140,7 +114,6 @@ def _node_types() -> Iterable[NodeType]:
 
 def identities(scratch: Path) -> Section:
     del scratch
-    graph_documents = {section["recipe"]: section for section in (_graph_document(UniverseGraph),)}
     inventory = {
         (node_type.type_id, node_type.cache_identity, node_type.contract_version)
         for node_type in _node_types()
@@ -151,7 +124,6 @@ def identities(scratch: Path) -> Section:
         if isinstance(value, SoftwareIdentity)
     }
     return {
-        "graph_documents": graph_documents,
         "sdk_graph": {
             "kind": PipelineGraph.model_fields["kind"].default,
             "schema_version": PipelineGraph.model_fields["schema_version"].default,
@@ -160,8 +132,6 @@ def identities(scratch: Path) -> Section:
             "view_kind": PipelineGraph.VIEW_KIND,
         },
         "cache": {
-            "universe_namespace": UNIVERSE_CACHE_NAMESPACE,
-            "universe_record_kind": UNIVERSE_CACHE_RECORD_KIND,
             "dry_run_namespace": DRY_RUN_CACHE_NAMESPACE,
             "dry_run_record_kind": DRY_RUN_CACHE_RECORD_KIND,
             "node_cache_schema_version": NODE_CACHE_SCHEMA_VERSION,
@@ -271,17 +241,67 @@ def run_movie_sprite_take(scratch: Path) -> dict[str, str]:
     return dict(sorted(keys.items()))
 
 
-def plan_universe_semantic(scratch: Path) -> Graph:
-    """The committed lantern_ferry package; the gallery phase needs a semantic run."""
-    del scratch
-    return UniverseExecutor(load_config(env={})).plan_semantic(UNIVERSE_INPUT).graph
+def _schema_title(location: str) -> str:
+    return str(json.loads(Path(location).read_text(encoding="utf-8"))["title"])
 
 
-#: Each pinned plan; the gallery phase is absent because it plans only from a semantic run.
+def _universe_answers(store: Any) -> dict[str, Any]:
+    """Every paid call of the lantern_ferry world, answered from committed constants."""
+
+    answers = json.loads(UNIVERSE_ANSWERS.read_text(encoding="utf-8"))
+    picture = base64.b64decode(answers["image_png_base64"])
+
+    async def structured(route: Route, request: Any, take: int) -> CallRecord:
+        del route, take
+        title = _schema_title(request["schema"].location)
+        answer = answers[title]
+        if title in {"EntityDirection", "ImageReview"}:
+            bound = re.search(r"(?:Bound|Required) entity_id: (\w+)", str(request["prompt"]))
+            assert bound is not None, title
+            answer = answer[bound[1]]
+        return CallRecord({}, {"json": answer}, 0.0)
+
+    async def image(route: Route, request: Any, take: int) -> CallRecord:
+        del route, request, take
+        return CallRecord(
+            {"image": store.put_bytes(picture, kind="image/png", name="image")}, None, 0.0
+        )
+
+    return {"structured.generate": structured, "image.generate": image}
+
+
+def run_universe(scratch: Path) -> dict[str, str]:
+    """The committed lantern_ferry world, run free: every call answered from constants, so
+    every step identity and every paid call's key is pinned, the gallery included."""
+    project = scratch / "project"
+    project.mkdir(parents=True)
+    (project / "gnode.yaml").write_text("gnode: project/v1\n", encoding="utf-8")
+    planned = asyncio.run(plan_async("universe", input_files=[UNIVERSE_INPUTS], cwd=project))
+    if not planned.ok:
+        raise RuntimeError(f"the universe sample does not plan: {planned.problems}")
+    store = planned.planner.store
+    services = HostServices(store=store, capabilities=_universe_answers(store), live=True)
+    run_dir = project / "runs/universe"
+    outcome = asyncio.run(WorkflowRun(planned, run_dir=run_dir, services=services).run())
+    if not outcome.ok:
+        raise RuntimeError(f"the universe sample failed: {outcome.failed}")
+    keys = {
+        node.node_id: node.cache_key
+        for node in project_run(run_dir).nodes
+        if node.state == "succeeded" and node.cache_key
+    }
+    for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines():
+        event = json.loads(line)
+        if event.get("event") == "call":
+            keys[f"{event['id']} {event['capability']}"] = event["call"]
+    return dict(sorted(keys.items()))
+
+
+#: Each pinned plan or free run.
 CACHE_KEY_PLANS: dict[str, Callable[[Path], Graph | RunView | dict[str, str]]] = {
     "looping-parallax": run_looping_parallax,
     "movie-sprite-take": run_movie_sprite_take,
-    "universe-semantic": plan_universe_semantic,
+    "universe": run_universe,
 }
 
 

@@ -338,8 +338,6 @@ class ReviewCheck(ContractModel):
 class SemanticReview(ContractModel):
     review_id: Literal["universe_independent_semantic_review"]
     reviewer_role: Literal["independent_semantic_reviewer"]
-    proposal_sha256: Sha256
-    plan_sha256: Sha256
     verdict: Grade
     checks: list[ReviewCheck] = Field(min_length=6)
     blocking_findings: list[Text]
@@ -359,7 +357,6 @@ class SemanticReview(ContractModel):
 class ImageReview(ContractModel):
     review_id: Literal["universe_independent_image_review"]
     entity_id: StableId
-    artifact_sha256: Sha256
     verdict: Literal["admit", "reject"]
     entity_identity: Grade
     action_legibility: Grade
@@ -878,92 +875,24 @@ def direction_warnings(
     return errors
 
 
-# --- authored source package -------------------------------------------------
-
-#: A package-relative member path: no absolute root, no traversal, no backslash.
-PackagePath = Annotated[str, Field(pattern=r"^[A-Za-z0-9_][A-Za-z0-9_./-]*$", max_length=200)]
-
-
-class PosterReference(ContractModel):
-    """The universe's one visual source, bound to the digest the author recorded.
-
-    ``role`` is a closed literal because the poster's authority is the whole
-    point of the contract: it supplies literal visual evidence and art grammar,
-    and its typography, layout and marketing hierarchy are never world facts.
-    """
-
-    source: PackagePath
-    source_sha256: Sha256
-    role: Literal["visual_evidence_and_art_grammar_only"]
-    rights_status: Literal["unreviewed", "cleared"]
-    rights_basis: list[Text] = Field(min_length=1)
+#: The schema file each structured step answers to, and the model its answer parses as.
+SCHEMA_MODELS: dict[str, tuple[type[ContractModel], str]] = {
+    "proposal.json": (UniverseProposal, "universe.propose"),
+    "plan.json": (GalleryPlan, "universe.plan"),
+    "review.json": (SemanticReview, "universe.review"),
+    "global-direction.json": (GlobalDirection, "universe.direction.global"),
+    "entity-direction.json": (EntityDirection, "universe.direction.entity"),
+    "image-review.json": (ImageReview, "universe.review.image"),
+}
 
 
-class SourceDocument(ContractModel):
-    source: PackagePath
+def json_schemas() -> dict[str, dict[str, object]]:
+    """The workflow's ``schemas/`` files, as these models state them."""
 
-
-class Census(ContractModel):
-    """Bounds on the whole set. Irregular by class on purpose: no per-class quota."""
-
-    min_entities: int = Field(ge=1, le=200)
-    max_entities: int = Field(ge=1, le=200)
-
-    @model_validator(mode="after")
-    def bounds_are_ordered(self) -> Census:
-        if self.max_entities < self.min_entities:
-            raise ValueError("census max_entities is below min_entities")
-        return self
-
-
-class SourceRights(ContractModel):
-    status: Literal["unreviewed", "cleared"]
-    basis: list[Text] = Field(min_length=1)
-    #: Generation is exploration. Publication is a separate human decision, so
-    #: the authored package can never assert it.
-    publication_authorized: Literal[False]
-
-
-class UniverseSource(ContractModel):
-    """One authored universe source package: ``universe.toml`` and what it names."""
-
-    schema_version: Literal[1]
-    kind: Literal["universe-source-v1"]
-    universe_id: StableId
-    display_name: Text
-    revision: int = Field(ge=1)
-    medium: StableId
-    poster: PosterReference
-    synopsis: SourceDocument
-    expansion_direction: SourceDocument
-    census: Census
-    rights: SourceRights
-
-
-# --- reroll ledger -----------------------------------------------------------
-
-
-class SampleLedger(ContractModel):
-    """Which draw of each entity's concept image this run asks for.
-
-    Cache keys are deterministic, so a rejected image cannot be resampled by
-    running again: the same key restores the same picture. The sample index is
-    the one input that exists to be changed by hand, and it enters only the
-    image node's identity, so rerolling one entity leaves every other branch
-    and both direction tiers as cache hits.
-    """
-
-    schema_version: Literal[1]
-    kind: Literal["universe-sample-ledger-v1"]
-    universe_id: StableId
-    samples: dict[StableId, int]
-
-    @model_validator(mode="after")
-    def samples_are_draw_indices(self) -> SampleLedger:
-        negative = sorted(key for key, value in self.samples.items() if value < 0)
-        if negative:
-            raise ValueError(f"sample index must not be negative: {negative}")
-        return self
-
-    def sample(self, entity_id: str) -> int:
-        return self.samples.get(entity_id, 0)
+    return {
+        name: {
+            **model.model_json_schema(),
+            "description": f"universe structured output for {operation}",
+        }
+        for name, (model, operation) in SCHEMA_MODELS.items()
+    }

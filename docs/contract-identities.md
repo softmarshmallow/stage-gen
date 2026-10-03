@@ -60,7 +60,6 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `runner-track-v4` | `authored` | `iron_petal_unit_pipeline.track.models:RunnerTrack.kind` |
 | `scenario-catalog-v1` | `authored` | `demo_game_tools.scenario.models:ScenarioCatalog.kind` |
 | `scenario-v2` | `authored` | `demo_game_tools.scenario.models:ScenarioDeclarations.kind` |
-| `universe-source-v1` | `authored` | `stage_gen.workflows.universe.models:UniverseSource.kind` |
 | `fx-block-v1` | `block` | `iron_petal_unit_pipeline.fx.block:FX_MANIFEST_BLOCK_VERSION` |
 | `platformer-closure-block-v1` | `block` | `bellweather_pipeline.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['closure']` |
 | `platformer-gameplay-block-v1` | `block` | `bellweather_pipeline.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['gameplay']` |
@@ -105,19 +104,16 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `resolved-game-package-v6` | `generated` | `demo_game_tools.io.package_capture:RESOLVED_GAME_PACKAGE_KIND` |
 | `scenario-admission-v1` | `generated` | `demo_game_tools.scenario.models:ScenarioAdmissionReport.kind` |
 | `scenario-program-v2` | `generated` | `demo_game_tools.scenario.models:ScenarioProgram.kind` |
-| `universe-sample-ledger-v1` | `generated` | `stage_gen.workflows.universe.models:SampleLedger.kind` |
 | `dialogue-scene-execution-graph-v6` | `graph` | `the_grain_pipeline.dialogue_scene.scene_graph:DIALOGUE_GRAPH_KIND` |
 | `oblique-survival-execution-graph-v2` | `graph` | `ember_hollow_pipeline.survival_graph:OBLIQUE_SURVIVAL_GRAPH_KIND` |
 | `pointclick-room-execution-graph-v2` | `graph` | `the_grain_pipeline.pointclick_room.room_graph:POINTCLICK_GRAPH_KIND` |
 | `portrait-motion-v2` | `graph` | `stage_gen.workflows.portrait_motion.pipeline:PORTRAIT_MOTION_GRAPH_KIND` |
 | `sideview-platformer-execution-graph-v2` | `graph` | `bellweather_pipeline.execution_graph:EXECUTION_GRAPH_KIND` |
 | `sideview-runner-execution-graph-v2` | `graph` | `iron_petal_unit_pipeline.runner_graph:RUNNER_GRAPH_KIND` |
-| `universe-execution-graph-v2` | `graph` | `stage_gen.workflows.universe.universe_graph:UNIVERSE_GRAPH_KIND` |
 | `oblique-survival-manifest-v3` | `manifest` | `ember_hollow_pipeline.manifest:MANIFEST_KIND` |
 | `pointclick-room-runtime-v3` | `manifest` | `the_grain_pipeline.pointclick_room.room_types:MANIFEST_KIND` |
 | `prepared-game-runtime-v12` | `manifest` | `bellweather_pipeline.package_types:PREPARED_RUNTIME_MANIFEST_KIND` |
 | `sideview-runner-runtime-v13` | `manifest` | `iron_petal_unit_pipeline.runner_types:MANIFEST_KIND` |
-| `universe-gallery-manifest-v1` | `manifest` | `stage_gen.workflows.universe.universe_types:MANIFEST_KIND` |
 | `auto_run_x_v1` | `mode` | `iron_petal_unit_pipeline.track.models:RunnerCamera.mode` |
 | `climbable-atlas-v1` | `mode` | `bellweather_pipeline.maps.prepared:PreparedMapClimbable.mode` |
 | `painted-terrain-v1` | `mode` | `stage_gen.components.painted_terrain.models:PaintedTerrainGround.mode` |
@@ -130,7 +126,6 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `sideview-platformer-content-v1` | `namespace` | `bellweather_pipeline.package_graph:CONTENT_CACHE_NAMESPACE` |
 | `sideview-platformer-world-v1` | `namespace` | `bellweather_pipeline.package_graph:WORLD_CACHE_NAMESPACE` |
 | `sideview-runner-nodes-v1` | `namespace` | `iron_petal_unit_pipeline.runner_graph:RUNNER_CACHE_NAMESPACE` |
-| `universe-nodes-v1` | `namespace` | `stage_gen.workflows.universe.universe_graph:UNIVERSE_CACHE_NAMESPACE` |
 | `generated_clip_v1` | `realization` | `stage_gen.components.sound_effect.models:GENERATED_CLIP_REALIZATION_KIND` |
 | `oscillator_sweep_v1` | `realization` | `iron_petal_unit_pipeline.audio.models:OscillatorSweepRealization.kind` |
 | `spoken_line_v1` | `realization` | `stage_gen.components.speech.models:SPOKEN_LINE_REALIZATION_KIND` |
@@ -150,7 +145,6 @@ retired while their owning reader explicitly declares this compatibility.
 | `portrait-motion-v1` | `1` | `stage_gen.workflows.portrait_motion.pipeline:PortraitMotionGraph.LEGACY_GRAPH_IDENTITIES` |
 | `sideview-platformer-execution-graph-v1` | `1` | `bellweather_pipeline.execution_graph:ExecutionGraph.LEGACY_GRAPH_IDENTITIES` |
 | `sideview-runner-execution-graph-v1` | `1` | `iron_petal_unit_pipeline.runner_graph:SideviewRunnerGraph.LEGACY_GRAPH_IDENTITIES` |
-| `universe-execution-graph-v1` | `1` | `stage_gen.workflows.universe.universe_graph:UniverseGraph.LEGACY_GRAPH_IDENTITIES` |
 
 ## Retired identities
 

@@ -14,13 +14,112 @@
    "take#1": "edbf6e6ef1124ccfc12314198b98cd255d03d7adfa4defc1002e00fcdf948430",
    "take#1 video.generate": "fbab6c2740b1e6534744709ed4f863817a5bacebcabc4563633c7bf810833cb5"
   },
-  "universe-semantic": {
-   "gallery-plan": "6f3915cf66bbc32923f47ff41c397f662a09eeef8c015b05177da2db0fe556b2",
-   "source-lock": "a72526d515228482b1a14e97c977bea255c2936e003dcc2f6523db3ff9962234",
-   "universe-admit": "ed237c9eb0c59102513554d24676796d842148b66311e017303157bc680537e6",
-   "universe-evaluate": "1dff0776713cd3f5a35d3ddac0275e261a8c9d4f977a7c6630148b68196b2c4e",
-   "universe-propose": "c989eb52aacac7c82c510ad4e2d30d3224a8699b7f1c780e9fbe88a267b003d8",
-   "universe-review": "5e76f2bf899f8af9d10189605419706262e6c9c94f34c7611a71a93a2448012a"
+  "universe": {
+   "close#1": "4830f0ce43e319fd0f7a8e96a0c6f26896bf90246e35d3728bbc5bcc6467c296",
+   "entity['flakeshell'].brief#1": "6871d5110c7d5f900ffeeca48bdcbcd4455a6c0f3710e785f7cd155bb1accf6d",
+   "entity['flakeshell'].context#1": "77e30ef6a42fd0c78e0d8d593f9b0b16e08f93972e9aae72d87ef7bb6ebcb66c",
+   "entity['flakeshell'].direct#1": "0c8054be4df3c3992c6837f1ffbd1949de0431aec03684bf3bdadaa755eeb9fd",
+   "entity['flakeshell'].direct#1 structured.generate": "e408bd854a1b4bc6870db617a1f3a9247ac2dc142ff0302e208840bfce677181",
+   "entity['flakeshell'].direct_ok#1": "48768c39351ab10410efc99d3d0ec1bada5a8a7df40f6edc14642368cdd6c0ca",
+   "entity['flakeshell'].draw#1": "96ce2e355bd531d7f73adfe553eb63f50342737a3db0143d4e667c4d805fc7ee",
+   "entity['flakeshell'].draw#1 image.generate": "a3d766eaf4ac27e5da2170923105ea92ea2fa1c410cf0c0f8619f32c2397e55a",
+   "entity['flakeshell'].record#1": "00b3d8a666962dadf068466cb32499a8ca76100e87680be56052467184a99f16",
+   "entity['flakeshell'].review#1": "f5745fa00764f8c50e69d89eed15d745bc642984cb5dbd247d38af4048a5f1b4",
+   "entity['flakeshell'].review#1 structured.generate": "3dbae8bdcdb144a351c271c09cb0cf6e20313bccf03a631c7917930826f3ba50",
+   "entity['flakeshell'].sealed#1": "9a97dad1a0cbcb797e413401344e7fd1e7183454862d12292e35c1ca00629eba",
+   "entity['kestwick_lamp_subscription'].brief#1": "e3a6a940c7fee44d2bb7750073b1ff8f12cf6c1c301b34790383576c285893b1",
+   "entity['kestwick_lamp_subscription'].context#1": "df00c9ce2f66d2ed2db22b1f596a2fd74f8520d8bde1b9f521fbeffbcc99050b",
+   "entity['kestwick_lamp_subscription'].direct#1": "b1a3e2b1745553b642e78311b31d501366b06f7512165ba2007a4113cd3f56de",
+   "entity['kestwick_lamp_subscription'].direct#1 structured.generate": "0178ca2ff50c52a210b844c0028b968d5de5681e83999edaa6c855d0965debe5",
+   "entity['kestwick_lamp_subscription'].direct_ok#1": "980cc6e5dc76e9b61d11febbf1264d6583c949e45439b8052d17fcb557981eaa",
+   "entity['kestwick_lamp_subscription'].draw#1": "424da4973701862bf041aafad318eb7596795a6f503342d4156a3e6cc2059508",
+   "entity['kestwick_lamp_subscription'].draw#1 image.generate": "7648eae672248af83f94d4a2041703e7eb46bce0e206654edf69589ba80de013",
+   "entity['kestwick_lamp_subscription'].record#1": "2a266769496fe186247e38d8fc639d18ac90010f95b1e942694df004e67f2cfa",
+   "entity['kestwick_lamp_subscription'].review#1": "e606fd8dc2960bed4ef60eb477b4f690c6d26e5224255d78e208c70ada169b17",
+   "entity['kestwick_lamp_subscription'].review#1 structured.generate": "99c3ee2345537c0440069900b802cfa0e2cbf96f182fc2c42fd134a88346a0e9",
+   "entity['kestwick_lamp_subscription'].sealed#1": "68249e25dcfd5d52a42b4890f507594b3d5fc15c57b462dbc0ecc88586c9ac01",
+   "entity['landing_ferry_charter'].brief#1": "a0436cfbbcb716309aa96ba521e1d37cee85841bcb62ff429cc69d24dbf4746a",
+   "entity['landing_ferry_charter'].context#1": "e6c350208a476f3dc0aab29831ec4182e83f196c18129b06b8fa92235550d571",
+   "entity['landing_ferry_charter'].direct#1": "479a167a62e7a17ee95f0c4580b75d92419d4676c8852d71d1a53c9ee202d542",
+   "entity['landing_ferry_charter'].direct#1 structured.generate": "a231458b91f70306328b637a420b2c14a86007b6f46517517751d37389ad78f0",
+   "entity['landing_ferry_charter'].direct_ok#1": "5c8bf9b18326e339230347291aa1e92f8c5dd5d8458e6d683c2d8662ffebfa20",
+   "entity['landing_ferry_charter'].draw#1": "31b3c94b51cc98ebc3dafcaef70c6134058846f96d277613afdce75403d153b4",
+   "entity['landing_ferry_charter'].draw#1 image.generate": "bd286d7293a4a6f34e17559c484be6845ead7911d793742d5bfc9a207b710063",
+   "entity['landing_ferry_charter'].record#1": "6adf1c4a8de074637cbeb1581356b13f43391870df79b5100605b972bc23519b",
+   "entity['landing_ferry_charter'].review#1": "f9b7c50690e2fe3b9f596b70641b1755cf8df29cd53ff7b17a56db42efdd1a07",
+   "entity['landing_ferry_charter'].review#1 structured.generate": "69dccab2a4cd887ab389be9ad7ba71f6c499ea6fcf8c4feef003d5377872bc53",
+   "entity['landing_ferry_charter'].sealed#1": "17c81c2e72564d43f57dfc1b0476e1a0361084cccc7e2a980dae3b53862dbd2a",
+   "entity['landing_lighter'].brief#1": "b69a858b507a528b880b7c5f53d1dac1cc08ffb1fa9041282cab74efe0f59563",
+   "entity['landing_lighter'].context#1": "a184cb2a9d5cc2fc355c4ee68420e03e6b40f093b1ad0f90466cd6c962575134",
+   "entity['landing_lighter'].direct#1": "2b62e3731790e1a0412764c0569b44be0e70820a58eea384be5f2bcf083bf911",
+   "entity['landing_lighter'].direct#1 structured.generate": "0a0cb91aa612c00bb9e5351176eddd82acbb94a54a657a0aa5a59c76d01b4ee5",
+   "entity['landing_lighter'].direct_ok#1": "50d725d35a484fd24e7a22b4d2cfcc6f112d8b0db0788cc3e9cc3b090f1ad6b2",
+   "entity['landing_lighter'].draw#1": "9d77b8f82f750054d56c07b3a142c93db23ff8408d57001f56b5b3835887f66f",
+   "entity['landing_lighter'].draw#1 image.generate": "362e31503ffcbb605d88b0d3cd2c424921cdf8b70a94fb1c1e811a44dd25a773",
+   "entity['landing_lighter'].record#1": "2793de8ddf8cba713a675dd0d705cad461eabe770031bf0a1dae1ef49447695c",
+   "entity['landing_lighter'].review#1": "8c361aafd52d90b9b3e0aa43ab1983af1967827fe91c1799cb5e972a5881f09e",
+   "entity['landing_lighter'].review#1 structured.generate": "31a30cf97dad5a58c5192a74805bf44ef7a359ed3c5e17bbfc09f4a01d9ab459",
+   "entity['landing_lighter'].sealed#1": "ff133265598bea3b1494812e761989465684e93575b6a3df102a8d9af39f5873",
+   "entity['long_grey_grounding'].brief#1": "cba1ae38320c6fe995c14c5872789988e89f3cfc56705ec117b0c839eba3b74e",
+   "entity['long_grey_grounding'].context#1": "3d93e1d4a18461e01637983fc98e21f2e9167283a27b701029d4297ecad48c43",
+   "entity['long_grey_grounding'].direct#1": "a4c4696449447a87fa05005c542a83c7b3254f2156ccd9536ff1347a3b686cdb",
+   "entity['long_grey_grounding'].direct#1 structured.generate": "462993fed3be61b17d6de0db5477ceb058cdda5bf40e014a1e1ebaf9799cb9a3",
+   "entity['long_grey_grounding'].direct_ok#1": "86665c5f8c0d106e938b105a42727191b8d8d31657d4fd3c39896055f9cc7c22",
+   "entity['long_grey_grounding'].draw#1": "aaa96f310ae380bbd52f488e2d04dcf5632bb075c832e086beb293a37e17f641",
+   "entity['long_grey_grounding'].draw#1 image.generate": "a39aef3f5028eb37be5f9a02143b6408f1d4d683f7eedd3e10bdfcc4cc500d54",
+   "entity['long_grey_grounding'].record#1": "41ee1556a7c2560817eaaba1721a1c071b01daa7daf22cbbe2e4ac07826c8a46",
+   "entity['long_grey_grounding'].review#1": "bcccea5f4c368c8f03bdfc433bec588859491ab0149f5df5615a0cef4f539ae9",
+   "entity['long_grey_grounding'].review#1 structured.generate": "2f307f1602b17a31363cad04850487a4ae418b3cb7eb4190b61a5c9b5f1bd31b",
+   "entity['long_grey_grounding'].sealed#1": "7cb386fc8ba95987db8d735080d75df999668c4ac3ab86bdb8e06b9b65c6d0e6",
+   "entity['low_marsh'].brief#1": "5a83e1f425a43ca7c64ddda1e444130e6fe3ab01338b0b21aca78b7efdd88bb2",
+   "entity['low_marsh'].context#1": "3cebd661cf6f3b95013305cd85f184da429bd621415b8f49b44ee7ebc28adb60",
+   "entity['low_marsh'].direct#1": "8174d4a924dba3cb6ebbf99f32e7b3d1be75bca95ff53818d783469621bdba4a",
+   "entity['low_marsh'].direct#1 structured.generate": "4f6fe931f5175a59a324265235f0118cee8d2292231e2619a1f8bf78cf3b8b18",
+   "entity['low_marsh'].direct_ok#1": "fcc5c33ae46222d931c443b8aabf3c3ddafc2ed2a2e57cffc074d8047d52304c",
+   "entity['low_marsh'].draw#1": "eb9312a234d7bd4e09bcd473ed18923ba17a19f209eb8520cf17146d74bb6a4b",
+   "entity['low_marsh'].draw#1 image.generate": "e4ffbbb8b8140a4f91186082165008fb431ac0add560667162cea3bdec9367b4",
+   "entity['low_marsh'].record#1": "43c0da51192e74c346cf252f7c7588c27a4557eb0a19ee39bc3bb4156cee8d03",
+   "entity['low_marsh'].review#1": "9a685c659146167311fb672e0e4b7d20e5821c422ec82e263f3ec939531ebf76",
+   "entity['low_marsh'].review#1 structured.generate": "7bd0cb6436dc6fc1735a38dede2d2187444ec3c9103cee580c00a1cb64bcc4c6",
+   "entity['low_marsh'].sealed#1": "a11db738f91a1ad533e05f38461b7c825452691789ff86d89aab2dc74f7fba8b",
+   "entity['one_light_reads_true'].brief#1": "e92b9aac1761666fd29df6fdc395a9ac535a01f134379f76f3ae0af60e395acd",
+   "entity['one_light_reads_true'].context#1": "eeecc36085db94a30cf92df7385fbbd89bc0ea3618dd55d481af89a0d64df1f2",
+   "entity['one_light_reads_true'].direct#1": "aba2827416553c8eb490afa89887af0b85e0652eda1b0aa9d3439b4e3e706223",
+   "entity['one_light_reads_true'].direct#1 structured.generate": "14463df379a21abf61d2b2dea1da9f040cfb1688837c621c2a70dea226d72e72",
+   "entity['one_light_reads_true'].direct_ok#1": "31f9e7a6c2db377992a6b8c3f5a721c2ab9a04575eb152d8e1d2d26fac1c0dab",
+   "entity['one_light_reads_true'].draw#1": "b9a38ecafb038ddc411d240c29b8be52590ca468b1c79a83da60896a494d1f9a",
+   "entity['one_light_reads_true'].draw#1 image.generate": "4f83025a20320710867d6b50c6ad0188ed34c8a4bf835704ec1a24264c18a74f",
+   "entity['one_light_reads_true'].record#1": "bdad7c0eabcb3cd1e5e182197ffbbaa5590376aff6813362de56de83e6be8d9c",
+   "entity['one_light_reads_true'].review#1": "095db370689c52a4e8c7bd50f060e551fc12608a6bbedc67d49ac867a3c048d2",
+   "entity['one_light_reads_true'].review#1 structured.generate": "b17522ba096762641046b09173bced9038cbb2ec8ae1c381b94db0b92d05591c",
+   "entity['one_light_reads_true'].sealed#1": "7d2addbbd3c62a411a13a0ccf2b56b0ea3230ae4cf7cf6bd516e180f1726bd2e",
+   "entity['sela_fenn'].brief#1": "bb7535a4706842216be908e2fc337514ec85017122c2bafd1487a3bc2129b08f",
+   "entity['sela_fenn'].context#1": "7c3529fc72bc8c1c072af9369b9c9ba743c0c8c6e16078cccd2c173aae4ee463",
+   "entity['sela_fenn'].direct#1": "c7d0e59158745ba0e822d0a7a031272154d0d5d4aeb47e94c1f7b81c061452f2",
+   "entity['sela_fenn'].direct#1 structured.generate": "564692b5debf49d7b0d1671ab8fb380fb467299abe52ad56e8fa99835d95c113",
+   "entity['sela_fenn'].direct_ok#1": "454d2a9917cee8f59ad4187ae37bbc22ad439f3434e23f31fd2f31f515a7e60c",
+   "entity['sela_fenn'].draw#1": "749ea4775daf9678ce53828e7fbd1a26df05bceadab24f047c5c2bc8faf33cc6",
+   "entity['sela_fenn'].draw#1 image.generate": "77ed4aee87cca7f055066a4a2249945368851e5635f953b954bd454c2234869e",
+   "entity['sela_fenn'].record#1": "7e28f138c2cb63be9578aef2917809afc1093411b524d6824d6a01285db4e2b1",
+   "entity['sela_fenn'].review#1": "75892801e2f37bcfc364e21d552a691709fdd7e6521a48008fb910667ec43156",
+   "entity['sela_fenn'].review#1 structured.generate": "02fa8012c62f6b4423af09c03b327cc8f6055297d9832e57f58d03ea0bf66092",
+   "entity['sela_fenn'].sealed#1": "25977a0db6795fd60f0c8636208767c96c04826c77a46820bba34ae4ed4b3401",
+   "look.grammar#1": "bcb7e02a9a95bb800eb4aa6730a9e44f5d1ccdd8d2ea2b4032eec497ce74784e",
+   "look.grammar#1 structured.generate": "17a4781dfa9a6bdee154b673c73ff9716a52ee33ec0e571025bc8da8d0c411a9",
+   "look.grammar_ok#1": "45b026da18e704d06d5b3027a96f1110eb4edbcba527190167caad244e04ef65",
+   "look.projection#1": "1e4d489e7e8bb55204779a9d1830f03eed64e3b43019187f2575afa0e60a912f",
+   "world.admit#1": "63641ed9bb3d503d473fda1c4aabc226d070aa07509cab00e7d91e8c262fcf3b",
+   "world.plan#1": "b70e42852b664f00ed7e9a72890f36a490d154f3d8a34560413aacb17ca71198",
+   "world.plan#1 structured.generate": "7f81af1de7b6efa96477480149952c43b7eee5059f06fac7ce12ea4dc9db6187",
+   "world.plan_ok#1": "5805128cc774887518c199b6ffeb0795cef6282afbc5b2a8e600729da44a7fab",
+   "world.poster_small#1": "b15d28d768f1aa87937b69041fb1a903867de813641d64100d3e3a9d053188dc",
+   "world.projection#1": "7015cbaddf8d35ce02d16307fc342c480c229b7af96a87debfbcd540824c4fb7",
+   "world.proposal_ok#1": "97caf10ddf0756e02f8c9c29267c4ec34436ddb2bec28e8d0548ddc87d25d72d",
+   "world.propose#1": "c8c620c2780ec2bdb22bf5bfb187013e7ec4d6520e18d56a94f775e64037f91d",
+   "world.propose#1 structured.generate": "9b003a4f3d88147c04f5dbbc4361447721a14b8d9d68b06303133e26e1b6aa2f",
+   "world.review#1": "0ec6ee2e13e11fe9b47e92e842483f494b52dfab545a4be50e56f8a92d3e7225",
+   "world.review#1 structured.generate": "c3f4e8cacec4f2f6b7aa184f23c7aca872a6d0666567fd16adfec0ae72b578c9",
+   "world.source#1": "50869246dd9f950196ee52465d7d9b07cd39a3f2564344e1de1ec2fec93d28de"
   }
  },
  "character_frozen_set": {
@@ -145,25 +244,7 @@
   "cache": {
    "dry_run_namespace": "dry-run-nodes-v1",
    "dry_run_record_kind": "dry-run-node-cache-v1",
-   "node_cache_schema_version": 2,
-   "universe_namespace": "universe-nodes-v1",
-   "universe_record_kind": "universe-node-cache-v1"
-  },
-  "graph_documents": {
-   "universe": {
-    "current_kind": "universe-execution-graph-v2",
-    "current_schema_version": 2,
-    "legacy_graph_identities": [
-     [
-      1,
-      "universe-execution-graph-v1"
-     ]
-    ],
-    "projection_kind": "universe-execution-projection-v1",
-    "recipe": "universe",
-    "run_summary_kind": "universe-execution-summary-v1",
-    "view_kind": "universe-execution-view-v1"
-   }
+   "node_cache_schema_version": 2
   },
   "node_types": [
    [
@@ -262,69 +343,109 @@
     "gnode/video.generate@1.1"
    ],
    [
-    "universe/concept.image",
-    "universe/concept.image",
-    "universe-concept-image-v2"
+    "universe/close",
+    "universe/close",
+    "gnode/package@1.1"
    ],
    [
-    "universe/concept.proxy",
-    "universe/concept.proxy",
-    "universe-concept-proxy-v1"
+    "universe/entity/brief",
+    "universe/entity/brief",
+    "nodes/entities.py#image_prompt@1"
    ],
    [
-    "universe/concept.review",
-    "universe/concept.review",
-    "universe-concept-review-v1"
+    "universe/entity/context",
+    "universe/entity/context",
+    "nodes/entities.py#entity_context@1"
    ],
    [
-    "universe/direction.entity",
-    "universe/direction.entity",
-    "universe-direction-entity-v1"
+    "universe/entity/direct",
+    "universe/entity/direct",
+    "gnode/structured.generate@1.1"
    ],
    [
-    "universe/direction.global",
-    "universe/direction.global",
-    "universe-direction-global-v1"
+    "universe/entity/direct_ok",
+    "universe/entity/direct_ok",
+    "nodes/judges.py#direction_ok@1"
    ],
    [
-    "universe/entity.record",
-    "universe/entity.record",
-    "universe-entity-record-v1"
+    "universe/entity/draw",
+    "universe/entity/draw",
+    "gnode/image.generate@1.1"
    ],
    [
-    "universe/gallery.close",
-    "universe/gallery.close",
-    "universe-gallery-close-v1"
+    "universe/entity/record",
+    "universe/entity/record",
+    "nodes/entities.py#record@1"
    ],
    [
-    "universe/gallery.plan",
-    "universe/gallery.plan",
-    "universe-gallery-plan-v1"
+    "universe/entity/review",
+    "universe/entity/review",
+    "gnode/structured.generate@1.1"
    ],
    [
-    "universe/source.lock",
-    "universe/source.lock",
-    "universe-source-lock-v1"
+    "universe/entity/sealed",
+    "universe/entity/sealed",
+    "nodes/entities.py#review_record@1"
    ],
    [
-    "universe/universe.admit",
-    "universe/universe.admit",
-    "universe-admit-v1"
+    "universe/look/grammar",
+    "universe/look/grammar",
+    "gnode/structured.generate@1.1"
    ],
    [
-    "universe/universe.evaluate",
-    "universe/universe.evaluate",
-    "universe-evaluate-v1"
+    "universe/look/grammar_ok",
+    "universe/look/grammar_ok",
+    "nodes/judges.py#grammar_ok@1"
    ],
    [
-    "universe/universe.propose",
-    "universe/universe.propose",
-    "universe-propose-v1"
+    "universe/look/projection",
+    "universe/look/projection",
+    "nodes/world.py#grammar_projection@1"
    ],
    [
-    "universe/universe.review",
-    "universe/universe.review",
-    "universe-review-v1"
+    "universe/world/admit",
+    "universe/world/admit",
+    "nodes/world.py#admit@1"
+   ],
+   [
+    "universe/world/plan",
+    "universe/world/plan",
+    "gnode/structured.generate@1.1"
+   ],
+   [
+    "universe/world/plan_ok",
+    "universe/world/plan_ok",
+    "nodes/judges.py#plan_ok@1"
+   ],
+   [
+    "universe/world/poster_small",
+    "universe/world/poster_small",
+    "gnode/image.resize@1.1"
+   ],
+   [
+    "universe/world/projection",
+    "universe/world/projection",
+    "nodes/world.py#projection@1"
+   ],
+   [
+    "universe/world/proposal_ok",
+    "universe/world/proposal_ok",
+    "nodes/judges.py#proposal_ok@1"
+   ],
+   [
+    "universe/world/propose",
+    "universe/world/propose",
+    "gnode/structured.generate@1.1"
+   ],
+   [
+    "universe/world/review",
+    "universe/world/review",
+    "gnode/structured.generate@1.1"
+   ],
+   [
+    "universe/world/source",
+    "universe/world/source",
+    "nodes/world.py#source@1"
    ]
   ],
   "sdk_graph": {

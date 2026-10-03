@@ -31,17 +31,6 @@ def build_repository_model_policy_projection(
     from stage_gen.config import StageGenConfig
     from stage_gen.image_product import ImageProvider
     from stage_gen.model_routes import IMAGE_ROUTE_CATALOG, image_workload_policies
-    from stage_gen.workflows.universe.universe_graph import (
-        build_universe_gallery_graph,
-        build_universe_semantic_graph,
-        universe_graph_profile,
-    )
-    from stage_gen.workflows.universe.universe_request import (
-        admitted_universe_from_document,
-        read_universe_document,
-        resolve_sample_ledger,
-        resolve_universe_source,
-    )
     from the_grain_pipeline.dialogue_scene.scene_executor import DialogueSceneExecutor
     from the_grain_pipeline.pointclick_room.room_executor import PointClickRoomExecutor
 
@@ -56,8 +45,6 @@ def build_repository_model_policy_projection(
         "pointclick_room": "godot/games/the_grain/inputs/rooms/window",
         "sideview_platformer": "godot/games/bellweather/inputs/default",
         "sideview_runner": "godot/games/iron_petal_unit/inputs",
-        "universe_gallery": "src/stage_gen/workflows/universe/inputs/lantern_ferry",
-        "universe_semantic": "src/stage_gen/workflows/universe/inputs/lantern_ferry",
     }
     available = tuple(sorted(fixture_by_recipe))
     if recipe_id is not None and recipe_id not in fixture_by_recipe:
@@ -90,33 +77,6 @@ def build_repository_model_policy_projection(
         graphs["sideview_runner"] = (
             SideviewRunnerExecutor(config).plan(root / fixture_by_recipe["sideview_runner"]).graph
         )
-    if selected & {"universe_gallery", "universe_semantic"}:
-        universe_root = root / fixture_by_recipe["universe_gallery"]
-        universe = resolve_universe_source(
-            read_universe_document(universe_root),
-            root=universe_root,
-        )
-        if "universe_semantic" in selected:
-            graphs["universe_semantic"] = build_universe_semantic_graph(
-                universe,
-                profile=universe_graph_profile(config, images=False),
-            )
-        if "universe_gallery" in selected:
-            admitted = admitted_universe_from_document(
-                root / "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json",
-                poster_sha256=universe.poster_sha256,
-            )
-            samples = resolve_sample_ledger(
-                universe_id=admitted.universe_id,
-                entity_ids=admitted.entity_ids(),
-            )
-            graphs["universe_gallery"] = build_universe_gallery_graph(
-                universe,
-                admitted,
-                samples=samples,
-                profile=universe_graph_profile(config, images=True),
-                config=config,
-            )
     policy_selections = {
         "default": image_workload_policies(),
         **{candidate.value: image_workload_policies(candidate) for candidate in ImageProvider},

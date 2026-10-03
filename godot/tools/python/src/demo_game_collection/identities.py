@@ -233,7 +233,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("authored", _field("components.character_profile.models", "CharacterProfileBinding")),
     ("authored", _field("recipes.pointclick_room.models", "PointClickRoom")),
     ("authored", _field("recipes.dialogue_scene.models", "DialogueSceneDocument")),
-    ("authored", _field("workflows.universe.models", "UniverseSource")),
     ("authored", _field("recipes.oblique_survival.models", "ObliqueSurvivalSource")),
     ("authored", _constant("recipes.oblique_survival.models", "WORLD_KIND")),
     # Generated documents: what the pipeline writes for a consumer or a later node.
@@ -249,7 +248,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("generated", _field("recipes.dialogue_scene.models", "DialogueScenePlan")),
     ("generated", _field("recipes.dialogue_scene.models", "IndependentReview")),
     ("generated", _field("recipes.dialogue_scene.models", "DialogueBundle")),
-    ("generated", _field("workflows.universe.models", "SampleLedger")),
     (
         "generated",
         _constant("workflows.portrait_motion.pipeline", "PORTRAIT_MOTION_PLAN_KIND"),
@@ -261,7 +259,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ),
     ("manifest", _constant("recipes.sideview_runner.runner_types", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.pointclick_room.room_types", "MANIFEST_KIND")),
-    ("manifest", _constant("workflows.universe.universe_types", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.oblique_survival.manifest", "MANIFEST_KIND")),
     # Execution graphs.
     (
@@ -299,14 +296,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     (
         "graph",
         _graph(
-            "workflows.universe.universe_graph",
-            "UNIVERSE_GRAPH_KIND",
-            "UniverseGraph",
-        ),
-    ),
-    (
-        "graph",
-        _graph(
             "recipes.oblique_survival.survival_graph",
             "OBLIQUE_SURVIVAL_GRAPH_KIND",
             "ObliqueSurvivalGraph",
@@ -336,7 +325,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("namespace", _constant("recipes.sideview_runner.runner_graph", "RUNNER_CACHE_NAMESPACE")),
     ("namespace", _constant("recipes.pointclick_room.room_graph", "POINTCLICK_CACHE_NAMESPACE")),
     ("namespace", _constant("recipes.dialogue_scene.scene_graph", "DIALOGUE_CACHE_NAMESPACE")),
-    ("namespace", _constant("workflows.universe.universe_graph", "UNIVERSE_CACHE_NAMESPACE")),
     (
         "namespace",
         _constant("recipes.oblique_survival.survival_graph", "OBLIQUE_SURVIVAL_CACHE_NAMESPACE"),

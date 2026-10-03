@@ -41,6 +41,18 @@
  },
  "$id": "urn:gnode:schema:gnode-view-context-v1",
  "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "else": {
+  "required": [
+   "steps"
+  ]
+ },
+ "if": {
+  "properties": {
+   "scope": {
+    "const": "node"
+   }
+  }
+ },
  "properties": {
   "facts": {
    "type": "object"
@@ -52,7 +64,10 @@
    "const": "gnode-view-context-v1"
   },
   "node_id": {
-   "type": "string"
+   "type": [
+    "string",
+    "null"
+   ]
   },
   "outputs": {
    "type": "object"
@@ -86,7 +101,10 @@
    "type": "object"
   },
   "scope": {
-   "const": "node"
+   "enum": [
+    "node",
+    "workflow"
+   ]
   },
   "step": {
    "properties": {
@@ -124,6 +142,9 @@
    ],
    "type": "object"
   },
+  "steps": {
+   "type": "object"
+  },
   "template": {
    "pattern": "^views/[0-9a-f]{64}\\.html$",
    "type": "string"
@@ -132,12 +153,17 @@
  "required": [
   "kind",
   "scope",
-  "node_id",
   "template",
-  "step",
-  "inputs",
-  "outputs"
+  "outputs",
+  "run"
  ],
- "title": "gnode view context: what a step's view reads, as `context()` returns it",
+ "then": {
+  "required": [
+   "node_id",
+   "step",
+   "inputs"
+  ]
+ },
+ "title": "gnode view context: what a step's or a workflow's view reads from `context()`",
  "type": "object"
 }

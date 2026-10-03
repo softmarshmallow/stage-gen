@@ -1,0 +1,91 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0.12,
+  "low_usd": 0.03
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "draw['lantern'].picture#1",
+   "identity": "9fe1308a72af6763e51ac8a2c46d93b849c908dd0331f5293a91fd390fae09a7",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "draw['lantern'].picture",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "reads": [],
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "draw.picture",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "draw['rope'].picture#1",
+   "identity": "7dca348814ac5e03cbd60ee6a48774ba76cef28374de6b84c3bfa29778dad18d",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "draw['rope'].picture",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "reads": [],
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "draw.picture",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "draw['gull'].picture#1",
+   "identity": "ff73f68aa9884f4122e677a7bd827a4b8967edf98ff5944a05bfc15b01cd50d5",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "draw['gull'].picture",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "reads": [],
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "draw.picture",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  }
+ ],
+ "pending": [],
+ "problems": [],
+ "workflow": "case"
+}

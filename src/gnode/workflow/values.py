@@ -61,8 +61,12 @@ class FileValue:
         return {"file": self.digest}
 
     def expression_text(self) -> str:
+        """A text file is its text and a JSON file its JSON, as a prompt reads them."""
+
         if isinstance(self.content, str):
             return self.content
+        if self.content is not None:
+            return json.dumps(self.content, ensure_ascii=False, separators=(",", ":"))
         return f"sha256:{self.digest}"
 
     def expression_facts(self) -> Mapping[str, Any]:

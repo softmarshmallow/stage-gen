@@ -1,7 +1,7 @@
 // One run. What it renders depends on what the run carries:
 //
-// - a universe gallery is shown as the reader would see it, with the run's graph one
-//   link away (`?view=graph`);
+// - a run whose workflow has a view of its own (a gnode `view:`, such as universe's gallery)
+//   is shown in that view, with the run's graph one link away (`?view=graph`);
 // - otherwise its execution view — the run's own, or the one `stage-gen view` derived
 //   into the cache — fills the window as a graph, and refreshes while the run is live;
 // - a run with neither says what its own record says and how a view is made. A game
@@ -17,16 +17,14 @@ import LiveRefresh from "@/app/LiveRefresh";
 import { runLiveness } from "@stage-gen/ui/contracts/run-view";
 import { type CatalogWorkflow, findWorkflow } from "@stage-gen/ui/contracts/catalog";
 import { isGameRun, workflowOf } from "@/lib/run-groups";
-import { buildEntityCards, presentClasses, tallyReviewChecks } from "@/lib/universe/gallery-view";
 import { readCatalog } from "@/lib/shell/catalog";
 import { type ReadView, readExecutionView, readViewContexts } from "@/lib/shell/execution-view";
-import type { ViewContexts } from "@stage-gen/ui/contracts/view-context";
+import type { ViewContext, ViewContexts } from "@stage-gen/ui/contracts/view-context";
 import { readRunEntry, type RunIndexEntry } from "@/lib/shell/run-index";
 import { type RunRef, relativeOf } from "@/lib/shell/run-ref";
 import { isRealRunDirectory, isSafeRunTag, rootFor, runDirFor } from "@/lib/shell/runs";
-import { readUniverseGallery, type UniverseGallery } from "@/lib/shell/universe";
 import RunViewer from "./RunViewer";
-import UniverseViewer from "./UniverseViewer";
+import ViewFrame from "./ViewFrame";
 
 export const dynamic = "force-dynamic";
 
@@ -116,6 +114,27 @@ function NoView({ run, runDir, rootLabel, entry, workflow, game }: NoViewFacts) 
   );
 }
 
+/** A run shown in its workflow's own view: the view is the page, the graph one link away. */
+function WorkflowView({ run, view, live }: { run: RunRef; view: ViewContext; live: boolean }) {
+  return (
+    <main className="fixed inset-0 flex flex-col bg-bg">
+      <LiveRefresh live={live} />
+      <p className={`${metaLine} m-0 flex gap-3 px-3 py-1.5`}>
+        <Link className="text-dim no-underline hover:text-accent" href="/">
+          ← runs
+        </Link>
+        <span>{relativeOf(run.tag)}</span>
+        <Link className="text-dim hover:text-accent" href="?view=graph">
+          graph
+        </Link>
+      </p>
+      <div className="min-h-0 flex-1">
+        <ViewFrame run={run} view={view} fill />
+      </div>
+    </main>
+  );
+}
+
 export default async function RunPage({
   params,
   searchParams,
@@ -129,30 +148,6 @@ export default async function RunPage({
   if (!(await isRealRunDirectory(run))) notFound();
   const runDir = runDirFor(run);
   const graphOnly = (await searchParams)?.view === "graph";
-
-  if (!graphOnly) {
-    let gallery: UniverseGallery | null = null;
-    try {
-      gallery = await readUniverseGallery(run);
-    } catch (error) {
-      return <Refused run={run} refusal={message(error)} />;
-    }
-    if (gallery !== null) {
-      const cards = buildEntityCards(gallery.manifest, gallery.universe, gallery.records);
-      return (
-        <UniverseViewer
-          run={run}
-          manifest={gallery.manifest}
-          universe={gallery.universe}
-          cards={cards}
-          classes={presentClasses(cards)}
-          tallies={tallyReviewChecks(cards)}
-          unreadableRecords={gallery.unreadableRecords}
-          hasExecutionView={gallery.hasExecutionView}
-        />
-      );
-    }
-  }
 
   let read: ReadView | null = null;
   try {
@@ -174,6 +169,8 @@ export default async function RunPage({
     return <Refused run={run} refusal={message(error)} />;
   }
   const liveness = runLiveness(read.view, Date.now());
+  const whole = graphOnly ? undefined : views?.views.find((view) => view.scope === "workflow");
+  if (whole !== undefined) return <WorkflowView run={run} view={whole} live={liveness === "running"} />;
   // Full-bleed: the graph is the page, and the viewer floats its own chrome.
   return (
     <main className="fixed inset-0 overflow-hidden bg-bg">

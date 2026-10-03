@@ -2,7 +2,7 @@
 
 The blocks live in src/stage_gen/workflows/looping_parallax/contract.md,
 src/stage_gen/workflows/movie_sprite/contract.md and
-src/stage_gen/workflows/universe/contract.md (two blocks, one per phase). The universe
+src/stage_gen/workflows/universe/contract.md. The universe
 vocabulary they implement is ratified in docs/spec/universe/taxonomy-v0.md, which links the
 universe contract. `scripts/write_workflow_contracts.py --write` regenerates every block.
 """
@@ -17,7 +17,6 @@ import pytest
 from scripts.graph_contracts import document_contract, render
 from scripts.write_workflow_contracts import (
     BLOCKS,
-    UNIVERSE_ADMITTED_REF,
     ContractBlock,
     build,
     contract_of,
@@ -90,37 +89,31 @@ def test_a_block_carries_no_path_or_machine_fact() -> None:
 
 
 def test_build_refuses_a_plan_that_differs_between_scratch_folders() -> None:
-    from gnode import Graph
+    import dataclasses
 
-    graphs: list[Graph] = []
-    original = next(block for block in BLOCKS if block.label == "semantic")
+    from stage_gen.workflows._gnode import SamplePlan
 
-    def plan_once(scratch: Path, repo: Path) -> Graph:
-        graph = original.plan(scratch, repo)
-        assert isinstance(graph, Graph)
-        if graphs:
-            graph = graph.model_copy(update={"terminal_node_id": "moved"})
-        graphs.append(graph)
-        return graph
+    plans: list[SamplePlan] = []
+    original = next(block for block in BLOCKS if block.workflow_id == "universe")
+
+    def plan_once(scratch: Path, repo: Path) -> SamplePlan:
+        planned = original.plan(scratch, repo)
+        assert isinstance(planned, SamplePlan)
+        if plans:
+            planned = dataclasses.replace(planned, topology_sha256="moved")
+        plans.append(planned)
+        return planned
 
     with pytest.raises(ValueError, match="plans differently"):
         build(ContractBlock(original.workflow_id, original.label, plan_once))
-    assert contract_of(graphs[0])["terminal_node_id"] != "moved"
+    assert contract_of(plans[0])["topology_sha256"] != "moved"
 
 
-def test_universe_gallery_block_is_planned_from_the_committed_admission() -> None:
-    # Universe is the one workflow that seals two graphs, because the size of its gallery is a
-    # result of its semantic phase. The committed admission stands in for that paid run.
-    assert (REPOSITORY_ROOT / UNIVERSE_ADMITTED_REF).is_file()
-    semantic = document_contract(
-        REPOSITORY_ROOT / "src/stage_gen/workflows/universe/contract.md", label="semantic"
-    )
-    gallery = document_contract(
-        REPOSITORY_ROOT / "src/stage_gen/workflows/universe/contract.md", label="gallery"
-    )
-    assert semantic["terminal_node_id"] == "universe-admit"
-    assert gallery["terminal_node_id"] == "gallery-close"
-    assert gallery["operation_counts"]["image_generation"] > 0
+def test_universe_block_holds_the_world_phase_the_plan_can_count() -> None:
+    # The gallery's size is a result of the world phase, so it is priced when its list exists.
+    block = document_contract(REPOSITORY_ROOT / "src/stage_gen/workflows/universe/contract.md")
+    assert "universe/world/propose" in block["type_ids"]
+    assert "universe/entity/draw" not in block["type_ids"]
 
 
 def test_universe_contract_is_discoverable_from_its_taxonomy_and_the_docs_index() -> None:

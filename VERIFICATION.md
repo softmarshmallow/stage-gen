@@ -19,7 +19,8 @@ uv run --group games python scripts/check.py --scope godot
 The default product gate requires Python tools only. Among its steps it checks every
 workflow file's `gnode.lock` (`gnode lock <id> --check`), runs real offline looping-parallax
 and movie-sprite runs through `gnode` with their `gnode inspect --verify` (movie-sprite finishes
-its supplied clip, and only plans its paid take, so the gate needs FFmpeg), the universe dry run,
+its supplied clip, and only plans its paid take, so the gate needs FFmpeg), the universe plan
+(both phases and their ceilings, offline),
 `stage-gen catalog export --check --allow-missing-examples`, and `--help` for every
 `stage-gen` workflow verb. It also checks gnode's published document schemas
 (`scripts/write_gnode_schemas.py --check`) and runs the

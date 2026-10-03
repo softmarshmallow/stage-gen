@@ -2,10 +2,10 @@
 """Check or rewrite the graph-contract blocks in each workflow's contract.md.
 
 Each block is the shape of a workflow's offline sample plan, ``CODE.sample_plan`` in its
-``workflow.py``: topology digest, node count, terminal node, operation counts, resources and
-the type ids it places. Universe carries a second block for its gallery phase, planned from
-the committed admitted-universe fixture, because a gallery plan needs an admitted world that
-only a paid semantic run makes. Game graph contracts have their own writer under
+``workflow.py``: topology digest, node count, operation counts, outputs and the type ids it
+places. A phase whose size is a result of an earlier one (universe's gallery) is priced when
+its list exists, so the block holds the phases the plan can count. Game graph contracts have
+their own writer under
 ``godot/tools``; shared block formatting belongs to ``scripts.graph_contracts``.
 
 Every block is built twice, each time in a fresh scratch folder, and a block whose two builds
@@ -35,7 +35,6 @@ from scripts.graph_contracts import document_contract, write_contract
 from stage_gen.workflows._gnode import SamplePlan
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-UNIVERSE_ADMITTED_REF = "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,44 +68,10 @@ def _sample_plan(workflow_id: str) -> Callable[[Path, Path], Graph | SamplePlan]
     return planned
 
 
-def _universe_gallery(scratch: Path, repo: Path) -> Graph:
-    """The gallery fan-out over lantern_ferry and its committed admitted-universe fixture."""
-    del scratch
-    from stage_gen.config import load_config
-    from stage_gen.workflows.universe.universe_graph import (
-        build_universe_gallery_graph,
-        universe_graph_profile,
-    )
-    from stage_gen.workflows.universe.universe_request import (
-        admitted_universe_from_document,
-        read_universe_document,
-        resolve_sample_ledger,
-        resolve_universe_source,
-    )
-    from stage_gen.workflows.universe.workflow import SAMPLE_INPUT
-
-    config = load_config(env={})
-    source = resolve_universe_source(read_universe_document(SAMPLE_INPUT), root=SAMPLE_INPUT)
-    admitted = admitted_universe_from_document(
-        repo / UNIVERSE_ADMITTED_REF, poster_sha256=source.poster_sha256
-    )
-    samples = resolve_sample_ledger(
-        universe_id=admitted.universe_id, entity_ids=admitted.entity_ids()
-    )
-    return build_universe_gallery_graph(
-        source,
-        admitted,
-        samples=samples,
-        profile=universe_graph_profile(config, images=True),
-        config=config,
-    )
-
-
 BLOCKS: tuple[ContractBlock, ...] = (
     ContractBlock("looping-parallax", None, _sample_plan("looping-parallax")),
     ContractBlock("movie-sprite", None, _sample_plan("movie-sprite")),
-    ContractBlock("universe", "semantic", _sample_plan("universe")),
-    ContractBlock("universe", "gallery", _universe_gallery),
+    ContractBlock("universe", None, _sample_plan("universe")),
 )
 
 
