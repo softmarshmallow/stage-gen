@@ -289,8 +289,10 @@ from gnode.view import (
 from gnode.workflow import cli
 from gnode.workflow.api import PlanRefused, RunResult, plan, plan_async, run, run_async
 from gnode.workflow.builder import Workflow
+from gnode.workflow.describe import StepDescription, WorkflowDescription, describe
 from gnode.workflow.expand import Expansion, Instance, Problem, Result
 from gnode.workflow.host import (
+    CallRefused,
     CapabilityHandler,
     Ctx,
     HostServices,
@@ -301,10 +303,18 @@ from gnode.workflow.host import (
     tool,
 )
 from gnode.workflow.plan import Plan, Planner, Project, make_plan, make_planner
-from gnode.workflow.plugins import Plugin
+from gnode.workflow.plugins import Plugin, load_plugins
 from gnode.workflow.registry import BuiltinType
 from gnode.workflow.routes import Route, RoutePrice, RouteTable, route_table_from_document
 from gnode.workflow.run import RunOutcome, RunRefused, WorkflowRun
+from gnode.workflow.runview import (
+    RunFolderError,
+    is_workflow_run,
+    project_run,
+    read_plan,
+    verify_run,
+    view_contexts,
+)
 from gnode.workflow.schemas import all_schemas as document_schemas
 from gnode.workflow.spec import NodeSpec, PortSpec, node, param_schema
 from gnode.workflow.store import CallRecord, Store
@@ -588,6 +598,17 @@ __all__ = [
     "Spending",
     "Store",
     "WorkflowRun",
+    "WorkflowDescription",
+    "StepDescription",
+    "RunFolderError",
+    "CallRefused",
+    "describe",
+    "is_workflow_run",
+    "project_run",
+    "read_plan",
+    "verify_run",
+    "view_contexts",
+    "load_plugins",
     "cli",
     "document_schemas",
     "make_plan",

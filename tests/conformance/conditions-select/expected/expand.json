@@ -21,6 +21,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },
@@ -46,6 +47,9 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "base#1"
+   ],
    "routes": {},
    "state": "planned",
    "step": "check",
@@ -71,6 +75,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },
@@ -96,6 +101,11 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "base#1",
+    "check#1",
+    "fix#1"
+   ],
    "routes": {},
    "state": "planned",
    "step": "chosen",

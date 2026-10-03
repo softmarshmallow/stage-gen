@@ -19,6 +19,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "planned",
    "step": "each.loud",
@@ -42,6 +43,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "planned",
    "step": "each.loud",

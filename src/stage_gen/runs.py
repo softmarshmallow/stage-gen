@@ -34,10 +34,11 @@ RUN_DOCUMENTS = (
 #: A folder holding the first of a pair and any one of its partners is a run: a character
 #: run keeps ``graph.json`` beside its trace and summary, a portrait run ``plan.json``
 #: beside ``graph.json`` from the moment it is prepared and ``execution.json`` once it ends,
-#: so a run is listed (without a view until it has a trace) while it runs.
+#: and a gnode workflow run ``plan.json`` beside its ``events.jsonl``, so a run is listed
+#: (without a view until it has a trace) while it runs.
 RUN_DOCUMENT_PAIRS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("graph.json", ("summary.json", "trace.jsonl")),
-    ("plan.json", ("execution.json", "graph.json")),
+    ("plan.json", ("execution.json", "graph.json", "events.jsonl")),
 )
 #: The example store sits at the top of a run root (``out/examples``); it holds exports, not
 #: runs.
@@ -57,6 +58,7 @@ SOURCE_FILES = (
     "summary.json",
     "plan.json",
     "execution.json",
+    "events.jsonl",
 )
 VIEW_KEY_LENGTH = 16
 

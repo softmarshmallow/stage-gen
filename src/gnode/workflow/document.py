@@ -97,6 +97,8 @@ class Step(_Document):
     independent_of: tuple[Name, ...] = ()
     view: bool | str = False
     timeout: float | None = Field(default=None, gt=0)
+    #: For readers (the dashboard, the catalog); never part of what the step makes.
+    title: str | None = Field(default=None, min_length=1, max_length=120)
     description: str | None = None
 
     @model_validator(mode="before")
@@ -173,6 +175,9 @@ class ProjectDocument(_Document):
     budget: Budget | None = None
     routes: dict[str, str | RouteDefault] = Field(default_factory=dict)
     view_origins: tuple[str, ...] = ()
+    #: Python packages, beyond this folder, whose modules count as the project's source: in
+    #: the identity of node types without a version, and in what ``gnode.lock`` guards.
+    sources: tuple[Annotated[str, Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")], ...] = ()
 
     def route_for(self, capability: str) -> RouteDefault | None:
         entry = self.routes.get(capability)

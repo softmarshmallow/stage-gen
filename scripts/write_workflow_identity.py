@@ -43,7 +43,6 @@ if __package__ in {None, ""}:
 import stage_gen
 import stage_gen.components.movie_sprite as movie_sprite_component
 import stage_gen.identity as provenance_identities
-import stage_gen.workflows.looping_parallax.pipeline as looping_parallax_pipeline
 import stage_gen.workflows.movie_sprite.pipeline as movie_sprite_pipeline
 import stage_gen.workflows.universe.universe_types as universe_types
 from gnode import (
@@ -53,11 +52,14 @@ from gnode import (
     Node,
     NodeExecutionResult,
     NodeType,
+    RunView,
     SoftwareIdentity,
     ViewArchetype,
     atomic_write_text,
+    project_run,
     seal_graph,
 )
+from gnode import run as gnode_run
 from stage_gen.components.portrait_motion.face_location import locator_node_type
 from stage_gen.components.portrait_motion.nodes import portrait_motion_node_types
 from stage_gen.config import load_config
@@ -66,7 +68,6 @@ from stage_gen.pipeline import (
     InputFiles,
     NodeBinding,
     PipelineContext,
-    PipelineDefinition,
     PipelineGraph,
     define,
     object_digest,
@@ -77,8 +78,8 @@ from stage_gen.pipeline import (
 from stage_gen.pipeline.dry_run import DRY_RUN_CACHE_NAMESPACE, DRY_RUN_CACHE_RECORD_KIND
 from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_cache import NODE_CACHE_SCHEMA_VERSION
-from stage_gen.workflows.looping_parallax import ParallaxLayer, ParallaxSpec
-from stage_gen.workflows.looping_parallax import create_pipeline as create_parallax_pipeline
+from stage_gen.workflows._gnode import GnodeWorkflow
+from stage_gen.workflows._registry import discover
 from stage_gen.workflows.movie_sprite import create_pipeline as create_movie_sprite_pipeline
 from stage_gen.workflows.movie_sprite.authoring import digest as movie_sprite_digest
 from stage_gen.workflows.movie_sprite.cli import build_definition
@@ -100,7 +101,6 @@ UNIVERSE_INPUT = Path(universe_types.__file__).parent / "inputs/lantern_ferry"
 CHARACTER_OWNERS = ("recipes", "orchestration", "components", "providers", "resources")
 #: Modules whose NodeType constants are product node types.
 NODE_TYPE_MODULES: tuple[ModuleType, ...] = (
-    looping_parallax_pipeline,
     movie_sprite_pipeline,
     universe_types,
 )
@@ -196,24 +196,6 @@ def _observed_sdk_cache(pipeline_id: str, scratch: Path) -> tuple[str, str]:
     return namespace.name, str(record["kind"])
 
 
-def _parallax_definition() -> PipelineDefinition:
-    """The committed supplied_layers example's spec, restated so example moves stay out."""
-    return create_parallax_pipeline(
-        ParallaxSpec(
-            width=640,
-            height=360,
-            layers=[
-                ParallaxLayer(
-                    layer_id="distant_hills", source="distant_hills.png", order=0, parallax=0.2
-                ),
-                ParallaxLayer(
-                    layer_id="near_trees", source="near_trees.png", order=1, parallax=0.7
-                ),
-            ],
-        )
-    )
-
-
 def _graph_document(document: type[GraphDocument]) -> Section:
     (recipe,) = get_args(document.model_fields["recipe"].annotation)
     return {
@@ -234,6 +216,10 @@ def _node_types() -> Iterable[NodeType]:
         yield from (value for value in vars(module).values() if isinstance(value, NodeType))
     yield from portrait_motion_node_types()
     yield locator_node_type()
+    # A workflow file's steps, each titled and typed by the gnode type it uses.
+    for workflow in discover():
+        if workflow.root.joinpath("workflow.yaml").is_file():
+            yield from GnodeWorkflow.read(workflow.package).types.values()
 
 
 def identities(scratch: Path) -> Section:
@@ -241,7 +227,7 @@ def identities(scratch: Path) -> Section:
         finish_ref="finish.json", authoring_ref="authoring.json"
     )
     pipelines: dict[str, dict[str, str]] = {}
-    for definition in (_parallax_definition(), movie_sprite):
+    for definition in (movie_sprite,):
         namespace, record_kind = _observed_sdk_cache(definition.pipeline_id, scratch)
         pipelines[definition.pipeline_id] = {"namespace": namespace, "record_kind": record_kind}
     graph_documents = {section["recipe"]: section for section in (_graph_document(UniverseGraph),)}
@@ -291,10 +277,28 @@ def materialize_inputs(name: str, scratch: Path) -> Path:
     return root
 
 
-def plan_looping_parallax(scratch: Path) -> Graph:
-    return plan(
-        _parallax_definition(), input_root=materialize_inputs("looping-parallax", scratch)
-    ).graph
+#: The looping-parallax sample's placement over the constant layer bytes.
+PARALLAX_INPUTS = {
+    "canvas": {"width": 640, "height": 360},
+    "layers": [
+        {"layer_id": "distant_hills", "file": "distant_hills.png", "order": 0, "parallax": 0.2},
+        {"layer_id": "near_trees", "file": "near_trees.png", "order": 1, "parallax": 0.7},
+    ],
+}
+
+
+def run_looping_parallax(scratch: Path) -> RunView:
+    """The sample run offline, free: every identity, downstream of results included."""
+    root = materialize_inputs("looping-parallax", scratch)
+    inputs = root / "inputs.yaml"
+    inputs.write_text(json.dumps(PARALLAX_INPUTS), encoding="utf-8")
+    project = scratch / "project"
+    project.mkdir()
+    (project / "gnode.yaml").write_text("gnode: project/v1\n", encoding="utf-8")
+    completed = gnode_run("looping-parallax", input_files=[inputs], cwd=project)
+    if not completed.ok:
+        raise RuntimeError(f"the looping-parallax sample failed: {completed.failed}")
+    return project_run(completed.run_dir)
 
 
 def plan_movie_sprite_generate(scratch: Path) -> Graph:
@@ -325,15 +329,16 @@ def plan_universe_semantic(scratch: Path) -> Graph:
 
 
 #: Each pinned plan; the gallery phase is absent because it plans only from a semantic run.
-CACHE_KEY_PLANS: dict[str, Callable[[Path], Graph]] = {
-    "looping-parallax": plan_looping_parallax,
+CACHE_KEY_PLANS: dict[str, Callable[[Path], Graph | RunView]] = {
+    "looping-parallax": run_looping_parallax,
     "movie-sprite-generate": plan_movie_sprite_generate,
     "universe-semantic": plan_universe_semantic,
 }
 
 
-def cache_key_map(graph: Graph) -> dict[str, str]:
-    return {node.node_id: node.cache_key for node in sorted(graph.nodes, key=lambda n: n.node_id)}
+def cache_key_map(graph: Graph | RunView) -> dict[str, str]:
+    keys = {node.node_id: node.cache_key for node in graph.nodes}
+    return dict(sorted(keys.items()))
 
 
 def cache_keys(scratch: Path) -> Section:

@@ -76,9 +76,9 @@ root goes. A page opened at `#graph/<node>` shows the graph view from its first 
 shell's first script marks `<html>`, and the graph player takes over when it mounts.
 `elkjs` and `@google/model-viewer` come from npm.
 
-The viewer keeps its own `ParallaxPreview`, `MotionPlayer` and execution-graph layout. They
-inspect a run's supplied layers, a strip's frames and a live execution view with React state;
-the site's players drive an example's authored markup, so neither replaces the other.
+The viewer keeps its own `MotionPlayer`, step-view frame and execution-graph layout. They
+inspect a strip's frames, a step's own view and a live execution view with React state; the
+site's players drive an example's authored markup, so neither replaces the other.
 
 ## Checks
 

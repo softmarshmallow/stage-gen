@@ -154,9 +154,11 @@ def _workflow_roots() -> dict[str, tuple[Path, ...]]:
 #: The registry's declarations (Step, WorkflowCode, run readers) every workflow states
 #: itself with. It is not a workflow, and it imports none.
 WORKFLOW_DECLARATIONS = "stage_gen.workflows._registry"
+#: How a workflow written as a workflow file declares itself to the registry.
+WORKFLOW_FILE_DECLARATIONS = "stage_gen.workflows._gnode"
 #: Modules at the workflows root that read every workflow; they load one only on demand,
 #: through ``load_code``, and import none statically.
-WORKFLOW_REGISTRY_MODULES = ("_registry.py", "_catalog.py", "_checks.py")
+WORKFLOW_REGISTRY_MODULES = ("_registry.py", "_catalog.py", "_checks.py", "_gnode.py")
 
 
 def test_workflows_do_not_import_each_other() -> None:
@@ -174,6 +176,7 @@ def test_workflows_do_not_import_each_other() -> None:
             f"stage_gen.workflows.{name}",
             *(_module_of(root) for root in roots),
             WORKFLOW_DECLARATIONS,
+            WORKFLOW_FILE_DECLARATIONS,
         )
         for root in roots:
             for path in _python_sources(root):

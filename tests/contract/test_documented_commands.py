@@ -1,11 +1,13 @@
-"""Every documented ``stage-gen`` command parses with the real CLI.
+"""Every documented ``stage-gen`` and ``gnode`` command parses with the real CLI.
 
 A command shown to a reader is a promise: a renamed verb, a dropped flag or a misspelt
 workflow id must fail here, not on the reader's machine. Commands are read from fenced
 ``sh``/``bash`` blocks in README.md, the live docs (``docs/`` without its history roots),
 each workflow's ``page.mdx``, ``contract.md`` and example pages, the Godot docs, and each
-``workflow.toml`` ``[try]`` table. Each is parsed by ``stage_gen.interfaces.cli.parse``, the
-console script's own ``parse_known_args`` path, and never executed.
+``workflow.toml`` ``[try]`` table. A ``stage-gen`` command is parsed by
+``stage_gen.interfaces.cli.parse``, the console script's own ``parse_known_args`` path; a
+``gnode`` command by gnode's parser, with only its workflow's own input flags beside it. None
+is executed.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from pathlib import Path
 import pytest
 
 from stage_gen.interfaces.cli import build_parser, parse
+from stage_gen.workflows._checks import gnode_command_problems
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = REPOSITORY_ROOT / "src/stage_gen/workflows"
@@ -34,15 +37,17 @@ ENVIRONMENT = re.compile(r"^[A-Z_][A-Z0-9_]*=")
 #: The ``uv run`` options a documented command may carry before ``stage-gen``.
 UV_RUN_FLAGS_WITH_VALUE = {"--group", "--extra", "--with", "--python", "--directory"}
 COMMAND_SEPARATORS = {"&&", "||", ";", "|"}
+PROGRAMS = ("stage-gen", "gnode")
 
 
 @dataclass(frozen=True, slots=True)
 class Documented:
     source: str
     arguments: tuple[str, ...]
+    program: str = "stage-gen"
 
     def __str__(self) -> str:
-        return f"{self.source}: stage-gen {shlex.join(self.arguments)}"
+        return f"{self.source}: {self.program} {shlex.join(self.arguments)}"
 
 
 def _documents() -> list[Path]:
@@ -77,8 +82,9 @@ def _logical_lines(body: str) -> Iterator[str]:
         yield pending
 
 
-def _commands(line: str) -> Iterator[tuple[str, ...]]:
-    """The ``stage-gen`` invocations in one shell line, after env assignments and ``uv run``."""
+def _commands(line: str) -> Iterator[tuple[str, tuple[str, ...]]]:
+    """The ``stage-gen`` and ``gnode`` invocations in one shell line, after env assignments
+    and ``uv run``."""
     try:
         tokens = shlex.split(line, comments=True)
     except ValueError:
@@ -98,8 +104,8 @@ def _commands(line: str) -> Iterator[tuple[str, ...]]:
                 flag = words.pop(0)
                 if flag in UV_RUN_FLAGS_WITH_VALUE and "=" not in flag:
                     words = words[1:]
-        if words and words[0] == "stage-gen":
-            yield tuple(words[1:])
+        if words and words[0] in PROGRAMS:
+            yield words[0], tuple(words[1:])
 
 
 def documented_commands() -> list[Documented]:
@@ -110,7 +116,9 @@ def documented_commands() -> list[Documented]:
             if fence.group("info").strip().split(" ")[0] not in SHELL_FENCES:
                 continue
             for line in _logical_lines(fence.group("body")):
-                found.extend(Documented(relative, command) for command in _commands(line))
+                found.extend(
+                    Documented(relative, command, program) for program, command in _commands(line)
+                )
     for manifest in sorted(WORKFLOWS.glob("*/workflow.toml")):
         relative = manifest.relative_to(REPOSITORY_ROOT).as_posix()
         table = tomllib.loads(manifest.read_text(encoding="utf-8")).get("try", {})
@@ -118,8 +126,8 @@ def documented_commands() -> list[Documented]:
             words = shlex.split(command)
             while words and ENVIRONMENT.match(words[0]):
                 words = words[1:]
-            assert words[0] == "stage-gen", f"{relative}: [try] command must start with stage-gen"
-            found.append(Documented(f"{relative} [try]", tuple(words[1:])))
+            assert words[0] in PROGRAMS, f"{relative}: [try] command must start with {PROGRAMS}"
+            found.append(Documented(f"{relative} [try]", tuple(words[1:]), words[0]))
     return found
 
 
@@ -141,6 +149,10 @@ def test_the_scan_reads_every_kind_of_source() -> None:
 
 @pytest.mark.parametrize("command", DOCUMENTED, ids=str)
 def test_documented_command_parses_with_the_real_cli(command: Documented) -> None:
+    if command.program == "gnode":
+        problems = gnode_command_problems(command.arguments)
+        assert not problems, f"{command.source}: {problems}"
+        return
     if "--help" in command.arguments or "-h" in command.arguments:
         # A help request parses only as far as the command it asks about; that much must exist.
         arguments = command.arguments[

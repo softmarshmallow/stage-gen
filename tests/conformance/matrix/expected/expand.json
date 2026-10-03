@@ -19,6 +19,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "planned",
    "step": "combo",
@@ -42,6 +43,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "planned",
    "step": "combo",
@@ -65,6 +67,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "planned",
    "step": "combo",
@@ -88,6 +91,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "planned",
    "step": "combo",
@@ -111,6 +115,12 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "combo['open']['flat']#1",
+    "combo['open']['smile']#1",
+    "combo['shut']['flat']#1",
+    "combo['shut']['smile']#1"
+   ],
    "routes": {},
    "state": "planned",
    "step": "all",

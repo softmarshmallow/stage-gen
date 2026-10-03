@@ -152,29 +152,25 @@ def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
 
 
 def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
-    """Run a real local workflow, dry-run the graph-document workflows, and parse every
-    workflow verb, all through the one ``stage-gen`` verb set."""
+    """Run a real local workflow through gnode, check every workflow file's lock, dry-run the
+    graph-document workflows, and parse every ``stage-gen`` workflow verb."""
     from stage_gen.workflows._registry import discover
 
     parallax = "src/stage_gen/workflows/looping_parallax/inputs/supplied_layers"
     inputs = scratch / "parallax-inputs"
-    run = scratch / "parallax-run"
+    # A scratch folder with no gnode.yaml: the run and its cache stay inside it.
+    project = scratch / "parallax-project"
     cache = ("--cache-dir", str(scratch / "asset-cache"))
+    files = [w for w in discover() if w.root.joinpath("workflow.yaml").is_file()]
     return (
+        *(Step(("gnode", "lock", workflow.id, "--check")) for workflow in files),
         Step((python, f"{parallax}/make_inputs.py", str(inputs))),
+        Step((python, "-c", f"import pathlib; pathlib.Path({str(project)!r}).mkdir()")),
         Step(
-            (
-                "stage-gen",
-                "run",
-                "looping-parallax",
-                "--input",
-                str(inputs),
-                "--output",
-                str(run),
-                *cache,
-            )
+            ("gnode", "run", "looping-parallax", "--inputs", str(inputs / "inputs.yaml")),
+            cwd=project,
         ),
-        Step(("stage-gen", "inspect", str(run), "--verify")),
+        Step(("gnode", "inspect", "looping-parallax", "--verify"), cwd=project),
         # gnode's published document schemas, and the language-neutral conformance suite that
         # any gnode implementation must pass, run through the gnode command only.
         Step((python, "scripts/write_gnode_schemas.py", "--check")),
@@ -211,6 +207,7 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
         *(
             Step(("stage-gen", verb, workflow.id, "--help"))
             for workflow in discover()
+            if workflow.root.joinpath("cli.py").is_file()
             for verb in ("plan", "run")
         ),
     )

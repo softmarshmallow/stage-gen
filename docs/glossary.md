@@ -50,7 +50,7 @@ as they are:
 
 - the `GraphDocument` field `recipe` and its literals (`universe` and the game words);
 - the `<word>-execution-{graph,event,summary,projection,view}` kinds and `pipeline-execution-*`;
-- the pipeline ids `looping-parallax` and `movie_sprite_body_idle`;
+- the pipeline id `movie_sprite_body_idle`;
 - the `recipe_identity` variable in the digested movie-sprite `pipeline.py`;
 - the `@stage-gen/<name>` provenance names;
 - the module name `components/_node_kit.py`;

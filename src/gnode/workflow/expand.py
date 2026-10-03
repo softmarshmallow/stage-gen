@@ -125,10 +125,18 @@ class Instance:
     concurrency: int | None = None
     timeout_s: float | None = None
     reason: str | None = None
+    #: The instances whose results its ``with:`` read: the graph's data edges.
+    reads: tuple[str, ...] = ()
 
     @property
     def waiting_on(self) -> set[str]:
         return pending_refs(self.with_)
+
+    @property
+    def inputs_from(self) -> list[str]:
+        """Every instance this one reads, or waits to read: its upstream in the graph."""
+
+        return sorted((set(self.reads) | self.waiting_on | set(self.needs)) - {self.id})
 
     @property
     def native(self) -> bool:
@@ -315,6 +323,7 @@ class Expander:
         self._scopes: list[_Frame] = []
         self._frames: list[_Frame] = []
         self._reads: set[str] | None = None
+        self._selecting = False
 
     # ------------------------------------------------------------------ entry
 
@@ -961,7 +970,7 @@ class Expander:
         existing = self.instances.get(identifier)
         if existing is not None:
             return existing
-        with_values, _ = self._with(frame, declared, where, spec)
+        with_values, reads = self._with(frame, declared, where, spec)
         routes, prices = self._routes(declared, where, spec, with_values)
         needs: list[str] = []
         for name in declared.needs:
@@ -1015,6 +1024,7 @@ class Expander:
             concurrency=declared.concurrency,
             timeout_s=declared.timeout,
             reason=reason,
+            reads=tuple(sorted(reads)),
         )
         self.instances[identifier] = instance
         if declared.assert_ and state in {"planned", "done"}:
@@ -1032,7 +1042,14 @@ class Expander:
                     Problem(f"{where}.with.{name}", f"{spec.name} has no input or setting {name}")
                 )
                 continue
-            value, read = self._evaluate_reading(frame, raw, f"{where}.with.{name}")
+            selecting = spec.name in NATIVE_TYPES and name == "first_of"
+            outer, self._selecting = self._selecting, selecting
+            try:
+                value, read = self._evaluate_reading(frame, raw, f"{where}.with.{name}")
+            finally:
+                self._selecting = outer
+            if selecting and isinstance(value, list):
+                value = [MISSING if isinstance(item, Failed) else item for item in value]
             reads |= read
             port = spec.inputs.get(name)
             if port is not None:
@@ -1378,6 +1395,10 @@ class _NodeView:
             return Failed(chosen.id)
         if what == "facts":
             return dict(result.facts)
+        if expander._selecting and expander.verdict(chosen) == "reject":
+            # ``select`` takes the first result that exists and was not rejected; everyone
+            # else still reads a result kept with ``on_reject: continue``.
+            return MISSING
         if chosen.native:
             return _AnyPort(result.outputs.get("value", MISSING))
         return dict(result.outputs)
@@ -1449,24 +1470,37 @@ _VIEWS = ()  # filled below
 class _Every:
     """``steps.entity.*``: one reference applied to every instance, in order, keyed."""
 
-    def __init__(self, expander: Expander, items: list[tuple[str, Any]]) -> None:
+    def __init__(
+        self,
+        expander: Expander,
+        items: list[tuple[str, Any]],
+        verdicts: dict[str, str | None] | None = None,
+    ) -> None:
         self.expander = expander
         self.items = items
+        #: Each element's verdict, taken from the judged step it was read through.
+        self.verdicts = dict(verdicts or {})
 
     def expression_member(self, name: str) -> Any:
         scope = Scope()
         mapped: list[tuple[str, Any]] = []
+        verdicts = dict(self.verdicts)
         for key, value in self.items:
             if value is MISSING:
                 continue
+            if isinstance(value, _NodeView):
+                verdicts[key] = value.verdict_of_chosen()
             member = scope.member(value, name)
             if member is MISSING:
                 continue
+            if isinstance(member, _NodeView):
+                verdicts[key] = member.verdict_of_chosen()
             mapped.append((key, member))
-        return _Every(self.expander, mapped)
+        return _Every(self.expander, mapped, verdicts)
 
     def expression_item(self, index: Any) -> Any:
-        return _Every(self.expander, [(key, Scope().item(v, index)) for key, v in self.items])
+        items = [(key, Scope().item(v, index)) for key, v in self.items]
+        return _Every(self.expander, items, self.verdicts)
 
     def expression_every(self) -> Any:
         """A repeat inside a repeat: every inner instance, keyed ``outer.inner``."""
@@ -1483,16 +1517,8 @@ class _Every:
                 flat.append((key, inner))
         return _Every(self.expander, flat)
 
-    def verdicts(self) -> dict[str, str | None]:
-        return {
-            key: value.verdict_of_chosen()
-            for key, value in self.items
-            if isinstance(value, _NodeView)
-        }
-
     def finish(self) -> Any:
         values: list[tuple[str, Any]] = []
-        verdicts: dict[str, str | None] = {}
         for key, value in self.items:
             if isinstance(value, _AnyPort):
                 value = value.value
@@ -1501,8 +1527,9 @@ class _Every:
             if isinstance(value, FileValue):
                 value = value.with_key(key)
             values.append((key, value))
-        del verdicts
-        return Collection(tuple(values))
+        present = {key for key, _ in values}
+        verdicts = {key: verdict for key, verdict in self.verdicts.items() if key in present}
+        return Collection(tuple(values), verdicts)
 
     def expression_accepted(self) -> Any:
         return self.finish().expression_accepted()

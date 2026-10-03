@@ -21,6 +21,8 @@ export interface RunIdentity {
   readonly viewKind: string | null;
   /** The graph kind a joined gnode view was derived from. */
   readonly graphKind: string | null;
+  /** The workflow a gnode workflow run's plan names. */
+  readonly workflowId?: string | null;
 }
 
 export const SDK_GRAPH_KIND = "pipeline-execution-graph-v1";
@@ -84,6 +86,17 @@ function claims(identity: RunIdentity, owned: Claims): boolean {
 
 /** The id of the workflow whose runs carry this identity, or null. */
 export function workflowOf(identity: RunIdentity, catalog: Catalog): string | null {
+  // A gnode workflow run names its workflow, and every one shares the same graph kind, so
+  // the name decides: a run of a workflow this catalog lacks belongs to none of them.
+  if (identity.workflowId) {
+    const named = catalog.workflows.find(
+      (workflow) =>
+        workflow.id === identity.workflowId &&
+        identity.kind !== null &&
+        workflow.identity.graphKinds.includes(identity.kind),
+    );
+    return named?.id ?? null;
+  }
   const output = identity.kind === null ? undefined : OUTPUT_DOCUMENT_WORKFLOWS[identity.kind];
   if (output !== undefined && catalog.workflows.some((workflow) => workflow.id === output)) {
     return output;

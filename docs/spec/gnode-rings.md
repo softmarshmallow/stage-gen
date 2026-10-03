@@ -178,6 +178,19 @@ is the one the user guide documents (generation, judges and annotators, media
 transforms, plumbing). A type in that catalog is declared before it is built: it
 plans and prices like any other and refuses to run until a first-party workflow
 is ported onto it and gives it a body ([decision 0072](../decisions/0072-gnode-is-one-engine-behind-text-contracts.md)).
+It also ships the generic `image` and `json` step views, which a step marked
+`view: true` gets when its own type has none.
+
+A plugin publishes more than node types: routes and the adapters that serve them,
+generic views, and whole workflows by id. A published workflow is a workflow file
+beside its own `gnode.yaml`, its home: its `./` paths, node modules, `gnode.lock` and
+`sources:` (packages whose modules count as its source) resolve there, while runs,
+the cache, budgets and route choices stay in the project gnode runs in. Stage Gen's
+first-party workflows reach `gnode run <id>` this way, through Stage Gen's plugin; an
+adapter that refuses a call before sending it raises `CallRefused`, which releases
+the call's hold instead of charging it. `GNODE_PLUGINS=std` loads only the standard
+library, which is how the conformance suite keeps every application out of its cases.
+
 A node type outside that catalog is promoted individually, manually, and never
 first — only when all three hold:
 

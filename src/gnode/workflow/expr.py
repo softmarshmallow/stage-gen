@@ -458,17 +458,17 @@ def _binary(node: Binary, scope: Scope) -> Any:
         if isinstance(left, Pending):
             return _derive_all("??", left, evaluate(node.right, scope))
         return evaluate(node.right, scope) if is_nothing(left) else left
+    # As in GitHub Actions expressions, ``&&`` and ``||`` give back an operand, so
+    # ``cond && 'a' || 'b'`` chooses a value; an ``if:`` reads the result by truthiness.
     if node.op == "&&" and not isinstance(left, Pending) and not _truthy(left):
-        return False
+        return left
     if node.op == "||" and not isinstance(left, Pending) and _truthy(left):
-        return True
+        return left
     right = evaluate(node.right, scope)
     if isinstance(left, Pending) or isinstance(right, Pending):
         return _derive_all(node.op, left, right)
-    if node.op == "&&":
-        return _truthy(right)
-    if node.op == "||":
-        return _truthy(right)
+    if node.op in {"&&", "||"}:
+        return right
     if node.op == "==":
         return _plain(left) == _plain(right)
     if node.op == "!=":

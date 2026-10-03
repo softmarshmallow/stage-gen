@@ -39,7 +39,8 @@ import {
 } from "@/lib/run-viewer/execution-view-verdict";
 import { preparedAssetUrl, type RunRef } from "@/lib/shell/run-ref";
 import MotionPlayer from "./MotionPlayer";
-import ParallaxPreview from "./ParallaxPreview";
+import ViewFrame from "./ViewFrame";
+import type { ViewContext } from "@stage-gen/ui/contracts/view-context";
 
 export const STATE_MARK: Record<ExecutionNodeState, string> = {
   pending: "·",
@@ -154,8 +155,6 @@ function ArtifactCard({
       </p>
       {!artifact.present ? (
         <p className="m-0 mt-1 text-[11px] text-dim">not on disk (pruned or elsewhere)</p>
-      ) : artifact.preview?.supported ? (
-        <ParallaxPreview run={run} preview={artifact.preview.content} />
       ) : artifact.display === "motion_atlas" && artifact.motion ? (
         <div className="mt-1">
           <MotionPlayer
@@ -584,6 +583,7 @@ export default function NodeInspector({
   nodesById,
   liveness,
   onSelect,
+  view = null,
 }: {
   run: RunRef;
   node: ExecutionViewNode;
@@ -591,11 +591,14 @@ export default function NodeInspector({
   nodesById: ReadonlyMap<string, ExecutionViewNode>;
   liveness: ExecutionRunLiveness;
   onSelect: (nodeId: string) => void;
+  /** The step's own view, when it keeps one. */
+  view?: ViewContext | null;
 }) {
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null);
   const params = Object.entries(node.params);
   return (
     <div className="p-3 text-xs">
+      {view ? <ViewFrame run={run} view={view} /> : null}
       <p className={cx(metaLine, "mb-1")}>
         {STATE_MARK[node.state]} {nodeStateLabel(node.state, liveness)} ·{" "}
         {node.archetype ?? "unregistered"} · {node.domain}

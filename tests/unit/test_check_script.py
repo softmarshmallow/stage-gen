@@ -154,7 +154,7 @@ def test_product_gate_does_not_require_optional_consumers() -> None:
     assert not any("concept_studio" in item or "test_godot_" in item for item in tests)
 
 
-def test_product_gate_runs_the_workflows_through_the_one_verb_set() -> None:
+def test_product_gate_runs_the_workflows_through_their_command_lines() -> None:
     from stage_gen.workflows._registry import discover
 
     check = load_check_script()
@@ -164,8 +164,13 @@ def test_product_gate_runs_the_workflows_through_the_one_verb_set() -> None:
         for command in commands
         if command[:2] == ("stage-gen", "run") and command[-1] != "--help"
     ]
-    assert {command[2] for command in runs} == {"looping-parallax", "universe"}
-    assert all("--dry-run" in command for command in runs if command[2] != "looping-parallax")
+    assert {command[2] for command in runs} == {"universe"}
+    assert all("--dry-run" in command for command in runs)
+    files = {w.id for w in discover() if w.root.joinpath("workflow.yaml").is_file()}
+    assert files == {"looping-parallax"}
+    assert ("gnode", "run", "looping-parallax") in {command[:3] for command in commands}
+    assert ("gnode", "inspect", "looping-parallax", "--verify") in commands
+    assert {("gnode", "lock", workflow, "--check") for workflow in files} <= set(commands)
     assert ("stage-gen", "list") in commands
     assert any(command[:3] == ("stage-gen", "catalog", "export") for command in commands)
     verb_help = {
@@ -173,7 +178,9 @@ def test_product_gate_runs_the_workflows_through_the_one_verb_set() -> None:
         for command in commands
         if command[0] == "stage-gen" and command[-1] == "--help"
     }
-    assert {(verb, w.id) for w in discover() for verb in ("plan", "run")} <= verb_help
+    assert {
+        (verb, w.id) for w in discover() if w.id not in files for verb in ("plan", "run")
+    } <= verb_help
     assert all("--live" not in command for command in commands)
     assert not any(
         command[0].startswith("stage-gen-") and command[0] != "stage-gen-concept"

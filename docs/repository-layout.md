@@ -133,13 +133,17 @@ portrait animation and movie sprite assets retain their own bounded roles.
 ```text
 src/stage_gen/workflows/
 ├── _registry.py, _catalog.py, _checks.py   # Discovery, catalog export, drift checks
-├── looping_parallax/
-│   ├── workflow.py, workflow.toml     # Code facts; what code cannot know
+├── _gnode.py                          # How a workflow file declares itself to the registry
+├── looping_parallax/                  # A gnode workflow file, run with `gnode`
+│   ├── workflow.yaml, gnode.yaml      # The workflow; its home (sources, default routes)
+│   ├── gnode.lock                     # The source behind each versioned node type
+│   ├── nodes/, prompts/, views/       # Its node types, the repaint brief, the compose view
+│   ├── workflow.py, workflow.toml     # Registry hook; what the workflow file cannot say
 │   ├── page.mdx, contract.md          # The reader's page; the exact contract
-│   ├── cli.py, example.py             # plan/run flags; example importer
-│   ├── pipeline.py                    # The implementation
-│   └── inputs/supplied_layers/        # Real offline layer normalization and preview
+│   └── inputs/supplied_layers/        # Original layers and the inputs.yaml that places them
 ├── movie_sprite/                      # Endpoint video generation and local loop finishing
+│   ├── workflow.py, workflow.toml     # Code facts; what code cannot know
+│   ├── cli.py, example.py, pipeline.py  # plan/run flags; example importer; implementation
 │   └── inputs/supplied_clip/          # Original procedural clip; no provider calls
 ├── portrait_motion/                   # Generation, qualification, budgets and recovery
 │   └── inputs/                        # The four-card and face-crop specifications
@@ -155,8 +159,9 @@ docs/sdk/pipelines/
 └── portrait_processing.py             # Component composition and preserved-pixel proof
 ```
 
-Every workflow folder has the shape `looping_parallax/` shows, less the files a workflow
-does not need; the tree lists only what differs. Sample inputs and their scripts live in a
+A workflow written as a workflow file has the shape `looping_parallax/` shows; one still on
+the SDK, the shape `movie_sprite/` shows, less the files it does not need. The tree lists
+only what differs. Sample inputs and their scripts live in a
 workflow's `inputs/`; cross-component
 SDK samples live in `docs/sdk/pipelines`. A future component example should likewise live
 beside that component. Documentation links these owners instead of creating a second
@@ -293,9 +298,9 @@ maintenance. The optional `games` installation group keeps all of this outside t
 public product's default environment and distributions.
 
 The viewer accepts the public pipeline envelope with arbitrary pipeline identity.
-It retains persisted readers, displays unknown metadata and supports application
-preview annotations. Parallax is one inspector. Generic MIME handling permits
-unfamiliar assets without adding a workflow enum.
+It retains persisted readers, displays unknown metadata and shows the step views a
+gnode run keeps, sandboxed. Generic MIME handling permits unfamiliar assets without
+adding a workflow enum.
 
 The asset-consumer template copies a selected asset and its verified provenance;
 its GDScript loads that local content. A game can extend preparation to create

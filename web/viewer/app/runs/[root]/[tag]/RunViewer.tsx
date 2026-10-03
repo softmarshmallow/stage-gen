@@ -39,6 +39,7 @@ import {
   type Viewport,
 } from "@/lib/run-viewer/execution-view-viewport";
 import { type RunRef, relativeOf, runHref } from "@/lib/shell/run-ref";
+import type { ViewContexts } from "@stage-gen/ui/contracts/view-context";
 import NodeInspector, { RunFacts, STATE_MARK } from "./Inspector";
 import type { PlanContext } from "@/lib/run-viewer/plan-view";
 import { PlanFacts, PlanNodeFacts } from "./PlanFacts";
@@ -100,9 +101,12 @@ export default function RunViewer({
   run = null,
   plan = null,
   embedded = false,
+  views = null,
 }: {
   view: ExecutionView;
   liveness: ExecutionRunLiveness;
+  /** The run's step views, when its steps keep any. */
+  views?: ViewContexts | null;
   /** The run this view belongs to; null when the view is an offline plan. */
   run?: RunRef | null;
   /** What the offline plan is of; null for a run. */
@@ -585,6 +589,7 @@ export default function RunViewer({
                 nodesById={nodesById}
                 liveness={liveness}
                 onSelect={focusNode}
+                view={views?.views.find((item) => item.nodeId === selected.nodeId) ?? null}
               />
             ) : (
               <RunFacts view={view} liveness={liveness} />

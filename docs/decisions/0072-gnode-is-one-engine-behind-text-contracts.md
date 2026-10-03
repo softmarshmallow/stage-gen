@@ -69,9 +69,9 @@ engine, because every contract is a document or a protocol.
 | R2 | A step's identity is its node type's identity, all `with:` values, the content digests of declared files, its upstream identities (a Merkle chain), its route fingerprint and its take. Names, titles, order and views are excluded. Built-in types carry declared versions guarded by `gnode.lock`; local types default to source identity. |
 | R2b | Every capability call is content-addressed by capability, route fingerprint, canonical request and take. Retries, resumes, re-runs and replayed agent turns answer identical requests from this call cache. |
 | R3 | Takes: `takes: N` with `pick`, user rerolls and picks in a committed `<workflow>.takes.yaml` that pins digests, and `regenerate: {max, then}` on judged steps or `{max, until}` on groups, where `max` counts every take. |
-| R4 | Judges are node types declared as judges that report a `verdict` fact. `judges:` and `on_reject:` sit on the judging step; a judged step finishes only when its judges do; `independent_of:` refuses, offline, two steps on the same model. |
+| R4 | Judges are node types declared as judges that report a `verdict` fact. `judges:` and `on_reject:` sit on the judging step; a judged step finishes only when its judges do; `independent_of:` refuses, offline, two steps on the same model. A fallback is a conditional step plus `gnode/select`, which takes the first candidate that exists and was not rejected; there is no shorthand, because looping-parallax, the case that settled it in M3, falls back across three candidates (the repaint, the reflection, the untouched layer). |
 | R5 | Phases are inferred from repeats over outputs and run-time conditions, never declared. Each is priced exactly when its inputs exist and approved against a ceiling. `at: plan` runs free deterministic local steps while planning. |
-| R6 | Expressions are a closed set: references, keyed instances, collections, arithmetic, comparisons, `??` and eleven named functions. Anything more is a node. `if:` and `assert:` work at plan time and at run time. |
+| R6 | Expressions are a closed set: references, keyed instances, collections, arithmetic, comparisons, `??` and eleven named functions; `&&` and `||` give back an operand, as in GitHub Actions. Anything more is a node. `if:` and `assert:` work at plan time and at run time. |
 | R7 | A workflow can be a step. Typed `inputs:` generate CLI flags, the MCP schema and validation, from a shorthand that compiles to JSON Schema. |
 | R7b | `gnode.yaml` holds project defaults and never keys. Ceilings nest: `--max-usd`, then the workflow's `budget:`, then the project's, with per-step and per-instance budgets inside. `--deliver` copies outputs out of the run; steps never write outside it. |
 | R17 | `requires:` lists the route features a step needs, checked offline against the binding table. |
@@ -105,7 +105,7 @@ node bodies.
 | M0 | Remove storefront and portrait's engine-wide fingerprint; record this ruling. |
 | M1 | One runner and run record, with v1 keys byte-identical. |
 | M2 | The documents, expander, identity v2, call cache, protocol host, CLI and a language-neutral conformance suite. |
-| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once by a verifying `gnode cache rekey`. |
+| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once: the ported workflow replays offline and each paid call is answered only by the old result whose provenance records the identical request (`scripts/rekey_v1_runs.py`). |
 | M8 | Port the Godot game pipelines onto the public contract. |
 | M9 | Delete v1 identity, the rekey tool, `GraphExecutor`, the old SDK and the `stage-gen` command; publish the user guide. |
 | M10 | The paid requalification of character-3d. |

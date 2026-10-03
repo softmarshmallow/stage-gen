@@ -21,6 +21,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },
@@ -47,6 +48,9 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "build.draw#1.1"
+   ],
    "routes": {},
    "state": "planned",
    "step": "build.audit",
@@ -75,6 +79,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },
@@ -101,6 +106,9 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "build.draw#2.1"
+   ],
    "routes": {},
    "state": "maybe",
    "step": "build.audit",
@@ -129,6 +137,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },
@@ -155,6 +164,9 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "build.draw#3.1"
+   ],
    "routes": {},
    "state": "maybe",
    "step": "build.audit",
@@ -181,6 +193,14 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "build.audit#1.1",
+    "build.audit#2.1",
+    "build.audit#3.1",
+    "build.draw#1.1",
+    "build.draw#2.1",
+    "build.draw#3.1"
+   ],
    "routes": {},
    "state": "planned",
    "step": "export",

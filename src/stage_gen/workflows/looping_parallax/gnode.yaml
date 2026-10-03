@@ -1,0 +1,6 @@
+# The looping-parallax workflow's home. Its node modules import Stage Gen's components, so
+# those count as its source: gnode.lock notices when they change under a version.
+gnode: project/v1
+sources: [stage_gen]
+routes:
+  image.edit: gpt-image-2.5-sunburst@openai

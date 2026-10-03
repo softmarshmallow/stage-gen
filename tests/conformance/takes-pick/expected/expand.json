@@ -21,6 +21,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },
@@ -48,6 +49,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },
@@ -75,6 +77,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },
@@ -100,6 +103,9 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "draw#1"
+   ],
    "routes": {},
    "state": "planned",
    "step": "check",
@@ -125,6 +131,9 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "draw#2"
+   ],
    "routes": {},
    "state": "planned",
    "step": "check",
@@ -150,6 +159,9 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "draw#3"
+   ],
    "routes": {},
    "state": "planned",
    "step": "check",
@@ -175,6 +187,14 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "check#1",
+    "check#2",
+    "check#3",
+    "draw#1",
+    "draw#2",
+    "draw#3"
+   ],
    "routes": {},
    "state": "planned",
    "step": "after",

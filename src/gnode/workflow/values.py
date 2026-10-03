@@ -13,7 +13,7 @@ import hashlib
 import json
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from gnode.workflow.expr import ExpressionError, Pending, Scope, _plain
@@ -48,6 +48,14 @@ class FileValue:
     content: Any = field(default=None, compare=False, repr=False)
     facts_reader: FactsReader | None = field(default=None, compare=False, repr=False)
     location: str | None = field(default=None, compare=False, repr=False)
+
+    @property
+    def path(self) -> Path:
+        """Where the bytes are: the cache's copy for a result, the file itself for an input."""
+
+        if self.location is None:
+            raise ValueError(f"{self.name} has no local copy")
+        return Path(self.location)
 
     def expression_plain(self) -> Any:
         return {"file": self.digest}

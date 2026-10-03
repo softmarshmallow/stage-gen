@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Parallax</title>
+<style>
+  body { margin: 0; font: 12px system-ui, sans-serif; color: CanvasText; background: Canvas; }
+  canvas { display: block; width: 100%; height: auto;
+           background: repeating-conic-gradient(#8884 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
+  form { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; padding: 6px 8px; }
+  label { display: flex; gap: 4px; align-items: center; }
+</style>
+<canvas id="stage"></canvas>
+<form>
+  <label>speed <input id="speed" type="range" min="0" max="600" value="120"></label>
+  <label><input id="playing" type="checkbox" checked> scrolling</label>
+  <span id="layers"></span>
+</form>
+<script type="module">
+  // The compose step's view: its manifest places its layers, which scroll at their own
+  // parallax. gnode-view-context-v1 gives the manifest inline and each layer's URL.
+  import { context as read } from "/_gnode/view.js";
+  const context = await read();
+  const manifest = context.outputs.manifest.value;
+  const files = context.inputs.layers;
+  document.title = context.step.title;
+  const stage = document.getElementById("stage");
+  stage.width = manifest.canvas.width;
+  stage.height = manifest.canvas.height;
+  const draw = stage.getContext("2d");
+  const hidden = new Set();
+  const list = document.getElementById("layers");
+  const layers = await Promise.all(
+    [...manifest.layers].sort((a, b) => a.order - b.order).map(async (layer) => {
+      const picture = new Image();
+      picture.src = files[layer.layer_id].url;
+      await picture.decode();
+      const toggle = document.createElement("label");
+      const box = Object.assign(document.createElement("input"), { type: "checkbox", checked: true });
+      box.onchange = () => (box.checked ? hidden.delete(layer.layer_id) : hidden.add(layer.layer_id));
+      toggle.append(box, `${layer.layer_id} ${layer.parallax}x ${layer.construction}`);
+      list.append(toggle);
+      return { layer, picture };
+    }),
+  );
+  const start = (offset, size, repeats) =>
+    repeats ? (((offset % size) + size) % size) - size : offset;
+  let scroll = 0;
+  let last = performance.now();
+  function frame(now) {
+    if (document.getElementById("playing").checked)
+      scroll += ((now - last) / 1000) * Number(document.getElementById("speed").value);
+    last = now;
+    draw.clearRect(0, 0, stage.width, stage.height);
+    for (const { layer, picture } of layers) {
+      if (hidden.has(layer.layer_id)) continue;
+      const x0 = start(layer.offset_x - scroll * layer.parallax, layer.width, layer.repeat_x);
+      const y0 = start(layer.offset_y, layer.height, layer.repeat_y);
+      for (let x = x0; x < stage.width; x += layer.width) {
+        for (let y = y0; y < stage.height; y += layer.height) {
+          draw.drawImage(picture, x, y, layer.width, layer.height);
+          if (!layer.repeat_y) break;
+        }
+        if (!layer.repeat_x) break;
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>

@@ -18,7 +18,7 @@ import type { RunRef } from "@/lib/shell/run-ref";
 import { runDirFor, runRoots, viewKey } from "@/lib/shell/runs";
 import NodeInspector from "./Inspector";
 import MotionPlayer from "./MotionPlayer";
-import { parallaxFixture } from "@stage-gen/ui/contracts/artifact-preview.fixture";
+import { parseViewContexts } from "@stage-gen/ui/contracts/view-context";
 import RunPage from "./page";
 import RunViewer from "./RunViewer";
 
@@ -26,10 +26,12 @@ function inspect(
   nodes: readonly ExecutionViewNode[],
   nodeId: string,
   run: RunRef = { root: "out-000000", tag: "fixture-tag" },
+  contexts: unknown = null,
 ): string {
   const byId = new Map(nodes.map((node) => [node.nodeId, node]));
   const node = byId.get(nodeId);
   if (!node) throw new Error(`fixture has no node ${nodeId}`);
+  const views = contexts === null ? null : parseViewContexts(contexts);
   return renderToStaticMarkup(
     <NodeInspector
       run={run}
@@ -37,8 +39,31 @@ function inspect(
       nodesById={byId}
       liveness="succeeded"
       onSelect={() => {}}
+      view={views?.views.find((item) => item.nodeId === nodeId) ?? null}
     />,
   );
+}
+
+const TEMPLATE = `views/${"a".repeat(64)}.html`;
+
+function viewContexts(nodeId: string) {
+  return {
+    kind: "gnode-view-contexts-v1",
+    view_origins: [],
+    views: [
+      {
+        kind: "gnode-view-context-v1",
+        scope: "node",
+        node_id: nodeId,
+        template: TEMPLATE,
+        step: { path: "compose", title: "Compose the scrolling background", status: "succeeded", with: {} },
+        run: { id: "run", workflow: "looping-parallax", status: "succeeded", cost_usd: 0 },
+        inputs: { layers: { sky: { kind: "image/png", digest: "b".repeat(64), size: 3, key: "sky", ref: `views/files/${"b".repeat(64)}.png` } } },
+        outputs: {},
+        facts: {},
+      },
+    ],
+  };
 }
 
 // Every run these tests write sits under a temporary root, never under out/.
@@ -96,23 +121,33 @@ async function page(run: RunRef, view?: string): Promise<string> {
 }
 
 describe("run view route", () => {
-  test("renders a custom pipeline and its supplied parallax layers without a game manifest", async () => {
+  test("renders a custom pipeline, and a step's own view in a sandboxed frame", async () => {
     const document = pipelineExecutionViewFixture();
-    const nodes = document.nodes as Record<string, unknown>[];
-    const artifact = (nodes[0].artifacts as Record<string, unknown>[])[0];
-    artifact.preview = parallaxFixture();
     const tag = `run-view-custom-${process.pid}`;
-    const run = await writeRun(tag, document);
+    const view = parseExecutionView(document);
+    const contexts = viewContexts(view.nodes[0].nodeId);
+    const run = await writeFiles(tag, {
+      "execution-view.json": document,
+      "view-contexts.json": contexts,
+    });
     const markup = await page(run);
     expect(markup).toContain("Material study");
     expect(markup).toContain("user.tools-material-set");
     expect(markup).not.toContain(">game<");
-    const view = parseExecutionView(document);
-    const inspector = inspect(view.nodes, view.nodes[0].nodeId, run);
-    expect(inspector).toContain("Supplied parallax layers");
-    expect(inspector).toContain("Horizontal offset");
-    expect(inspector).toContain(`/api/assets/${run.root}/${tag}/layers/sky.png`);
-    expect(inspector).toContain("repeat-x");
+    const inspector = inspect(view.nodes, view.nodes[0].nodeId, run, contexts);
+    expect(inspector).toContain('sandbox="allow-scripts"');
+    expect(inspector).toContain(`src="/api/assets/${run.root}/${tag}/${TEMPLATE}"`);
+    expect(inspector).toContain('title="Compose the scrolling background"');
+    expect(inspect(view.nodes, view.nodes[0].nodeId, run)).not.toContain("<iframe");
+  });
+
+  test("a view contexts file this build cannot read refuses the page, not crashes it", async () => {
+    const document = pipelineExecutionViewFixture();
+    const run = await writeFiles(`run-view-bad-views-${process.pid}`, {
+      "execution-view.json": document,
+      "view-contexts.json": { kind: "gnode-view-contexts-v0", views: [] },
+    });
+    expect(await page(run)).toContain("unsupported view contexts");
   });
 
   test("renders the graph chips, states, and run facts for a finished run", async () => {

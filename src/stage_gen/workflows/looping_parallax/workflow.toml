@@ -1,4 +1,5 @@
-# Only what the code cannot know. Steps, identity and the sample plan live in workflow.py.
+# Only what the workflow file cannot say. Steps, titles and the sample plan come from
+# workflow.yaml through gnode.
 schema_version = 1
 kind = "stage-gen-workflow-v1"
 id = "looping-parallax"
@@ -10,17 +11,21 @@ seam, then the layers are composed with their offsets and scroll factors into a 
 manifest and a preview frame."""
 
 [try]
-input = "Two original layers and their parallax.json, written by uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py out/looping-parallax-input"
+input = "Two original layers and the inputs.yaml that places them, written by uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py out/looping-parallax-input"
 commands = [
-  "stage-gen plan looping-parallax --input out/looping-parallax-input",
-  "stage-gen run looping-parallax --input out/looping-parallax-input --output out/looping-parallax-try --cache-dir out/cache",
-  "stage-gen inspect out/looping-parallax-try --verify",
+  "gnode plan looping-parallax --inputs out/looping-parallax-input/inputs.yaml",
+  "gnode run looping-parallax --inputs out/looping-parallax-input/inputs.yaml --deliver manifest=out/looping-parallax-try/manifest.json --deliver preview=out/looping-parallax-try/preview.png --deliver layers=out/looping-parallax-try/layers/{key}.png",
+  "gnode inspect looping-parallax --verify",
 ]
 
 [[outputs]]
-artifact_ref = "parallax/manifest.json"
+artifact_ref = "outputs/manifest.json"
 description = "Every layer with its size, order, offsets, repeat axes and scroll factor"
 
 [[outputs]]
-artifact_ref = "parallax/preview.png"
+artifact_ref = "outputs/preview.png"
 description = "One composed frame, for inspection"
+
+[[outputs]]
+artifact_ref = "outputs/layers/"
+description = "Each layer's repeat unit, by layer id"

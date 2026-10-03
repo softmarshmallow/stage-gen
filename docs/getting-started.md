@@ -20,19 +20,23 @@ workflow's flags, and the site's CLI reference lists every command and flag in o
 
 ## Run a workflow
 
-Looping parallax runs offline. A committed script writes two original layers and their
-`parallax.json`, and the run makes no provider calls:
+Looping parallax runs offline. It is written as a gnode workflow file, so the `gnode`
+command plans and runs it. A committed script writes two original layers and the
+`inputs.yaml` that places them, and the run makes no provider calls:
 
 ```sh
 uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py out/looping-parallax-input
-uv run stage-gen plan looping-parallax --input out/looping-parallax-input
-uv run stage-gen run looping-parallax --input out/looping-parallax-input --output out/looping-parallax-try --cache-dir out/cache
-uv run stage-gen inspect out/looping-parallax-try
+uv run gnode plan looping-parallax --inputs out/looping-parallax-input/inputs.yaml
+uv run gnode run looping-parallax --inputs out/looping-parallax-input/inputs.yaml --deliver manifest=out/looping-parallax-try/manifest.json
+uv run gnode inspect looping-parallax --verify
 ```
 
-`plan` prints the graph the run would execute, before any spend. `run` writes the run folder:
-the repeating layers, their placement, a preview, the trace and portable provenance. Use a new
-output folder for each run. `inspect` reads a finished run back.
+`plan` prints each phase the run would execute and its price, before any spend. `run` writes
+a new run folder under `out/runs/looping-parallax/`: the record of what happened
+(`events.jsonl`), the plan it started from and every step's files; `--deliver` copies an
+output where you want it. Results live in the cache (`out/gnode-cache`), so running again
+reuses whatever did not change. `inspect` reads the newest run back, and `--verify`
+re-checks every file against its recorded digest.
 
 Workflows that call a provider refuse to spend without an explicit opt-in, such as `--live`,
 and they need your own provider keys. Read [provider setup](models/providers.md) before a live run.

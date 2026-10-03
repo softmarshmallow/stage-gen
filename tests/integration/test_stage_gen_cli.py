@@ -35,6 +35,8 @@ WORKFLOWS = {
     "portrait-motion",
     "universe",
 }
+#: Workflows written as workflow files are planned and run with gnode, not stage-gen.
+WORKFLOW_FILES = {"looping-parallax"}
 
 
 @pytest.fixture(autouse=True)
@@ -100,12 +102,15 @@ def test_help_lists_the_verbs_and_every_workflow_with_its_promise() -> None:
     assert help_text.returncode == 0, help_text.stderr
     flat = " ".join(help_text.stdout.split())
     for found in discover():
+        if found.id in WORKFLOW_FILES:
+            assert f" {found.id} " not in flat
+            continue
         assert found.id in flat and " ".join(found.manifest.promise.split()) in flat
     assert " file " in flat
 
 
 @pytest.mark.parametrize("verb", ["plan", "run"])
-@pytest.mark.parametrize("workflow", sorted(WORKFLOWS))
+@pytest.mark.parametrize("workflow", sorted(WORKFLOWS - WORKFLOW_FILES))
 def test_every_workflow_verb_has_help(verb: str, workflow: str) -> None:
     completed = _subprocess(verb, workflow, "--help")
     assert completed.returncode == 0, completed.stderr
@@ -152,8 +157,11 @@ def test_list_and_show_read_the_workflows() -> None:
     assert status == 0
     document = json.loads(output)
     assert document["id"] == "looping-parallax"
-    assert [step["label"] for step in document["steps"]] == ["Make each layer repeat", "Compose"]
-    assert document["sample_plan"]["operation_counts"] == {"local": 3}
+    assert [step["label"] for step in document["steps"]] == [
+        "Make each layer repeat",
+        "Compose the scrolling background",
+    ]
+    assert document["sample_plan"]["operation_counts"] == {"local": 5}
     status, output, _ = _stage_gen("show", "character-3d")
     assert status == 0 and "Plan: a character run is prepared inside its launcher" in output
     status, _, errors = _stage_gen("show", "no-such-workflow")
@@ -167,64 +175,29 @@ def test_unknown_arguments_are_refused_outside_a_forwarding_workflow() -> None:
     assert status == 2 and "unrecognized arguments: --bogus" in errors
 
 
-def test_looping_parallax_runs_offline_and_plans_like_its_sdk_sample(tmp_path: Path) -> None:
-    inputs = tmp_path / "inputs"
-    runpy.run_path(str(PARALLAX_INPUTS / "make_inputs.py"))["write_inputs"](inputs)
-    status, by_workflow, errors = _stage_gen("plan", "looping-parallax", "--input", str(inputs))
-    assert status == 0, errors
-    sample = str(PARALLAX_INPUTS / "pipeline.py")
-    status, by_file, errors = _stage_gen("plan", "file", sample, "--input", str(inputs))
-    assert status == 0, errors
-    assert json.loads(by_workflow)["graph"] == json.loads(by_file)["graph"]
+def test_inspect_reads_a_workflow_file_run_and_writes_its_view(tmp_path: Path) -> None:
+    """A gnode run of looping-parallax is owned, verified and viewed through stage-gen."""
+    from gnode import run as gnode_run
 
-    run_dir = tmp_path / "run"
-    arguments = ["--input", str(inputs), "--output", str(run_dir)]
-    status, output, errors = _stage_gen(
-        "run", "looping-parallax", *arguments, "--cache-dir", str(tmp_path / "cache")
+    inputs = runpy.run_path(str(PARALLAX_INPUTS / "make_inputs.py"))["write_inputs"](
+        tmp_path / "inputs"
     )
-    assert status == 0, errors
-    assert json.loads(output)["pipeline_id"] == "looping-parallax"
-    assert (run_dir / "parallax/manifest.json").is_file()
-
-    # The same plan again continues the run in place: one record, every step cached.
-    status, output, errors = _stage_gen(
-        "run", "looping-parallax", *arguments, "--cache-dir", str(tmp_path / "cache")
-    )
-    assert status == 0, errors
-    started = [
-        json.loads(line)
-        for line in (run_dir / "execution-trace.jsonl").read_text(encoding="utf-8").splitlines()
-        if json.loads(line)["event"] == "run_started"
-    ]
-    assert [event["resumed"] for event in started] == [False, True]
-
-    # A different plan never lands in a folder that holds another run.
-    changed = tmp_path / "changed"
-    runpy.run_path(str(PARALLAX_INPUTS / "make_inputs.py"))["write_inputs"](changed)
-    (changed / "near_trees.png").write_bytes((inputs / "distant_hills.png").read_bytes())
-    status, _, errors = _stage_gen(
-        "run",
-        "looping-parallax",
-        "--input",
-        str(changed),
-        "--output",
-        str(run_dir),
-        "--cache-dir",
-        str(tmp_path / "cache"),
-    )
-    assert status == 2
-    assert errors == f"stage-gen: {run_dir} already exists; choose a new output folder\n"
+    project = tmp_path / "project"
+    project.mkdir()
+    completed = gnode_run("looping-parallax", input_files=[inputs], cwd=project)
+    assert completed.ok, completed.failed
+    run_dir = completed.run_dir
 
     status, output, errors = _stage_gen("inspect", str(run_dir), "--verify", "--json")
     assert status == 0, errors
     record = json.loads(output)
     assert record["workflow"] == "looping-parallax"
     assert record["verification"] == {"verified": True, "problems": []}
-    status, output, _ = _stage_gen("inspect", str(run_dir))
-    assert status == 0
-    assert "workflow  looping-parallax" in output and "verified" not in output
+    assert {node["state"] for node in record["view"]["nodes"]} == {"succeeded"}
 
-    (run_dir / "parallax/preview.png").write_bytes(b"not the recorded preview")
+    preview = next(run_dir.glob("files/compose/preview.png"))
+    preview.unlink()
+    preview.write_bytes(b"not the recorded preview")
     status, output, _ = _stage_gen("inspect", str(run_dir), "--verify")
     assert status == 1 and "no: 1 problem(s)" in output
 
@@ -234,7 +207,8 @@ def test_looping_parallax_runs_offline_and_plans_like_its_sdk_sample(tmp_path: P
     )
     assert status == 0, errors
     assert json.loads(output)["written_view"] == str(views / "execution-view.json")
-    assert (views / "execution-view.json").is_file()
+    view = json.loads((views / "execution-view.json").read_text(encoding="utf-8"))
+    assert view["kind"] == "gnode-run-view-v1"
 
 
 def test_universe_runs_both_phases_dry_and_writes_its_views(tmp_path: Path) -> None:

@@ -70,6 +70,13 @@
       },
       "type": "object"
      },
+     "reads": {
+      "description": "the instances it reads or waits on: its upstream in the graph",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
      "reason": {
       "type": "string"
      },
@@ -177,6 +184,45 @@
      "message"
     ],
     "type": "object"
+   },
+   "type": "array"
+  },
+  "steps": {
+   "additionalProperties": {
+    "properties": {
+     "description": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "title": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "uses": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "view": {
+      "type": [
+       "boolean",
+       "string"
+      ]
+     }
+    },
+    "type": "object"
+   },
+   "description": "each declared step, by its path, as a reader sees it",
+   "type": "object"
+  },
+  "view_origins": {
+   "items": {
+    "type": "string"
    },
    "type": "array"
   },

@@ -18,18 +18,18 @@ import importlib
 import json
 import re
 import tomllib
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, get_args
+from typing import TYPE_CHECKING, Any, Literal, Protocol, get_args
 
 from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
-    from gnode import Graph, NodeType, RunView
+    from gnode import NodeType, RunView
     from stage_gen.examples import ExampleImporter, FiguresLedger, WorkflowExample
     from stage_gen.pipeline.graph_document import GraphDocument
 
@@ -75,6 +75,48 @@ type Identity = dict[str, object]
 type LibraryReader = Callable[[Path, str], tuple[WorkflowExample, FiguresLedger]]
 
 
+class PlannedNode(Protocol):
+    """One node of a sample plan, as the catalog draws it."""
+
+    @property
+    def node_id(self) -> str: ...
+    @property
+    def type_id(self) -> str: ...
+    @property
+    def operation(self) -> str: ...
+    @property
+    def provider(self) -> str | None: ...
+    @property
+    def model(self) -> str | None: ...
+    @property
+    def depends_on(self) -> Sequence[str]: ...
+    @property
+    def ports(self) -> Sequence[Any]: ...
+
+
+class PlannedSample(Protocol):
+    """A workflow's offline sample plan: a gnode ``Graph``, or a workflow file's plan."""
+
+    @property
+    def kind(self) -> str: ...
+    @property
+    def topology_sha256(self) -> str: ...
+    @property
+    def nodes(self) -> Sequence[PlannedNode]: ...
+
+
+def sample_artifact_refs(sample: PlannedSample) -> set[str]:
+    """Every file the sample plan says a run writes: its ports, or its declared outputs."""
+
+    refs: set[str] = {str(ref) for ref in getattr(sample, "artifact_refs", ())}
+    for node in sample.nodes:
+        for port in node.ports:
+            refs.add(port.artifact_ref)
+            if port.sidecar_ref:
+                refs.add(port.sidecar_ref)
+    return refs
+
+
 @dataclass(frozen=True, slots=True)
 class WorkflowCode:
     """Everything a workflow's code states about itself.
@@ -98,7 +140,7 @@ class WorkflowCode:
     steps: tuple[Step, ...]
     identity: Callable[[], Identity]
     implemented_types: Callable[[], frozenset[str]]
-    sample_plan: Callable[[Path], Graph | None]
+    sample_plan: Callable[[Path], PlannedSample | None]
     owns_run: Callable[[Path], bool]
     inspect: Callable[[Path, bool], dict[str, object]]
     write_view: Callable[[Path, Path], Path | None]
@@ -388,6 +430,8 @@ __all__ = [
     "Identity",
     "LibraryReader",
     "OutputNote",
+    "PlannedNode",
+    "PlannedSample",
     "Step",
     "Tool",
     "TryIt",
@@ -402,5 +446,6 @@ __all__ = [
     "node_type_inventory",
     "read_manifest",
     "repository_root",
+    "sample_artifact_refs",
     "sdk_cache_namespace",
 ]

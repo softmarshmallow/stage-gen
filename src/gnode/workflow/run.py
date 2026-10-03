@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 import os
 import shutil
@@ -31,7 +32,9 @@ from typing import Any
 from gnode.ledger import CeilingExceeded, CeilingLedger
 from gnode.runner import RunLocked, run_lock
 from gnode.trace import RUN_EVENTS_KIND, RUN_EVENTS_SCHEMA_VERSION, JsonlTraceSink
+from gnode.workflow.document import Step, WorkflowDocument
 from gnode.workflow.expand import Expansion, Instance, Result
+from gnode.workflow.folders import output_file, step_file, view_file, view_template
 from gnode.workflow.host import CapabilityError, HostServices, NodeFailure, Spending, execute
 from gnode.workflow.plan import Plan, Planner
 from gnode.workflow.store import files_in
@@ -195,8 +198,12 @@ def _plan_document(plan: Plan, digest: str) -> dict[str, Any]:
         "workflow": {
             "id": planner.workflow.id,
             "title": planner.workflow.title,
+            "description": planner.workflow.description,
             "file": planner.workflow_path.name,
         },
+        "steps": step_documents(planner.workflow),
+        # The origins a view may load from besides the run's own files, from gnode.yaml.
+        "view_origins": list(planner.project.document.view_origins),
         "inputs": plain(planner.inputs),
         "estimate": {"low_usd": low, "high_usd": high, "ceiling_usd": plan.ceiling_usd},
         "instances": [instance_document(i) for i in plan.instances],
@@ -205,6 +212,27 @@ def _plan_document(plan: Plan, digest: str) -> dict[str, Any]:
             for r in plan.expansion.pending
         ],
     }
+
+
+def step_documents(workflow: WorkflowDocument) -> dict[str, dict[str, Any]]:
+    """Each declared step, by its path, as a reader sees it: title, description, type."""
+
+    found: dict[str, dict[str, Any]] = {}
+
+    def visit(steps: Mapping[str, Step], prefix: str) -> None:
+        for name, step in steps.items():
+            path = f"{prefix}{name}"
+            found[path] = {
+                "title": step.title,
+                "description": step.description,
+                "uses": step.uses,
+                "view": step.view,
+            }
+            if step.steps is not None:
+                visit(step.steps, f"{path}.")
+
+    visit(workflow.steps, "")
+    return found
 
 
 def instance_document(instance: Instance) -> dict[str, Any]:
@@ -224,6 +252,7 @@ def instance_document(instance: Instance) -> dict[str, Any]:
         "judged_by": list(instance.judged_by),
         "waiting_on": sorted(instance.waiting_on),
         "needs": list(instance.needs),
+        "reads": instance.inputs_from,
         "routes": {cap: route.route_id for cap, route in instance.routes.items()},
         "price": {"low_usd": instance.low_usd, "high_usd": instance.high_usd},
         "view": instance.view,
@@ -327,7 +356,14 @@ class WorkflowRun:
             reserve=lambda key, amount: self._reserve(ledger, key, amount),
             settle=lambda hold, cost: self._settle(ledger, hold, cost),
         )
-        self.services.on_call = lambda record: log.emit("call", **record)
+        observer = self.services.on_call
+
+        def on_call(record: Mapping[str, Any]) -> None:
+            log.emit("call", **record)
+            if observer is not None:
+                observer(record)
+
+        self.services.on_call = on_call
         self.services.work_root = self.planner.project.cache_dir / "work"
         low, high = self.plan.estimate()
         log.emit(
@@ -516,6 +552,9 @@ class WorkflowRun:
             take=list(instance.takes),
             identity=instance.identity,
             uses=instance.uses,
+            reads=instance.inputs_from,
+            routes={cap: route.route_id for cap, route in instance.routes.items()},
+            **{"with": {name: _encode(value) for name, value in instance.with_.items()}},
         )
         started = time.perf_counter()
         attempts = ENGINE_ATTEMPTS if instance.spec.retry == "engine" else 1
@@ -544,6 +583,7 @@ class WorkflowRun:
         elapsed = round((time.perf_counter() - started) * 1_000)
         if result.status == "succeeded":
             self._link_files(instance, result)
+            view = self._place_view(instance, result)
             facts = {k: v for k, v in result.facts.items() if k != "cached"}
             log.emit(
                 "node_finished",
@@ -553,6 +593,7 @@ class WorkflowRun:
                 outputs={name: _encode(value) for name, value in result.outputs.items()},
                 facts=facts,
                 duration_ms=elapsed,
+                **({"view": view} if view is not None else {}),
             )
             return Result(result.status, result.outputs, facts, result.error)
         name = "node_skipped" if result.status == "skipped" else "node_failed"
@@ -572,9 +613,7 @@ class WorkflowRun:
             if per_minute:
                 pacer = self._pacers.setdefault(route.route_id, _Pacer(per_minute))
                 await pacer.wait()
-        coroutine = execute(
-            instance, services=self.services, project_root=self.planner.project.root
-        )
+        coroutine = execute(instance, services=self.services, project_root=self.planner.home.root)
         if instance.timeout_s is not None:
             async with asyncio.timeout(instance.timeout_s):
                 return await coroutine
@@ -630,52 +669,58 @@ class WorkflowRun:
     # --------------------------------------------------------------- folders
 
     def _link_files(self, instance: Instance, result: Result) -> None:
-        folder = self.run_dir / "files" / _safe(instance.path)
         for name, value in result.outputs.items():
-            for index, file in enumerate(files_in(value)):
-                suffix = _suffix(file.kind)
-                label = name if len(files_in(value)) == 1 else f"{name}/{file.key or index}"
-                _place(self.planner.store.file_path(file.digest), folder / f"{label}{suffix}")
-
-    def _write_outputs(self, expansion: Expansion, outputs: Mapping[str, Any]) -> None:
-        folder = self.run_dir / "outputs"
-        for name, value in outputs.items():
             files = files_in(value)
             for index, file in enumerate(files):
-                suffix = _suffix(file.kind)
-                label = (
-                    name
-                    if len(files) == 1 and not isinstance(value, Collection | list)
-                    else (f"{name}/{file.key or index}")
+                relative = step_file(
+                    instance.path, name, file.kind, key=file.key, index=index, count=len(files)
                 )
-                _place(self.planner.store.file_path(file.digest), folder / f"{label}{suffix}")
+                _place(self.planner.store.file_path(file.digest), self.run_dir / relative)
+
+    def _view_template(self, instance: Instance, result: Result) -> Path | None:
+        """The step's own view, else its type's, else a generic one for ``view: true``."""
+
+        home = self.planner.home.root
+        if isinstance(instance.view, str):
+            return (home / instance.view).resolve()
+        if instance.spec.view is not None:
+            declared = Path(instance.spec.view)
+            return declared if declared.is_absolute() else (home / declared).resolve()
+        if instance.view is True:
+            for file in files_in(result.outputs):
+                found = self.planner.views.get(file.kind) or self.planner.views.get(
+                    file.kind.split("/", 1)[0]
+                )
+                if found is not None:
+                    return found
+        return None
+
+    def _place_view(self, instance: Instance, result: Result) -> str | None:
+        """Keep the step's view, and every file it shows, in the run folder."""
+
+        template = self._view_template(instance, result)
+        if template is None or not template.is_file():
+            return None
+        data = template.read_bytes()
+        relative = view_template(hashlib.sha256(data).hexdigest())
+        target = self.run_dir / relative
+        if not target.is_file():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+        for file in [*files_in(instance.with_), *files_in(result.outputs)]:
+            source = self.planner.store.file_path(file.digest)
+            if source.is_file():
+                _place(source, self.run_dir / view_file(file.digest, file.kind))
+        return relative
+
+    def _write_outputs(self, expansion: Expansion, outputs: Mapping[str, Any]) -> None:
+        for name, value in outputs.items():
+            files = files_in(value)
+            single = len(files) == 1 and not isinstance(value, Collection | list)
+            for index, file in enumerate(files):
+                relative = output_file(name, file.kind, key=file.key, index=index, single=single)
+                _place(self.planner.store.file_path(file.digest), self.run_dir / relative)
         del expansion
-
-
-_SUFFIXES = {
-    "image/png": ".png",
-    "image/jpeg": ".jpg",
-    "image/webp": ".webp",
-    "json": ".json",
-    "annotations": ".json",
-    "text/markdown": ".md",
-    "text/plain": ".txt",
-    "audio/wav": ".wav",
-    "audio/mpeg": ".mp3",
-    "video/mp4": ".mp4",
-    "model/gltf-binary": ".glb",
-}
-
-
-def _suffix(kind: str) -> str:
-    return _SUFFIXES.get(kind, "")
-
-
-def _safe(path: str) -> str:
-    out = []
-    for character in path:
-        out.append(character if character.isalnum() or character in "._-" else "_")
-    return "".join(out).strip("_") or "step"
 
 
 def _place(source: Path, target: Path) -> None:

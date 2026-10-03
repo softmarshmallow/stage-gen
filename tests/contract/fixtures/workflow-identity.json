@@ -1,9 +1,11 @@
 {
  "cache_keys": {
   "looping-parallax": {
-   "compose": "a417fc68ce83fec17d4a1379a32c53f782fb98f0f78674c676bbafa206706ebc",
-   "layer.distant_hills": "a820126b81d6fdd1e4a9a20b994b528d3088fb61984db13acef343e23ba40b17",
-   "layer.near_trees": "1ce19a899476b68c6f752573479f0560731a06a4c2343ece5d41be0486862fed"
+   "compose#1": "868e6478e5c8364d35ada5644830246b4b2678f50a0fa28483195115e3259662",
+   "layer['distant_hills'].loop#1": "2b18be3b1f5622d1fa0ae56f3ef5d4a99ae5bcae454bb7e6050f17527489a142",
+   "layer['distant_hills'].mirror#1": "0d4a3c2c88098cbca3fefc6661d3074e5f6395aea75cbae9c963c378925f3958",
+   "layer['near_trees'].loop#1": "652082c049a237a740eda9b7ac15c2212259833cf553392910b14cfeeac176a1",
+   "layer['near_trees'].mirror#1": "272bc729c2e93956b2504d9fb3ed2925d8633afc39a6f3217b24cf0fd7e9da25"
   },
   "movie-sprite-generate": {
    "finish": "3f12dd2e87f4ca2f1cfd029b52c938f38c5695b831483b1ca5be535ed01dc85e",
@@ -208,6 +210,36 @@
     "portrait-motion-v1"
    ],
    [
+    "looping_parallax/compose",
+    "looping_parallax/compose",
+    "nodes/compose.py#compose@1"
+   ],
+   [
+    "looping_parallax/layer/loop",
+    "looping_parallax/layer/loop",
+    "gnode/select@1.1"
+   ],
+   [
+    "looping_parallax/layer/loops_already",
+    "looping_parallax/layer/loops_already",
+    "nodes/seams.py#loops_already@1"
+   ],
+   [
+    "looping_parallax/layer/mirror",
+    "looping_parallax/layer/mirror",
+    "gnode/image.mirror_repeat@1.1"
+   ],
+   [
+    "looping_parallax/layer/repaint",
+    "looping_parallax/layer/repaint",
+    "nodes/seams.py#seam_repaint@1"
+   ],
+   [
+    "looping_parallax/layer/seam_ok",
+    "looping_parallax/layer/seam_ok",
+    "nodes/seams.py#seam_check@1"
+   ],
+   [
     "movie_sprite.adopt",
     "movie_sprite.adopt",
     "movie-sprite-adopt-v1"
@@ -226,21 +258,6 @@
     "movie_sprite.prepare",
     "movie_sprite.prepare",
     "movie-sprite-prepare-v1"
-   ],
-   [
-    "parallax.compose",
-    "parallax.compose",
-    "parallax-background-v2"
-   ],
-   [
-    "parallax.prepare_layer",
-    "parallax.prepare_layer",
-    "parallax-layer-v1"
-   ],
-   [
-    "parallax.repaint_layer",
-    "parallax.repaint_layer",
-    "parallax-layer-repaint-v1"
    ],
    [
     "universe/concept.image",
@@ -309,10 +326,6 @@
    ]
   ],
   "pipelines": {
-   "looping-parallax": {
-    "namespace": "pipeline-8058a0a499e2d192ae8af634",
-    "record_kind": "pipeline-node-cache-v1"
-   },
    "movie_sprite_body_idle": {
     "namespace": "pipeline-b04e83bc297b820056e5b70a",
     "record_kind": "pipeline-node-cache-v1"

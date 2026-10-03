@@ -16,7 +16,7 @@ import asyncio
 import datetime as dt
 import shutil
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +27,7 @@ from gnode.workflow.plan import Plan, Planner, make_plan, make_planner
 from gnode.workflow.plugins import load_plugins
 from gnode.workflow.routes import RouteTable
 from gnode.workflow.run import RunOutcome, WorkflowRun
+from gnode.workflow.store import Store
 from gnode.workflow.values import Collection, FileValue
 
 Target = str | Path | Workflow | Plan
@@ -65,7 +66,10 @@ class RunResult:
 
     @property
     def outputs(self) -> dict[str, Any]:
-        return {name: _pythonic(value) for name, value in self.outcome.outputs.items()}
+        """Each declared output: a file (``.path`` reads it), or ``{key: file}``."""
+
+        store = self.planner.store
+        return {name: _pythonic(value, store) for name, value in self.outcome.outputs.items()}
 
     @property
     def failed(self) -> list[str]:
@@ -110,9 +114,13 @@ class RunResult:
         return missing
 
 
-def _pythonic(value: Any) -> Any:
+def _pythonic(value: Any, store: Store) -> Any:
+    if isinstance(value, FileValue):
+        return replace(value, location=str(store.file_path(value.digest)))
     if isinstance(value, Collection):
-        return dict(value.items)
+        return {key: _pythonic(item, store) for key, item in value.items}
+    if isinstance(value, list):
+        return [_pythonic(item, store) for item in value]
     return value
 
 
@@ -135,6 +143,8 @@ def _planner(
         routes=catalog,
         facts_reader=composition.facts_reader,
         arguments=arguments,
+        published=composition.workflows,
+        views=composition.views,
     )
 
 
@@ -144,7 +154,7 @@ async def run_at_plan(instance: Any, planner: Planner) -> Result:
     services = HostServices(store=planner.store, live=False)
     services.work_root = planner.project.cache_dir / "work"
     try:
-        return await execute(instance, services=services, project_root=planner.project.root)
+        return await execute(instance, services=services, project_root=planner.home.root)
     except Exception as error:
         return Result("failed", {}, {}, f"{type(error).__name__}: {error}")
 
@@ -220,7 +230,7 @@ async def run_async(
     composition = load_plugins()
     services = HostServices(
         store=planner.store,
-        capabilities=composition.capabilities() if live else {},
+        capabilities=composition.capabilities(planner.store) if live else {},
         live=live,
     )
     folder = run_dir or _new_run_dir(planner)

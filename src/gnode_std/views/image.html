@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pictures</title>
+<style>
+  body { margin: 0; padding: 8px; font: 12px system-ui, sans-serif; color: CanvasText; background: Canvas; }
+  figure { margin: 0 0 8px; }
+  img { display: block; max-width: 100%; max-height: 70vh; image-rendering: pixelated;
+        background: repeating-conic-gradient(#8884 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
+  figcaption { margin-top: 2px; opacity: 0.7; }
+</style>
+<main id="pictures"></main>
+<script type="module">
+  // gnode-view-context-v1: every picture the step made, by output and key.
+  import { context as read } from "/_gnode/view.js";
+  const context = await read();
+  const main = document.getElementById("pictures");
+  function show(label, file) {
+    if (!file || typeof file !== "object") return;
+    if (file.url && String(file.kind).startsWith("image")) {
+      const figure = document.createElement("figure");
+      const picture = document.createElement("img");
+      picture.src = file.url;
+      picture.alt = label;
+      const caption = document.createElement("figcaption");
+      caption.textContent = label;
+      figure.append(picture, caption);
+      main.append(figure);
+      return;
+    }
+    if (!file.url) for (const [key, item] of Object.entries(file)) show(`${label} · ${key}`, item);
+  }
+  for (const [name, value] of Object.entries(context.outputs)) show(name, value);
+</script>

@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Data</title>
+<style>
+  body { margin: 0; padding: 8px; font: 12px ui-monospace, monospace; color: CanvasText; background: Canvas; }
+  h2 { font: 600 12px system-ui, sans-serif; margin: 8px 0 4px; }
+  pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+</style>
+<main id="data"></main>
+<script type="module">
+  // gnode-view-context-v1: each JSON output, inline when small, else a link to it.
+  import { context as read } from "/_gnode/view.js";
+  const context = await read();
+  const main = document.getElementById("data");
+  for (const [name, file] of Object.entries(context.outputs)) {
+    if (!file || file.kind !== "json") continue;
+    const heading = document.createElement("h2");
+    heading.textContent = name;
+    const body = document.createElement("pre");
+    if ("value" in file) body.textContent = JSON.stringify(file.value, null, 2);
+    else body.textContent = `${file.size} bytes: ${file.url}`;
+    main.append(heading, body);
+  }
+</script>

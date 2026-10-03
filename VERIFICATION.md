@@ -16,10 +16,11 @@ uv run --group apps python scripts/check.py --scope apps
 uv run --group games python scripts/check.py --scope godot
 ```
 
-The default product gate requires Python tools only. Among its steps it runs a real
-offline looping-parallax run and its `inspect --verify`, the universe dry run,
+The default product gate requires Python tools only. Among its steps it checks every
+workflow file's `gnode.lock` (`gnode lock <id> --check`), runs a real offline
+looping-parallax run through `gnode` with its `gnode inspect --verify`, the universe dry run,
 `stage-gen catalog export --check --allow-missing-examples`, and `--help` for every
-workflow verb. It also checks gnode's published document schemas
+`stage-gen` workflow verb. It also checks gnode's published document schemas
 (`scripts/write_gnode_schemas.py --check`) and runs the
 [conformance suite](tests/conformance/README.md) through the `gnode` command only: the
 cases any gnode implementation must pass.

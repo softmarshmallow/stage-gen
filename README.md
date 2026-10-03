@@ -43,14 +43,16 @@ uv sync --frozen
 uv run stage-gen list
 uv run stage-gen show looping-parallax
 uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py out/looping-parallax-input
-uv run stage-gen run looping-parallax --input out/looping-parallax-input --output out/looping-parallax-try --cache-dir out/cache
-uv run stage-gen inspect out/looping-parallax-try --verify
+uv run gnode run looping-parallax --inputs out/looping-parallax-input/inputs.yaml
+uv run gnode inspect looping-parallax --verify
 ```
 
 That run is offline: committed scripts draw the input layers, and no provider is called.
-Every workflow takes the same verbs, `plan`, `run` and `inspect` (3D character prepares
-with `run --prepare-only` instead of `plan`; each workflow's flags are in
-`stage-gen <command> <workflow> --help`). Planning never spends; a
+Looping parallax is written as a gnode workflow file, so `gnode` plans and runs it; its run
+folder is under `out/runs/`. The other workflows take the same `stage-gen` verbs, `plan`,
+`run` and `inspect` (3D character prepares with `run --prepare-only` instead of `plan`;
+each workflow's flags are in `stage-gen <command> <workflow> --help`), until each moves to
+a workflow file too. Planning never spends; a
 provider call needs the workflow's explicit opt-in, such as `--live`, and your own keys
 (see [provider setup](docs/models/providers.md)). Write your own graph with the
 [SDK](docs/sdk/guide.md) and run it with `stage-gen run file <file.py:attr>`.

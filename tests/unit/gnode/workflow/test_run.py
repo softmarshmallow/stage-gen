@@ -206,3 +206,81 @@ async def test_an_agent_calls_its_tools_and_replays_paid_turns(tmp_path: Path) -
     again = await _run(path, tmp_path / "runs/b", provider)
 
     assert again.ok and len(provider.calls) == 2, "both turns came from the call cache"
+
+
+async def test_select_passes_over_a_result_its_judge_rejected(tmp_path: Path) -> None:
+    flow = """
+        gnode: workflow/v1
+        id: flow
+        title: Flow
+        steps:
+          first:
+            uses: ./nodes/test_nodes.py#shout
+            with: { text: first }
+          check:
+            uses: ./nodes/test_nodes.py#verdict
+            judges: first
+            with: { subject: "${{ steps.first.outputs.text }}", accept_take: 2 }
+            on_reject: continue
+          second:
+            uses: ./nodes/test_nodes.py#shout
+            with: { text: second }
+          chosen:
+            uses: gnode/select@1
+            with:
+              first_of:
+                - ${{ steps.first.outputs.text }}
+                - ${{ steps.second.outputs.text }}
+        outputs:
+          chosen: ${{ steps.chosen.outputs.text }}
+          first: ${{ steps.first.outputs.text }}
+        """
+    path = project(tmp_path, flow)
+    outcome = await _run(path, tmp_path / "runs/a", FakeProvider(planner(path).store))
+
+    assert outcome.ok, outcome.failed
+    assert outcome.outputs["chosen"].content == "SECOND"
+    # A rejection with on_reject: continue is still a result for everyone else.
+    assert outcome.outputs["first"].content == "FIRST"
+
+
+async def test_accepted_keeps_only_what_the_judges_accepted(tmp_path: Path) -> None:
+    flow = """
+        gnode: workflow/v1
+        id: flow
+        title: Flow
+        inputs:
+          names: { type: list, items: { type: string } }
+        tables:
+          first_good_take: { ada: 1, bo: 2 }
+        steps:
+          cell:
+            for_each: ${{ inputs.names }}
+            key: ${{ item }}
+            steps:
+              loud:
+                uses: ./nodes/test_nodes.py#shout
+                with: { text: "${{ item }}" }
+              check:
+                uses: ./nodes/test_nodes.py#verdict
+                judges: loud
+                with:
+                  subject: ${{ steps.loud.outputs.text }}
+                  accept_take: ${{ lookup(tables.first_good_take, item) }}
+                on_reject: continue
+          all:
+            uses: ./nodes/test_nodes.py#join
+            with: { parts: "${{ accepted(steps.cell.*.loud.outputs.text) }}" }
+        outputs:
+          all: ${{ steps.all.outputs.text }}
+        """
+    path = project(tmp_path, flow)
+    built = planner(path, names=["ada", "bo"])
+    outcome = await WorkflowRun(
+        await make_plan(built),
+        run_dir=tmp_path / "runs/a",
+        services=FakeProvider(built.store).services(),
+    ).run()
+
+    assert outcome.ok, outcome.failed
+    assert outcome.outputs["all"].content == "ada=ADA"

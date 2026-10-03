@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import os
 import re
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -92,8 +93,29 @@ class Project:
         }
 
 
-def find_workflow(target: str, project: Project) -> Path:
-    """A workflow file path, or a workflow id found under the project."""
+def _project_workflow_files(project: Project) -> Iterator[Path]:
+    """Where a workflow id is looked up: the project's own files and its ``workflows/``."""
+
+    def candidates(folder: Path) -> Iterator[Path]:
+        for path in sorted(folder.iterdir()) if folder.is_dir() else []:
+            named = path.name != PROJECT_FILE and ".takes." not in path.name
+            if path.suffix in {".yaml", ".yml"} and named:
+                yield path
+
+    yield from candidates(project.root)
+    folder = project.root / "workflows"
+    if folder.is_dir():
+        for path, _, _ in sorted(os.walk(folder)):
+            yield from candidates(Path(path))
+
+
+def find_workflow(
+    target: str, project: Project, published: Mapping[str, Path] | None = None
+) -> Path:
+    """A workflow file path, a workflow id in the project, or one an installed plugin publishes.
+
+    A workflow in the project wins over a published one with the same id.
+    """
 
     candidate = Path(target)
     if candidate.suffix in {".yaml", ".yml", ".json"}:
@@ -101,8 +123,12 @@ def find_workflow(target: str, project: Project) -> Path:
             raise PlanError(f"no workflow file {target}")
         return candidate.resolve()
     matches: list[Path] = []
-    for path in sorted(project.root.rglob("*.y*ml")):
-        if path.name == PROJECT_FILE or ".gnode" in path.parts or path.name.endswith(".takes.yaml"):
+    for path in _project_workflow_files(project):
+        try:
+            head = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if "workflow/v1" not in head:
             continue
         try:
             raw = read_yaml(path)
@@ -110,19 +136,27 @@ def find_workflow(target: str, project: Project) -> Path:
             continue
         if isinstance(raw, dict) and raw.get("gnode") == "workflow/v1" and raw.get("id") == target:
             matches.append(path)
-    if not matches:
-        raise PlanError(f"no workflow with id {target!r} under {project.root.name}")
     if len(matches) > 1:
         names = ", ".join(str(path.relative_to(project.root)) for path in matches)
         raise PlanError(f"workflow id {target!r} is declared twice: {names}")
-    return matches[0]
+    if matches:
+        return matches[0]
+    found = (published or {}).get(target)
+    if found is not None:
+        return found.resolve()
+    raise PlanError(f"no workflow with id {target!r} under {project.root.name}")
 
 
-def takes_path(workflow_path: Path, document: WorkflowDocument) -> Path:
-    """Next to the workflow file (``<id>.takes.yaml``), or the builder module (``<module>``)."""
+def takes_path(workflow_path: Path, document: WorkflowDocument, project: Project) -> Path:
+    """Next to the workflow file (``<id>.takes.yaml``), or the builder module (``<module>``).
+
+    A published workflow's takes are yours, not its package's: they sit in your project.
+    """
 
     if workflow_path.suffix == ".py":
         return workflow_path.with_suffix(".takes.yaml")
+    if Project.find(workflow_path).root != project.root:
+        return project.root / f"{document.id}.takes.yaml"
     return workflow_path.parent / f"{document.id}.takes.yaml"
 
 
@@ -143,7 +177,7 @@ def _built(
     path = (working / match["file"]).resolve()
     if not path.is_file():
         raise PlanError(f"no builder file {match['file']}")
-    module = ProjectModules(project.root).load(path)
+    module = ProjectModules(project.root, project.document.sources).load(path)
     build = getattr(module, match["name"], None)
     if not callable(build):
         raise PlanError(f"{match['file']} has no function {match['name']}")
@@ -185,6 +219,7 @@ class PhaseSummary:
 class Planner:
     """Everything a plan is made from, kept so a run can expand again with results."""
 
+    #: Where gnode runs: runs, cache, budget and route choices.
     project: Project
     workflow_path: Path
     workflow: WorkflowDocument
@@ -193,12 +228,21 @@ class Planner:
     routes: RouteTable
     takes: dict[str, TakeChoice]
     store: Store
+    #: The workflow's own project: its ``./`` paths, node modules, lock and sources. The same
+    #: as ``project`` unless the workflow is one an installed plugin publishes.
+    home: Project
     results: dict[str, Result] = field(default_factory=dict)
+    #: Generic view templates by file kind, from the installed plugins.
+    views: dict[str, Path] = field(default_factory=dict)
+
+    @property
+    def takes_path(self) -> Path:
+        return takes_path(self.workflow_path, self.workflow, self.project)
 
     def expand(self) -> Expansion:
         return expand(
             self.workflow,
-            base_dir=self.project.root,
+            base_dir=self.home.root,
             inputs=self.inputs,
             resolver=self.registry,
             routes=self.routes,
@@ -356,6 +400,8 @@ def make_planner(
     facts_reader: FactsReader | None = None,
     values: Mapping[str, Any] | None = None,
     arguments: Mapping[str, str] | None = None,
+    published: Mapping[str, Path] | None = None,
+    views: Mapping[str, Path] | None = None,
 ) -> Planner:
     """Read everything a plan needs; raise only when nothing can be planned at all.
 
@@ -374,7 +420,7 @@ def make_planner(
     if built is not None:
         path, workflow = built
     else:
-        path = find_workflow(str(target), project)
+        path = find_workflow(str(target), project, published)
         try:
             workflow = load_workflow(path)
         except DocumentError as error:
@@ -397,12 +443,17 @@ def make_planner(
             )
         except InputError as error:
             raise PlanError(str(error)) from error
+    # A workflow file's home is the nearest gnode.yaml above it (a published workflow has
+    # its own); a builder is code you run here, so its ``./`` paths are this project's.
+    home = project if built is not None else Project.find(path)
     registry = Registry(
-        project_root=project.root,
+        project_root=home.root,
         builtins=builtins,
-        locks=_read_lock(project.root),
-        route_defaults=project.route_defaults(),
+        locks=_read_lock(home.root),
+        # A published workflow's own defaults, then yours.
+        route_defaults={**home.route_defaults(), **project.route_defaults()},
         facts_reader=facts_reader,
+        sources=home.document.sources,
     )
     return Planner(
         project=project,
@@ -411,8 +462,10 @@ def make_planner(
         inputs=dict(values),
         registry=registry,
         routes=routes or RouteTable(),
-        takes=read_takes(takes_path(path, workflow)),
+        takes=read_takes(takes_path(path, workflow, project)),
         store=Store(project.cache_dir, facts_reader=facts_reader),
+        home=home,
+        views=dict(views or {}),
     )
 
 

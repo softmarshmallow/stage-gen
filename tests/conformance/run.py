@@ -32,7 +32,9 @@ def _run(case: Path, work: Path) -> dict[str, str]:
     spec = yaml.safe_load((case / "case.yaml").read_text(encoding="utf-8"))
     project = work / "project"
     shutil.copytree(case / "in", project)
-    env = {**os.environ, "NO_COLOR": "1"}
+    # The cases are the engine's contract: only the standard library, never an application's
+    # routes or node types, may change what they print.
+    env = {**os.environ, "NO_COLOR": "1", "GNODE_PLUGINS": "std"}
     outputs: dict[str, str] = {}
     for step in spec["steps"]:
         argv = [*_gnode(), *step["argv"]]

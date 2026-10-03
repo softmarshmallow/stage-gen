@@ -1,9 +1,13 @@
-"""Write original geometric example layers and their spec; no provider or artwork download."""
+"""Write original geometric example layers and their inputs; no provider or artwork download.
+
+``uv run python make_inputs.py out/looping-parallax-input`` draws two layers there and an
+``inputs.yaml`` that places them, for ``gnode run looping-parallax --inputs <dir>/inputs.yaml``.
+"""
 
 import argparse
-import json
 from pathlib import Path
 
+import yaml
 from PIL import Image, ImageDraw
 
 
@@ -27,22 +31,22 @@ def write_layers(target: Path) -> None:
     trees.save(target / "near_trees.png")
 
 
-#: The ``parallax.json`` that ``stage-gen run looping-parallax`` reads beside the layers; the
-#: neighbouring ``pipeline.py`` states the same spec in Python for ``stage-gen run file``.
-SPEC = {
-    "width": 640,
-    "height": 360,
+#: The workflow's inputs; each layer's file is relative to the inputs file.
+INPUTS = {
+    "canvas": {"width": 640, "height": 360},
     "layers": [
-        {"layer_id": "distant_hills", "source": "distant_hills.png", "order": 0, "parallax": 0.2},
-        {"layer_id": "near_trees", "source": "near_trees.png", "order": 1, "parallax": 0.7},
+        {"layer_id": "distant_hills", "file": "distant_hills.png", "order": 0, "parallax": 0.2},
+        {"layer_id": "near_trees", "file": "near_trees.png", "order": 1, "parallax": 0.7},
     ],
 }
 
 
-def write_inputs(target: Path) -> None:
-    """Draw the layers and write the spec that places them into ``target``."""
+def write_inputs(target: Path) -> Path:
+    """Draw the layers and write the inputs that place them into ``target``."""
     write_layers(target)
-    (target / "parallax.json").write_text(json.dumps(SPEC, indent=2) + "\n", encoding="utf-8")
+    path = target / "inputs.yaml"
+    path.write_text(yaml.safe_dump(INPUTS, sort_keys=False), encoding="utf-8")
+    return path
 
 
 def main() -> None:

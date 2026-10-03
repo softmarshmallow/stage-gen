@@ -119,6 +119,11 @@ def graph_schema() -> dict[str, Any]:
             "judged_by": {"type": "array", "items": {"type": "string"}},
             "waiting_on": {"type": "array", "items": {"type": "string"}},
             "needs": {"type": "array", "items": {"type": "string"}},
+            "reads": {
+                "description": "the instances it reads or waits on: its upstream in the graph",
+                "type": "array",
+                "items": {"type": "string"},
+            },
             "routes": {"type": "object", "additionalProperties": {"type": "string"}},
             "price": {
                 "type": "object",
@@ -137,7 +142,21 @@ def graph_schema() -> dict[str, Any]:
             "properties": {
                 "gnode": {"const": "graph/v2"},
                 "workflow": {},
+                "steps": {
+                    "description": "each declared step, by its path, as a reader sees it",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": ["string", "null"]},
+                            "description": {"type": ["string", "null"]},
+                            "uses": {"type": ["string", "null"]},
+                            "view": {"type": ["boolean", "string"]},
+                        },
+                    },
+                },
                 "plan": SHA256,
+                "view_origins": {"type": "array", "items": {"type": "string"}},
                 "inputs": {},
                 "instances": {"type": "array", "items": instance},
                 "pending": {
@@ -329,47 +348,60 @@ def annotations_schema() -> dict[str, Any]:
 
 
 def view_context_schema() -> dict[str, Any]:
-    """What a view template receives: the run, and the step it shows, read-only."""
+    """What a view template receives: the step it shows and its run, read-only.
+
+    A host adds each file's ``url`` before handing the context over; ``ref`` is where the
+    run folder keeps the file for the view, so a copied run still shows it.
+    """
 
     file = {
         "type": "object",
-        "required": ["kind", "url", "digest"],
+        "required": ["kind", "digest", "ref"],
         "properties": {
             "kind": {"type": "string"},
-            "url": {"type": "string"},
             "digest": SHA256,
+            "size": {"type": "integer", "minimum": 0},
             "key": {"type": ["string", "null"]},
+            "ref": {"type": "string", "pattern": "^views/files/[0-9a-f]{64}(\\.[a-z0-9]+)?$"},
+            "url": {"type": "string"},
             "facts": {"type": "object"},
             "value": {},
         },
     }
     return _with_head(
         "gnode-view-context-v1",
-        "gnode view context: what a view's HTML template reads",
+        "gnode view context: what a step's view reads, as `context()` returns it",
         {
             "type": "object",
-            "required": ["run"],
+            "required": ["kind", "scope", "node_id", "template", "step", "inputs", "outputs"],
             "properties": {
-                "run": {
-                    "type": "object",
-                    "required": ["workflow", "state", "outputs"],
-                    "properties": {
-                        "workflow": {"type": "string"},
-                        "state": {"type": "string"},
-                        "cost_usd": MONEY,
-                        "outputs": {"type": "object"},
-                    },
-                },
-                "steps": {"type": "object"},
+                "kind": {"const": "gnode-view-context-v1"},
+                "scope": {"const": "node"},
+                "node_id": {"type": "string"},
+                "template": {"type": "string", "pattern": "^views/[0-9a-f]{64}\\.html$"},
                 "step": {
                     "type": "object",
+                    "required": ["path", "title", "status"],
                     "properties": {
                         "path": {"type": "string"},
-                        "take": {"type": "integer"},
+                        "step": {"type": ["string", "null"]},
+                        "title": {"type": "string"},
+                        "status": {"type": "string"},
+                        "take": {"type": "integer", "minimum": 1},
+                        "cost_usd": MONEY,
                         "with": {"type": "object"},
-                        "outputs": {"type": "object", "additionalProperties": {}},
-                        "facts": {"type": "object"},
-                        "instances": {"type": "array"},
+                    },
+                },
+                "inputs": {"type": "object"},
+                "outputs": {"type": "object"},
+                "facts": {"type": "object"},
+                "run": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "workflow": {"type": ["string", "null"]},
+                        "status": {"type": "string"},
+                        "cost_usd": {"anyOf": [MONEY, {"type": "null"}]},
                     },
                 },
             },

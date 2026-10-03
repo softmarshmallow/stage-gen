@@ -3,7 +3,8 @@
 ``list``, ``show``, ``plan``, ``run``, ``inspect`` and ``view`` work on workflows and runs;
 ``example``, ``catalog``, ``capability``, ``models`` and ``env`` are the tools around them.
 ``plan`` and ``run`` take a workflow id, discovered from the installed ``workflow.toml``
-manifests, or ``file`` for a definition written with the SDK. Each workflow's ``cli`` module
+manifests, or ``file`` for a definition written with the SDK; a workflow written as a
+workflow file is planned and run with ``gnode`` instead. Each workflow's ``cli`` module
 registers its own flags and imports nothing heavier than argparse until it runs, so building
 this parser loads no engine, media library or workflow implementation.
 """
@@ -37,6 +38,8 @@ def _workflow_verbs(commands: argparse._SubParsersAction[_Parser]) -> None:
         command = commands.add_parser(verb, help=summary, description=summary)
         targets = command.add_subparsers(dest="workflow", required=True, metavar="WORKFLOW")
         for workflow in found:
+            if not workflow.root.joinpath("cli.py").is_file():
+                continue  # a workflow file: planned and run with gnode
             module = importlib.import_module(f"{workflow.package}.cli")
             forwards = verb == "run" and getattr(module, "FORWARDS_RUN_ARGUMENTS", False)
             parser = targets.add_parser(

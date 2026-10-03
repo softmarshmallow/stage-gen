@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from gnode import Graph, atomic_write_bytes
+from gnode import atomic_write_bytes
 from stage_gen.examples import (
     EXAMPLE_FILE,
     FIGURES_FILE,
@@ -44,6 +44,7 @@ from ._checks import CheckContext, LoadedExample, LoadedWorkflow, drift, game_ex
 from ._registry import (
     DiscoveredWorkflow,
     ExampleEntry,
+    PlannedSample,
     WorkflowCode,
     discover,
     find,
@@ -159,7 +160,7 @@ def load_workflow(
     )
 
 
-def _plan_document(workflow: LoadedWorkflow, graph: Graph) -> dict[str, Any]:
+def _plan_document(workflow: LoadedWorkflow, graph: PlannedSample) -> dict[str, Any]:
     manifest, types = workflow.discovered.manifest, workflow.code.node_types()
     return {
         "kind": graph.kind,

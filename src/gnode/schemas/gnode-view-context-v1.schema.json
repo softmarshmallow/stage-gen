@@ -18,6 +18,14 @@
     "kind": {
      "type": "string"
     },
+    "ref": {
+     "pattern": "^views/files/[0-9a-f]{64}(\\.[a-z0-9]+)?$",
+     "type": "string"
+    },
+    "size": {
+     "minimum": 0,
+     "type": "integer"
+    },
     "url": {
      "type": "string"
     },
@@ -25,8 +33,8 @@
    },
    "required": [
     "kind",
-    "url",
-    "digest"
+    "digest",
+    "ref"
    ],
    "type": "object"
   }
@@ -34,60 +42,102 @@
  "$id": "urn:gnode:schema:gnode-view-context-v1",
  "$schema": "https://json-schema.org/draft/2020-12/schema",
  "properties": {
+  "facts": {
+   "type": "object"
+  },
+  "inputs": {
+   "type": "object"
+  },
+  "kind": {
+   "const": "gnode-view-context-v1"
+  },
+  "node_id": {
+   "type": "string"
+  },
+  "outputs": {
+   "type": "object"
+  },
   "run": {
+   "properties": {
+    "cost_usd": {
+     "anyOf": [
+      {
+       "minimum": 0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "id": {
+     "type": "string"
+    },
+    "status": {
+     "type": "string"
+    },
+    "workflow": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  },
+  "scope": {
+   "const": "node"
+  },
+  "step": {
    "properties": {
     "cost_usd": {
      "minimum": 0,
      "type": "number"
     },
-    "outputs": {
-     "type": "object"
-    },
-    "state": {
-     "type": "string"
-    },
-    "workflow": {
-     "type": "string"
-    }
-   },
-   "required": [
-    "workflow",
-    "state",
-    "outputs"
-   ],
-   "type": "object"
-  },
-  "step": {
-   "properties": {
-    "facts": {
-     "type": "object"
-    },
-    "instances": {
-     "type": "array"
-    },
-    "outputs": {
-     "additionalProperties": {},
-     "type": "object"
-    },
     "path": {
      "type": "string"
     },
+    "status": {
+     "type": "string"
+    },
+    "step": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "take": {
+     "minimum": 1,
      "type": "integer"
+    },
+    "title": {
+     "type": "string"
     },
     "with": {
      "type": "object"
     }
    },
+   "required": [
+    "path",
+    "title",
+    "status"
+   ],
    "type": "object"
   },
-  "steps": {
-   "type": "object"
+  "template": {
+   "pattern": "^views/[0-9a-f]{64}\\.html$",
+   "type": "string"
   }
  },
  "required": [
-  "run"
+  "kind",
+  "scope",
+  "node_id",
+  "template",
+  "step",
+  "inputs",
+  "outputs"
  ],
- "title": "gnode view context: what a view's HTML template reads",
+ "title": "gnode view context: what a step's view reads, as `context()` returns it",
  "type": "object"
 }

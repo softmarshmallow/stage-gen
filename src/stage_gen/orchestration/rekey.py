@@ -1,0 +1,209 @@
+"""Carry paid v1 results into a ported workflow's call cache, once, without a provider.
+
+Porting a workflow to a workflow file changes every identity it has, so its paid calls
+would be made again. This replays the ported workflow offline with handlers that answer
+each paid call from the provider results of old v1 runs, but only from the result that was
+made from exactly this request: the same provider and model, the same route, prompt, input
+pictures, size and background, as the old result's provenance sidecar records them, and
+bytes that still match the sidecar. The answer is written to gnode's call cache as the same
+bytes, noting the artifact it was rekeyed from. A call no old result answers is refused,
+never made, and the report prices it: that is what a live run would bill.
+
+The v1 formula goes in M9, and this with it.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from gnode import (
+    CallRecord,
+    CallRefused,
+    CapabilityHandler,
+    FileValue,
+    HostServices,
+    Plan,
+    Route,
+    RunOutcome,
+    Store,
+    WorkflowRun,
+)
+
+#: Provenance sidecars of v1 artifacts; the artifact sits beside its sidecar.
+SIDECAR_SUFFIX = ".meta.json"
+
+
+@dataclass(frozen=True, slots=True)
+class OldResult:
+    """One provider result of a v1 run, and the request its sidecar says made it."""
+
+    artifact: Path
+    provider: str
+    model: str
+    route_id: str | None
+    prompt_sha256: str
+    inputs: frozenset[str]
+    size: str | None
+    background: str | None
+
+
+def _old_result(sidecar: Path) -> OldResult | None:
+    try:
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(record, dict) or record.get("provider") in {None, "local"}:
+        return None
+    artifact = sidecar.with_name(sidecar.name.removesuffix(SIDECAR_SUFFIX))
+    digest = (record.get("artifact") or {}).get("sha256")
+    if not artifact.is_file() or not isinstance(digest, str):
+        return None
+    if hashlib.sha256(artifact.read_bytes()).hexdigest() != digest:
+        return None  # the bytes are not the ones the provider returned
+    params = record.get("params") or {}
+    binding = params.get("route_binding") or {}
+    return OldResult(
+        artifact=artifact,
+        provider=str(record["provider"]),
+        model=str(record.get("model")),
+        route_id=binding.get("route_id"),
+        prompt_sha256=str(record.get("prompt_sha256")),
+        inputs=frozenset(str(item["sha256"]) for item in record.get("inputs") or []),
+        size=params.get("size"),
+        background=params.get("background"),
+    )
+
+
+def old_results(runs: Iterable[Path]) -> list[OldResult]:
+    """Every provider result under the old run folders whose bytes still match their record."""
+
+    found = []
+    for run in runs:
+        for sidecar in sorted(run.rglob(f"*{SIDECAR_SUFFIX}")):
+            result = _old_result(sidecar)
+            if result is not None:
+                found.append(result)
+    return found
+
+
+@dataclass(frozen=True, slots=True)
+class Answer:
+    capability: str
+    route: str
+    take: int
+    old: Path | None
+    high_usd: float
+
+
+@dataclass
+class RekeyReport:
+    old: Sequence[OldResult] = ()
+    answers: list[Answer] = field(default_factory=list)
+    #: Old artifacts some call record in the cache was rekeyed from, this time or before.
+    paired: set[Path] = field(default_factory=set)
+
+    @property
+    def unpaired(self) -> list[OldResult]:
+        """Old provider results no call of the ported workflow was ever answered with."""
+
+        return [result for result in self.old if result.artifact not in self.paired]
+
+    @property
+    def answered(self) -> list[Answer]:
+        return [answer for answer in self.answers if answer.old is not None]
+
+    @property
+    def refused(self) -> list[Answer]:
+        return [answer for answer in self.answers if answer.old is None]
+
+    @property
+    def would_bill_usd(self) -> float:
+        return round(sum(answer.high_usd for answer in self.refused), 6)
+
+
+def _files(request: Mapping[str, Any]) -> frozenset[str]:
+    digests: set[str] = set()
+    for value in request.values():
+        items = value if isinstance(value, list) else [value]
+        digests.update(item.digest for item in items if isinstance(item, FileValue))
+    return frozenset(digests)
+
+
+def _matches(old: OldResult, route: Route, request: Mapping[str, Any]) -> bool:
+    prompt = request.get("prompt")
+    if not isinstance(prompt, str):
+        return False
+    return (
+        (old.provider, old.model) == (route.provider, route.model)
+        and old.route_id in {None, route.contract.get("route_id")}
+        and old.prompt_sha256 == hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        and old.inputs == _files(request)
+        and old.size == request.get("size")
+        and old.background in {None, request.get("background")}
+    )
+
+
+def rekey_handlers(
+    capabilities: Sequence[str], old: Sequence[OldResult], store: Store, report: RekeyReport
+) -> dict[str, CapabilityHandler]:
+    """Handlers that answer only from ``old``; they never reach a provider."""
+
+    def handler(capability: str) -> CapabilityHandler:
+        async def answer(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
+            high = route.price.per_call(None)[1]
+            # A later take is a new draw: no old result was made for it.
+            found = (
+                next((o for o in old if _matches(o, route, request)), None) if take == 1 else None
+            )
+            report.answers.append(
+                Answer(
+                    capability,
+                    route.route_id,
+                    take,
+                    None if found is None else found.artifact,
+                    high,
+                )
+            )
+            if found is None:
+                raise CallRefused(
+                    f"no v1 result answers this {capability} call on {route.route_id} "
+                    f"(take {take}); a live run would bill up to ${high:.2f}"
+                )
+            image = store.put_file(found.artifact, kind="image/png", name="image")
+            return CallRecord(
+                {"image": image}, {"rekeyed_from": found.artifact.as_posix(), "attempts": 0}, 0.0
+            )
+
+        return answer
+
+    return {capability: handler(capability) for capability in capabilities}
+
+
+async def rekey(
+    plan: Plan, runs: Sequence[Path], *, run_dir: Path
+) -> tuple[RunOutcome, RekeyReport]:
+    """Run ``plan`` with every paid call answered from ``runs``, or refused and priced."""
+
+    old = old_results(runs)
+    report = RekeyReport(old=old)
+    store = plan.planner.store
+    services = HostServices(
+        store=store,
+        capabilities=rekey_handlers(plan.planner.routes.capabilities(), old, store, report),
+        live=True,
+    )
+    outcome = await WorkflowRun(plan, run_dir=run_dir, services=services).run()
+    by_path = {result.artifact.as_posix(): result.artifact for result in old}
+    for _, record in store.calls():
+        source = record.data.get("rekeyed_from") if isinstance(record.data, Mapping) else None
+        if isinstance(source, str) and source in by_path:
+            report.paired.add(by_path[source])
+    return outcome, report
+
+
+__all__ = ["Answer", "OldResult", "RekeyReport", "old_results", "rekey", "rekey_handlers"]

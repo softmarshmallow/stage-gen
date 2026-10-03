@@ -3,7 +3,7 @@ Give each layer of a background as its own picture, and get it back as a layer t
 ## Run it yourself
 
 The workflow runs offline on two original layers that a committed script draws, together with the
-`parallax.json` that places them. It makes no provider calls. Write the inputs, then plan, run and
+`inputs.yaml` that places them. It makes no provider calls. Write the inputs, then plan, run and
 inspect them:
 
 ```sh
@@ -12,10 +12,12 @@ uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/ma
 
 <Try />
 
-Give each run its own output folder; running the same plan into it again continues that run. The
-run writes each repeating layer, `parallax/manifest.json` with every layer's size, order, offsets,
-repeat axes and scroll factor, and one preview frame. A consumer places each layer at
-`offset - scroll * parallax` and repeats it along its declared axes.
-A layer that asks for `loop_construction = "seam_repaint"` plans one image edit on the configured
-route, and needs `--live` and your provider keys only to run it. The [contract](contract.md) holds
-the spec, the outputs, the graph and every loop construction.
+Each run gets its own folder under `out/runs/looping-parallax/`, and running again reuses every step
+whose inputs did not change. The run makes each repeating layer, a manifest with every layer's size,
+order, offsets, repeat axes and scroll factor, and one preview frame; `--deliver` copies them where
+you want them. A consumer places each layer at `offset - scroll * parallax` and repeats it along
+its declared axes.
+A layer that asks for `loop_construction: seam_repaint` plans one image edit on the configured
+route, a second when the first is rejected, and needs `--live` and your provider keys only to run
+it. The [contract](contract.md) holds the inputs, the outputs, the graph and every loop
+construction.

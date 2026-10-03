@@ -34,7 +34,9 @@ def test_every_command_is_in_the_reference_once() -> None:
     assert {"view", "example", "catalog", "capability", "models", "env"} <= set(names)
     from stage_gen.workflows._registry import discover
 
-    workflows = [workflow.id for workflow in discover()]
+    # A workflow written as a workflow file is planned and run with gnode instead.
+    workflows = [w.id for w in discover() if w.root.joinpath("cli.py").is_file()]
+    assert "looping-parallax" not in workflows
     for verb in ("plan", "run"):
         targets = [command["name"] for command in _find(reference, verb)["commands"]]
         assert targets == [*workflows, "file"]
@@ -57,7 +59,7 @@ def test_arguments_carry_their_usage_help_and_defaults() -> None:
 def test_a_forwarding_workflow_is_marked() -> None:
     run = _find(command_reference(), "run", "character-3d")
     assert run["forwards"] and run["arguments"] == []
-    assert not _find(command_reference(), "run", "looping-parallax")["forwards"]
+    assert not _find(command_reference(), "run", "movie-sprite")["forwards"]
 
 
 def test_the_reference_does_not_depend_on_the_terminal(monkeypatch: pytest.MonkeyPatch) -> None:

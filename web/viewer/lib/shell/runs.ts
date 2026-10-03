@@ -246,7 +246,7 @@ export const RUN_DOCUMENTS = [
 /** A folder holding the first of a pair and one of its partners is a run too. */
 export const RUN_DOCUMENT_PAIRS: readonly (readonly [string, readonly string[]])[] = [
   ["graph.json", ["summary.json", "trace.jsonl"]],
-  ["plan.json", ["execution.json", "graph.json"]],
+  ["plan.json", ["execution.json", "graph.json", "events.jsonl"]],
 ];
 
 /** The example store sits at the top of a root and holds exports, not runs. */

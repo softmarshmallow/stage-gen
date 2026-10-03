@@ -1,5 +1,5 @@
-// Application preview adapters. The engine transports JSON and does not own
-// sprite geometry, parallax composition, or the list of renderer capabilities.
+// Application preview adapters. The engine transports JSON and does not own sprite
+// geometry or the list of renderer capabilities.
 
 export interface LegacyMotionPreview {
   readonly frameCount: number;
@@ -8,34 +8,14 @@ export interface LegacyMotionPreview {
   readonly canonicalFrameIndices: readonly number[];
 }
 
-export interface ParallaxLayer {
-  readonly layerId: string;
-  readonly assetRef: string;
-  readonly order: number;
-  readonly parallax: number;
-  readonly offsetX: number;
-  readonly offsetY: number;
-  readonly repeatX: boolean;
-  readonly repeatY: boolean;
-  readonly width: number;
-  readonly height: number;
-  /** How the layer repeats: reflected, repainted through its wrap, or already seamless. */
-  readonly construction: ParallaxConstruction;
+/**
+ * A renderer hint an artifact carries. The engine passes it through as opaque JSON; a
+ * consumer that knows its kind may draw it, and every other kind uses the ordinary
+ * artifact display. A step's own picture of its work is its view (`view-context.ts`).
+ */
+export interface ArtifactPreview {
+  readonly kind: string;
 }
-
-export type ParallaxConstruction = "mirror_repeat" | "seam_repaint" | "admitted";
-const PARALLAX_CONSTRUCTIONS: readonly ParallaxConstruction[] = ["mirror_repeat", "seam_repaint", "admitted"];
-
-export interface ParallaxPreview {
-  readonly kind: "parallax-background-v2";
-  readonly width: number;
-  readonly height: number;
-  readonly layers: readonly ParallaxLayer[];
-}
-
-export type ArtifactPreview =
-  | { readonly supported: true; readonly content: ParallaxPreview }
-  | { readonly supported: false; readonly kind: string };
 
 function object(value: unknown, label: string): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value))
@@ -60,17 +40,6 @@ function integer(value: unknown, label: string, min: number, max: number): numbe
   if (!Number.isInteger(result) || result < min || result > max)
     throw new Error(`${label} must be an integer between ${min} and ${max}`);
   return result;
-}
-
-function construction(value: unknown, label: string): ParallaxConstruction {
-  const result = PARALLAX_CONSTRUCTIONS.find((item) => item === value);
-  if (result === undefined) throw new Error(`${label} must be one of ${PARALLAX_CONSTRUCTIONS.join(", ")}`);
-  return result;
-}
-
-function bool(value: unknown, label: string): boolean {
-  if (typeof value !== "boolean") throw new Error(`${label} must be a boolean`);
-  return value;
 }
 
 /** Same portable, already-decoded path vocabulary as the confined asset API. */
@@ -101,43 +70,9 @@ export function parseLegacyMotion(value: unknown, label: string): LegacyMotionPr
   });
 }
 
-/** Unknown valid preview kinds use the ordinary artifact fallback. */
+/** Any preview kind passes through; none is drawn by this build. */
 export function parseArtifactPreview(value: unknown, label: string): ArtifactPreview | null {
   if (value === null || value === undefined) return null;
   const record = object(value, label);
-  const kind = text(record.kind, `${label}.kind`);
-  if (kind !== "parallax-background-v2") return Object.freeze({ supported: false, kind });
-  const canvas = object(record.canvas, `${label}.canvas`);
-  const width = integer(canvas.width, `${label}.canvas.width`, 1, 16384);
-  const height = integer(canvas.height, `${label}.canvas.height`, 1, 16384);
-  if (!Array.isArray(record.layers) || record.layers.length < 1 || record.layers.length > 32)
-    throw new Error(`${label}.layers must contain between 1 and 32 layers`);
-  const layers = record.layers.map((value, index): ParallaxLayer => {
-    const prefix = `${label}.layers[${index}]`;
-    const layer = object(value, prefix);
-    return Object.freeze({
-      layerId: text(layer.layer_id, `${prefix}.layer_id`),
-      assetRef: artifactReference(layer.asset_ref, `${prefix}.asset_ref`),
-      order: number(layer.order, `${prefix}.order`),
-      parallax: number(layer.parallax, `${prefix}.parallax`),
-      offsetX: number(layer.offset_x, `${prefix}.offset_x`),
-      offsetY: number(layer.offset_y, `${prefix}.offset_y`),
-      repeatX: bool(layer.repeat_x, `${prefix}.repeat_x`),
-      repeatY: bool(layer.repeat_y, `${prefix}.repeat_y`),
-      width: integer(layer.width, `${prefix}.width`, 1, 16384),
-      height: integer(layer.height, `${prefix}.height`, 1, 16384),
-      construction: construction(layer.construction, `${prefix}.construction`),
-    });
-  });
-  if (new Set(layers.map((layer) => layer.layerId)).size !== layers.length)
-    throw new Error(`${label}.layers must declare unique layer ids`);
-  return Object.freeze({
-    supported: true,
-    content: Object.freeze({ kind, width, height, layers: Object.freeze(layers.sort((a, b) => a.order - b.order)) }),
-  });
-}
-
-/** Offsets in source canvas pixels, converted by the renderer to viewport size. */
-export function parallaxOffset(layer: ParallaxLayer, scrollX: number, scrollY: number): readonly [number, number] {
-  return [layer.offsetX - scrollX * layer.parallax, layer.offsetY - scrollY * layer.parallax];
+  return Object.freeze({ kind: text(record.kind, `${label}.kind`) });
 }

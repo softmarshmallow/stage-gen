@@ -103,7 +103,7 @@ Moving or renaming code must not move a cache key or a persisted identity, and
 No digest may glob a workflow folder. A digest names its files, so adding `workflow.py`,
 `cli.py`, `example.py` or prose beside an implementation never changes an identity. The
 persisted strings that keep an older word (the graph-document field `recipe`, the
-`*-execution-*` kinds, the pipeline ids `looping-parallax` and `movie_sprite_body_idle`) are
+`*-execution-*` kinds, the pipeline id `movie_sprite_body_idle`) are
 listed in the [glossary](docs/glossary.md) so nobody renames them.
 
 The character-3d implementation stays at `stage_gen.recipes.character_3d`, a frozen path
@@ -120,8 +120,8 @@ Spatial generation and sprite locomotion retain their precise constraints; host 
 physics stay out. Scenario authoring and execution belong to the Godot project,
 independently of asset generation.
 
-The looping-parallax workflow owns layer images, repeat axes, offsets and relative scroll
-factors. It does not own a player, level or camera controller. Portrait motion owns its
+The looping-parallax workflow, the first written as a gnode workflow file, owns layer images,
+repeat axes, offsets and relative scroll factors. It does not own a player, level or camera controller. Portrait motion owns its
 generation, qualification and recovery process; the consuming presentation decides when
 that animation plays. These contracts are not combined into a universal gameplay language.
 

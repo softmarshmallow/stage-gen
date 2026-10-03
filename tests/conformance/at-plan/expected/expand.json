@@ -19,6 +19,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "done",
    "step": "split",
@@ -42,6 +43,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },
@@ -67,6 +69,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },
@@ -92,6 +95,7 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [],
    "routes": {
     "image.generate": "img-a@acme"
    },

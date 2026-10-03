@@ -12,7 +12,6 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from gnode import Graph
 from stage_gen.examples import Currency, DisplayNames, FiguresLedger, WorkflowExample
 
 from ._registry import (
@@ -22,9 +21,11 @@ from ._registry import (
     DiscoveredWorkflow,
     ExampleEntry,
     Identity,
+    PlannedSample,
     WorkflowCode,
     WorkflowManifest,
     folder_of,
+    sample_artifact_refs,
 )
 
 README_BEGIN = "<!-- workflows:begin -->"
@@ -51,7 +52,7 @@ class LoadedWorkflow:
     discovered: DiscoveredWorkflow
     code: WorkflowCode
     identity: Identity
-    sample: Graph | None
+    sample: PlannedSample | None
     examples: tuple[LoadedExample, ...]
 
     @property
@@ -181,13 +182,8 @@ def labels(workflow: LoadedWorkflow, frozen_files: frozenset[str] | None) -> lis
 def outputs(workflow: LoadedWorkflow) -> list[str]:
     """Each output note must name a port of the sample plan or a path of the cover example."""
     manifest = workflow.discovered.manifest
-    refs: set[str] = set()
-    if workflow.sample is not None:
-        for node in workflow.sample.nodes:
-            for port in node.ports:
-                refs.add(port.artifact_ref)
-                if port.sidecar_ref:
-                    refs.add(port.sidecar_ref)
+    refs = set() if workflow.sample is None else sample_artifact_refs(workflow.sample)
+    refs |= {ref.rstrip("/") for ref in refs}
     cover = workflow.cover()
     if cover is not None and cover.document is not None:
         refs.update(cover.document.tree)
@@ -366,8 +362,9 @@ def readme(workflows: Sequence[LoadedWorkflow], text: str) -> list[str]:
 
 
 def try_commands(workflow: LoadedWorkflow) -> list[str]:
-    """Each ``[try]`` command must parse with the real ``stage-gen`` argument parser. A command
-    may start with environment assignments, such as a live opt-in."""
+    """Each ``[try]`` command must parse with the real ``stage-gen`` or ``gnode`` argument
+    parser; a gnode ``plan`` or ``run`` command's own flags must be the workflow's inputs. A
+    command may start with environment assignments, such as a live opt-in."""
     manifest = workflow.discovered.manifest
     if manifest.try_ is None:
         return []
@@ -378,14 +375,55 @@ def try_commands(workflow: LoadedWorkflow) -> list[str]:
         words = shlex.split(command)
         while words and ENVIRONMENT.match(words[0]):
             words = words[1:]
+        if words[:1] == ["gnode"]:
+            problems += [f"{manifest.id}: [try] {p}" for p in gnode_command_problems(words[1:])]
+            continue
         if words[:1] != ["stage-gen"]:
-            problems.append(f"{manifest.id}: [try] command does not start with stage-gen")
+            problems.append(f"{manifest.id}: [try] command does not start with stage-gen or gnode")
             continue
         try:
             parse(words[1:])
         except (ValueError, SystemExit) as error:
             problems.append(f"{manifest.id}: [try] command does not parse: {error}")
     return problems
+
+
+def gnode_command_problems(words: Sequence[str]) -> list[str]:
+    """What is wrong with one ``gnode`` command line (its words after ``gnode``): it must
+    parse, and a ``plan`` or ``run`` of an installed workflow may add only that workflow's
+    own input flags."""
+    import contextlib
+    import io
+
+    from gnode import cli as gnode_cli
+
+    with contextlib.redirect_stderr(io.StringIO()):
+        try:
+            args, rest = gnode_cli.build_parser().parse_known_args(list(words))
+        except SystemExit:
+            return [f"gnode {shlex.join(words)} does not parse"]
+    if not rest:
+        return []
+    inputs = _input_names(str(getattr(args, "target", "")))
+    if args.verb not in {"plan", "run", "expand", "identity", "price"} or inputs is None:
+        return [f"gnode {shlex.join(words)} has unknown arguments {rest}"]
+    flags = {f"--{name.replace('_', '-')}" for name in inputs}
+    unknown = [word for word in rest if word.startswith("--") and word.split("=")[0] not in flags]
+    return [f"gnode {shlex.join(words)} has unknown flags {unknown}"] if unknown else []
+
+
+def _input_names(target: str) -> list[str] | None:
+    """A published workflow's input names, or None for a target that is not one."""
+    import yaml
+
+    from gnode import describe
+
+    try:
+        path = describe(target).path
+    except (ValueError, TypeError, OSError):
+        return None
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return list(document.get("inputs") or {})
 
 
 def drift(workflows: Sequence[LoadedWorkflow], context: CheckContext) -> list[str]:
@@ -406,6 +444,7 @@ def drift(workflows: Sequence[LoadedWorkflow], context: CheckContext) -> list[st
 
 __all__ = [
     "CheckContext",
+    "gnode_command_problems",
     "LoadedExample",
     "LoadedWorkflow",
     "drift",

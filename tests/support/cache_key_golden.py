@@ -10,19 +10,40 @@ names the moved nodes and prices them, so a failure reads as a decision -
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Protocol
 
-from gnode import Graph
+
+class KeyedNode(Protocol):
+    @property
+    def node_id(self) -> str: ...
+    @property
+    def cache_key(self) -> str: ...
+    @property
+    def type_id(self) -> str: ...
+    @property
+    def provider(self) -> str | None: ...
+    @property
+    def estimated_cost_low_usd(self) -> float: ...
+    @property
+    def estimated_cost_high_usd(self) -> float: ...
 
 
-def assert_cache_keys_match_golden(graph: Graph, golden: Path) -> None:
+class Keyed(Protocol):
+    """A planned graph, or a workflow run's view: every node with its key and its price."""
+
+    @property
+    def nodes(self) -> Sequence[KeyedNode]: ...
+
+
+def assert_cache_keys_match_golden(graph: Keyed, golden: Path) -> None:
     expected = json.loads(golden.read_text(encoding="utf-8"))
     assert isinstance(expected, dict)
     assert_cache_keys_match(graph, expected, label=golden.name)
 
 
-def assert_cache_keys_match(graph: Graph, expected: Mapping[str, str], *, label: str) -> None:
+def assert_cache_keys_match(graph: Keyed, expected: Mapping[str, str], *, label: str) -> None:
     """The same assertion against a map already in hand.
 
     A recipe that plans several scopes keeps one golden holding a map per scope,
@@ -53,7 +74,7 @@ def assert_cache_keys_match(graph: Graph, expected: Mapping[str, str], *, label:
     raise AssertionError("\n".join(lines))
 
 
-def write_cache_key_golden(graph: Graph, golden: Path) -> None:
+def write_cache_key_golden(graph: Keyed, golden: Path) -> None:
     """Rewrite a golden from a plan; the diff is the review."""
 
     keys = {node.node_id: node.cache_key for node in graph.nodes}

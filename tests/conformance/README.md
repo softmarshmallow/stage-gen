@@ -9,5 +9,6 @@ imports gnode, so any implementation of gnode (the Rust core included) can be he
     uv run python tests/conformance/run.py --write    # rewrite expected/ after a deliberate change
 
 Commands: `gnode expand`, `gnode identity`, `gnode price` (on a plan) and `gnode project` (on a
-run the case makes with `gnode run`). Identities are content digests, so they are pinned too:
+run the case makes with `gnode run`). The runner sets `GNODE_PLUGINS=std`, so only the standard
+library is loaded: no application's routes or node types can change what a case prints. Identities are content digests, so they are pinned too:
 a change that moves one is a change to every cache.

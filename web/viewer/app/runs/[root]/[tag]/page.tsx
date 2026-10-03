@@ -19,7 +19,8 @@ import { type CatalogWorkflow, findWorkflow } from "@stage-gen/ui/contracts/cata
 import { isGameRun, workflowOf } from "@/lib/run-groups";
 import { buildEntityCards, presentClasses, tallyReviewChecks } from "@/lib/universe/gallery-view";
 import { readCatalog } from "@/lib/shell/catalog";
-import { type ReadView, readExecutionView } from "@/lib/shell/execution-view";
+import { type ReadView, readExecutionView, readViewContexts } from "@/lib/shell/execution-view";
+import type { ViewContexts } from "@stage-gen/ui/contracts/view-context";
 import { readRunEntry, type RunIndexEntry } from "@/lib/shell/run-index";
 import { type RunRef, relativeOf } from "@/lib/shell/run-ref";
 import { isRealRunDirectory, isSafeRunTag, rootFor, runDirFor } from "@/lib/shell/runs";
@@ -166,12 +167,18 @@ export default async function RunPage({
     return <NoView {...await noViewFacts(run, runDir)} />;
   }
 
+  let views: ViewContexts | null = null;
+  try {
+    views = await readViewContexts(run);
+  } catch (error) {
+    return <Refused run={run} refusal={message(error)} />;
+  }
   const liveness = runLiveness(read.view, Date.now());
   // Full-bleed: the graph is the page, and the viewer floats its own chrome.
   return (
     <main className="fixed inset-0 overflow-hidden bg-bg">
       <LiveRefresh live={liveness === "running"} />
-      <RunViewer run={run} view={read.view} liveness={liveness} />
+      <RunViewer run={run} view={read.view} liveness={liveness} views={views} />
     </main>
   );
 }

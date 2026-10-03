@@ -32,12 +32,25 @@ CONTRACT_KEYS = {
     "resources",
     "type_ids",
 }
+#: A workflow file's plan has no terminal node or resource table; it declares its outputs.
+WORKFLOW_FILE_KEYS = {
+    "graph_kind",
+    "topology_sha256",
+    "node_count",
+    "operation_counts",
+    "outputs",
+    "type_ids",
+}
+
+
+def _keys(contract: dict[str, object]) -> set[str]:
+    return WORKFLOW_FILE_KEYS if "graph_kind" in contract else CONTRACT_KEYS
 
 
 @pytest.mark.parametrize("block", BLOCKS, ids=lambda block: block.name)
 def test_contract_block_matches_the_workflows_offline_plan(block: ContractBlock) -> None:
     built = build(block)
-    assert set(built) == CONTRACT_KEYS
+    assert set(built) == _keys(built)
     assert document_contract(block.document(), label=block.label) == built
 
 
@@ -69,7 +82,7 @@ def test_a_block_carries_no_path_or_machine_fact() -> None:
     for block in BLOCKS:
         text = block.document().read_text(encoding="utf-8")
         contract = document_contract(block.document(), label=block.label)
-        assert set(contract) == CONTRACT_KEYS
+        assert set(contract) == _keys(contract)
         assert "fixture_ref" not in contract and "kind" not in contract
         assert re.search(r"/(?:tmp|private|Users|home)/", str(contract)) is None, block.name
         assert contract["type_ids"] == sorted(set(contract["type_ids"]))
@@ -80,10 +93,11 @@ def test_build_refuses_a_plan_that_differs_between_scratch_folders() -> None:
     from gnode import Graph
 
     graphs: list[Graph] = []
-    original = BLOCKS[0]
+    original = next(block for block in BLOCKS if block.workflow_id == "movie-sprite")
 
     def plan_once(scratch: Path, repo: Path) -> Graph:
         graph = original.plan(scratch, repo)
+        assert isinstance(graph, Graph)
         if graphs:
             graph = graph.model_copy(update={"terminal_node_id": "moved"})
         graphs.append(graph)

@@ -1,0 +1,5 @@
+# Stage Gen's own gnode project: first-party workflows run here keep their runs and cache
+# under out/, which is never committed.
+gnode: project/v1
+runs: out/runs
+cache: out/gnode-cache

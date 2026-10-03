@@ -45,10 +45,15 @@ const UPDATE_FILES = [
   "summary.json",
   "plan.json",
   "execution.json",
+  "events.jsonl",
   "manifest.json",
   "bundle.json",
   "case.json",
 ] as const;
+
+/** A gnode workflow run's plan (`plan.json`) declares itself so, and names its workflow. */
+const GNODE_PLAN = "graph/v2";
+export const GNODE_GRAPH_KIND = "gnode-graph-v2";
 
 /** What a run's view says about the whole run. */
 export interface ViewSummary {
@@ -88,6 +93,7 @@ interface Anchor {
   readonly schemaVersion: number | null;
   readonly pipelineId: string | null;
   readonly recipe: string | null;
+  readonly workflowId: string | null;
 }
 
 const NO_ANCHOR: Anchor = {
@@ -96,6 +102,7 @@ const NO_ANCHOR: Anchor = {
   schemaVersion: null,
   pipelineId: null,
   recipe: null,
+  workflowId: null,
 };
 
 /**
@@ -143,12 +150,21 @@ async function readAnchor(run: RunRef, runDir: string): Promise<Anchor> {
           return { ...NO_ANCHOR, document: name };
         }
         const declared = body as Record<string, unknown>;
+        if (name === "plan.json" && declared.gnode === GNODE_PLAN) {
+          const workflow = declared.workflow;
+          const id =
+            workflow !== null && typeof workflow === "object" && !Array.isArray(workflow)
+              ? textField(workflow as Record<string, unknown>, "id")
+              : null;
+          return { ...NO_ANCHOR, document: name, kind: GNODE_GRAPH_KIND, workflowId: id };
+        }
         return {
           document: name,
           kind: textField(declared, "kind"),
           schemaVersion: typeof declared.schema_version === "number" ? declared.schema_version : null,
           pipelineId: textField(declared, "pipeline_id"),
           recipe: textField(declared, "recipe"),
+          workflowId: null,
         };
       } catch {
         // Unreadable or refused: the run is still listed, with no identity.
@@ -250,6 +266,7 @@ export async function readRunEntry(found: FoundRun): Promise<RunIndexEntry> {
       recipe: anchor.recipe ?? view?.recipe ?? null,
       viewKind: view?.kind ?? null,
       graphKind: view?.graphKind ?? null,
+      workflowId: anchor.workflowId,
     },
     schemaVersion: anchor.schemaVersion,
     view,

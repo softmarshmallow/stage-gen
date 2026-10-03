@@ -19,6 +19,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "planned",
    "step": "loud",
@@ -42,6 +43,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "planned",
    "step": "loud",
@@ -65,6 +67,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "planned",
    "step": "loud",
@@ -88,6 +91,11 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [
+    "loud['ada']#1",
+    "loud['bo']#1",
+    "loud['cy']#1"
+   ],
    "routes": {},
    "state": "planned",
    "step": "joined",

@@ -90,6 +90,15 @@
    "title": "Runs",
    "type": "string"
   },
+  "sources": {
+   "default": [],
+   "items": {
+    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+    "type": "string"
+   },
+   "title": "Sources",
+   "type": "array"
+  },
   "view_origins": {
    "default": [],
    "items": {

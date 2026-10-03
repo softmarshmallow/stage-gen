@@ -36,6 +36,8 @@ function catalog(): Catalog {
     }),
     like("figure-rig", { graph_kinds: ["contained-figure-rig-v1"] }),
     like("face-moves", { graph_kinds: ["face-moves-v2"], plan_kinds: ["face-moves-plan-v1"] }),
+    like("strip-loop", { graph_kinds: ["gnode-graph-v2"] }),
+    like("tile-set", { graph_kinds: ["gnode-graph-v2"] }),
   );
   return parseCatalog(document);
 }
@@ -50,6 +52,14 @@ describe("which workflow a run belongs to", () => {
     expect(workflowOf({ ...NONE, viewKind: "pipeline-execution-view-v1", pipelineId: "swatch-sheet" }, known)).toBe(
       "swatch-sheet",
     );
+  });
+
+  test("a gnode workflow run by the workflow its plan names, never by the shared graph kind", () => {
+    const gnode = { ...NONE, document: "plan.json", kind: "gnode-graph-v2" };
+    expect(workflowOf({ ...gnode, workflowId: "tile-set" }, known)).toBe("tile-set");
+    expect(workflowOf({ ...gnode, workflowId: "strip-loop" }, known)).toBe("strip-loop");
+    expect(workflowOf({ ...gnode, workflowId: "someone-elses" }, known)).toBeNull();
+    expect(workflowOf({ ...gnode, workflowId: "tiny-world" }, known)).toBeNull();
   });
 
   test("a graph-document run by its graph kind, a legacy kind, its literal or its view kind", () => {
@@ -86,6 +96,8 @@ describe("which workflow a run belongs to", () => {
       "tiny-world",
       "figure-rig",
       "face-moves",
+      "strip-loop",
+      "tile-set",
     ]);
     expect(groups.workflows[1].runs.map((entry) => entry.name)).toEqual(["new", "old"]);
     expect(groups.workflows[0].runs).toEqual([]);

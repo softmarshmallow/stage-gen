@@ -42,6 +42,22 @@ WORKFLOW_MANIFESTS = {
     )
 }
 
+#: A workflow written as a workflow file ships whole: its file, its home, its node types,
+#: prompts, view, lock and sample inputs.
+PARALLAX_WORKFLOW = {
+    f"stage_gen/workflows/looping_parallax/{name}"
+    for name in (
+        "workflow.yaml",
+        "gnode.yaml",
+        "gnode.lock",
+        "nodes/seams.py",
+        "nodes/compose.py",
+        "prompts/seam.md",
+        "views/parallax.html",
+        "inputs/supplied_layers/make_inputs.py",
+    )
+}
+
 WHEEL_RESOURCES = {
     MODEL_POLICY_SNAPSHOT_RESOURCE,
     "stage_gen/resources/model_names.toml",
@@ -215,6 +231,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert wheel_entries.keys() >= PORTRAIT_FACE_MODULES
         assert wheel_entries.keys() >= MOVIE_SPRITE_MODULES
         assert wheel_entries.keys() >= WORKFLOW_MANIFESTS
+        assert wheel_entries.keys() >= PARALLAX_WORKFLOW
         assert not any(
             name.startswith("stage_gen/workflows/") and name.endswith((".mdx", "/contract.md"))
             for name in wheel_entries
@@ -370,7 +387,8 @@ class NoConsumerImports(importlib.abc.MetaPathFinder):
 
 sys.meta_path.insert(0, NoConsumerImports())
 from stage_gen.pipeline import define, inspect, plan, run
-from stage_gen.workflows.looping_parallax import create_pipeline
+import runpy
+import gnode
 from stage_gen.resources import (
     image_style_resource_digests,
     image_style_skill_path,
@@ -426,6 +444,18 @@ for name, names in face_surfaces.items():
     module = importlib.import_module(name)
     assert Path(module.__file__).resolve().is_relative_to(Path("installed").resolve())
     assert all(callable(getattr(module, name)) for name in names)
+
+parallax = Path(importlib.import_module("stage_gen.workflows.looping_parallax").__file__).parent
+assert parallax.resolve().is_relative_to(Path("installed").resolve())
+make_layers = runpy.run_path(str(parallax / "inputs/supplied_layers/make_inputs.py"))
+layers = make_layers["write_inputs"](Path("parallax-inputs"))
+Path("parallax-project").mkdir()
+parallax_run = gnode.run(
+    "looping-parallax", input_files=[layers.resolve()], cwd=Path("parallax-project")
+)
+assert parallax_run.ok, parallax_run.outcome.failed
+assert gnode.verify_run(parallax_run.run_dir) == []
+assert set(parallax_run.outputs) == {"manifest", "preview", "layers"}
 
 from stage_gen.components.movie_sprite import FinishSettings, finish_video
 from stage_gen.workflows.movie_sprite import Authoring, GenerationSettings, create_pipeline

@@ -230,8 +230,9 @@ def test_every_workflow_says_how_to_try_it_with_its_own_verbs() -> None:
         assert workflow.manifest.try_.input.strip()
         commands = workflow.manifest.try_.commands
         assert 1 <= len(commands) <= 3, workflow.id
+        verbs = ("stage-gen plan", "stage-gen run", "gnode plan", "gnode run")
         assert any(
-            command.startswith((f"stage-gen plan {workflow.id} ", f"stage-gen run {workflow.id} "))
+            command.startswith(tuple(f"{verb} {workflow.id} " for verb in verbs))
             for command in commands
         ), workflow.id
 
@@ -346,9 +347,10 @@ def test_a_title_that_is_empty_or_its_raw_slug_fails(loaded: dict[str, LoadedWor
 def test_labels_only_retitle_types_whose_titles_are_frozen(
     loaded: dict[str, LoadedWorkflow],
 ) -> None:
-    editable = _with_manifest(loaded["looping-parallax"], labels={"parallax.compose": "Compose"})
+    compose = "looping_parallax/compose"
+    editable = _with_manifest(loaded["looping-parallax"], labels={compose: "Compose"})
     assert checks.labels(editable, checks.frozen_files(GOLDEN)) == [
-        "looping-parallax: [labels] retitles parallax.compose, whose title is editable in code"
+        f"looping-parallax: [labels] retitles {compose}, whose title is editable in code"
     ]
     frozen = checks.frozen_files(GOLDEN)
     for workflow_id in ("movie-sprite", "portrait-motion", "character-3d"):
@@ -382,12 +384,21 @@ def test_identity_must_agree_with_the_identity_golden(loaded: dict[str, LoadedWo
         assert checks.identity(workflow, GOLDEN) == []
     moved = json.loads(json.dumps(GOLDEN))
     moved["identities"]["cache"]["universe_namespace"] = "universe-nodes-v2"
-    moved["identities"]["pipelines"]["looping-parallax"]["namespace"] = "pipeline-0"
+    moved["identities"]["pipelines"]["movie_sprite_body_idle"]["namespace"] = "pipeline-0"
+    moved["identities"]["node_types"] = [
+        entry
+        for entry in moved["identities"]["node_types"]
+        if entry[0] != "looping_parallax/compose"
+    ]
     assert checks.identity(loaded["universe"], moved) == [
         "universe: identity cache constant universe_namespace differs from the golden"
     ]
+    assert checks.identity(loaded["movie-sprite"], moved) == [
+        "movie-sprite: identity pipeline movie_sprite_body_idle differs from the golden"
+    ]
     assert checks.identity(loaded["looping-parallax"], moved) == [
-        "looping-parallax: identity pipeline looping-parallax differs from the golden"
+        "looping-parallax: identity node type looping_parallax/compose is not in the golden "
+        "inventory"
     ]
 
 

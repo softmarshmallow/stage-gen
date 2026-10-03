@@ -19,7 +19,7 @@ import hashlib
 import json
 import os
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -34,7 +34,7 @@ class StoreError(ValueError):
     pass
 
 
-def _atomic_write(path: Path, data: bytes) -> None:
+def _atomic_write(path: Path, data: bytes, *, read_only: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=".", suffix=".part")
     try:
@@ -42,6 +42,9 @@ def _atomic_write(path: Path, data: bytes) -> None:
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
+        if read_only:
+            # Run folders hard-link these bytes; an edit there must not reach the cache.
+            os.chmod(temporary, 0o444)
         os.replace(temporary, path)
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
@@ -85,7 +88,7 @@ class Store:
         digest = hashlib.sha256(data).hexdigest()
         path = self.file_path(digest)
         if not path.is_file() or path.stat().st_size != len(data):
-            _atomic_write(path, data)
+            _atomic_write(path, data, read_only=True)
         return self.file(digest, kind=kind, name=name, size=len(data), key=key)
 
     def put_file(self, source: Path, *, kind: str, name: str) -> FileValue:
@@ -228,6 +231,15 @@ class Store:
         if record.get("kind") != CALL_KIND or not all(self.has(file) for file in files.values()):
             return None
         return CallRecord(files, record.get("data"), record.get("cost_usd"))
+
+    def calls(self) -> Iterator[tuple[str, CallRecord]]:
+        """Every whole call record in the cache, by key."""
+
+        folder = self.root / "calls"
+        for path in sorted(folder.glob("*/*.json")) if folder.is_dir() else []:
+            record = self.load_call(path.stem)
+            if record is not None:
+                yield path.stem, record
 
     def save_call(self, key: str, record: CallRecord) -> None:
         document = {

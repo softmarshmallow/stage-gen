@@ -55,6 +55,14 @@ class CapabilityError(RuntimeError):
     """A paid call that cannot be made: no route, not live, no handler, over the ceiling."""
 
 
+class CallRefused(CapabilityError):
+    """A provider adapter refused a call before sending anything, so nothing was billed.
+
+    Any other error from a handler leaves the call's whole worst case charged: once a
+    request may have left, nobody can say it did not bill.
+    """
+
+
 # ---------------------------------------------------------------------------- inputs
 
 
@@ -589,6 +597,10 @@ async def call_capability(
     }
     try:
         record = await handler(route, staged, take)
+    except CallRefused:
+        if services.spending is not None and hold is not None:
+            services.spending.settle(hold, 0.0)
+        raise
     except BaseException:
         # Nobody can say an interrupted call did not bill: its whole hold stays charged.
         if services.spending is not None and hold is not None:
@@ -826,6 +838,7 @@ def _select(instance: Instance) -> Result:
 __all__ = [
     "ANNOTATIONS_KIND",
     "Agent",
+    "CallRefused",
     "CallResult",
     "CapabilityError",
     "CapabilityHandler",

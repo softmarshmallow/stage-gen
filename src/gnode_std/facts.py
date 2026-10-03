@@ -38,11 +38,14 @@ def file_facts(file: FileValue) -> Mapping[str, Any]:
             facts["width"], facts["height"] = picture.size
             bands = picture.getbands()
             facts["has_alpha"] = "A" in bands or "transparency" in picture.info
-            if facts["has_alpha"]:
-                alpha = picture.convert("RGBA").getchannel("A")
-                facts["opaque"] = alpha.getextrema() == (255, 255)
-            else:
-                facts["opaque"] = True
+            try:
+                if facts["has_alpha"]:
+                    alpha = picture.convert("RGBA").getchannel("A")
+                    facts["opaque"] = alpha.getextrema() == (255, 255)
+                else:
+                    facts["opaque"] = True
+            except OSError:
+                pass  # the header reads but the pixels do not: only what was measured
     elif data is not None and file.kind in {"audio/wav", "audio/x-wav", "audio"}:
         try:
             with wave.open(io.BytesIO(data)) as clip:

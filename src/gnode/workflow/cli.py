@@ -4,11 +4,13 @@
     gnode run <target> [inputs] [--live] [--max-usd N] [--yes-up-to N] [--deliver out=path]
     gnode reroll <run> <step-path>      gnode pick <run> <step-path> <take>
     gnode takes list <target> | mv <target> <old> <new>
+    gnode inspect <run | workflow id> [--verify] [--json]
     gnode schema <target>               gnode nodes [type]
-    gnode doctor [target]               gnode lock [--same <node>]
+    gnode doctor [target]               gnode lock [where] [--same <node>] [--check]
     gnode expand | identity | price <target> [inputs]      gnode project <run>
 
-``<target>`` is a workflow file or a workflow id. Inputs are the workflow's own flags
+``<target>`` is a workflow file, a workflow id in this project, or the id of a workflow an
+installed plugin publishes. Inputs are the workflow's own flags
 (``--max-entities 24``, the kebab-case of each input) and ``--inputs file.yaml``
 (repeatable, merged in order; paths inside are relative to that file).
 """
@@ -53,6 +55,7 @@ from gnode.workflow.run import (
     WorkflowRun,
     instance_document,
 )
+from gnode.workflow.runview import RunFolderError, project_run, read_plan, verify_run
 from gnode.workflow.store import Store, files_in
 from gnode.workflow.values import Collection, FileValue
 
@@ -152,7 +155,13 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("target", nargs="?")
 
     lock = verbs.add_parser("lock", help="pin versioned node types to their source")
+    lock.add_argument(
+        "where", nargs="?", help="a project folder, or a published workflow's id (default: here)"
+    )
     lock.add_argument("--same", metavar="NODE", help="confirm a source change keeps behaviour")
+    lock.add_argument(
+        "--check", action="store_true", help="refuse an unlocked change; write nothing"
+    )
 
     for name, summary in (
         ("expand", "the expanded graph, as JSON"),
@@ -165,6 +174,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     project = verbs.add_parser("project", help="a run's record projected to its state, as JSON")
     project.add_argument("run", type=Path)
+
+    inspect = verbs.add_parser("inspect", help="a run's summary, from its own folder")
+    inspect.add_argument("run", type=Path, help="a run folder, or a workflow id for its newest run")
+    inspect.add_argument(
+        "--verify", action="store_true", help="re-check every file against its recorded digest"
+    )
+    inspect.add_argument("--json", action="store_true", help="the run's view, as JSON")
     return parser
 
 
@@ -187,7 +203,7 @@ def _input_flags(target: str, rest: Sequence[str], cwd: Path) -> dict[str, Any]:
         raise UsageError(f"unknown flag {rest[0]}; a builder takes its arguments as --arg")
     project = Project.find(cwd)
     try:
-        document = load_workflow(find_workflow(target, project))
+        document = load_workflow(find_workflow(target, project, load_plugins().workflows))
     except (DocumentError, PlanError) as error:
         raise UsageError(str(error)) from error
     schema = compile_inputs(document.inputs)
@@ -251,6 +267,8 @@ def _planner(args: argparse.Namespace, rest: Sequence[str], cwd: Path) -> Planne
         builtins=composition.builtins,
         routes=_routes(composition, [p if p.is_absolute() else cwd / p for p in args.routes]),
         facts_reader=composition.facts_reader,
+        published=composition.workflows,
+        views=composition.views,
     )
 
 
@@ -341,7 +359,7 @@ def cmd_run(args: argparse.Namespace, rest: Sequence[str], cwd: Path, out: TextI
     run_dir = (cwd / args.run_dir) if args.run_dir else _new_run_dir(plan.planner)
     services = HostServices(
         store=plan.planner.store,
-        capabilities=composition.capabilities() if args.live else {},
+        capabilities=composition.capabilities(plan.planner.store) if args.live else {},
         live=args.live,
     )
     out.write(plan.render() + "\n")
@@ -382,6 +400,7 @@ def _remember_inputs(plan: Plan, run_dir: Path, builder: dict[str, Any] | None =
             planner.store.put_file(Path(file.location), kind=file.kind, name=file.name)
     document = json.loads((run_dir / PLAN_FILE).read_text(encoding="utf-8"))
     document["target"] = str(planner.workflow_path)
+    document["project"] = str(planner.project.root)
     document["builder"] = builder
     document["input_values"] = _encode_inputs(planner.inputs)
     (run_dir / PLAN_FILE).write_text(json.dumps(document, indent=1, sort_keys=True) + "\n")
@@ -462,23 +481,25 @@ def _planner_of_run(run: Path) -> tuple[Planner, dict[str, Any]]:
         raise UsageError(f"{run} was not started by gnode run")
     composition = load_plugins()
     target = Path(document["target"])
-    project = Project.find(target)
+    project = Project.find(Path(document.get("project") or target))
     store = Store(project.cache_dir, facts_reader=composition.facts_reader)
     builder = document.get("builder")
     planner = make_planner(
         f"{target}:{builder['function']}" if builder else target,
         arguments=builder["arguments"] if builder else None,
         cwd=target.parent,
+        project_root=project.root,
         builtins=composition.builtins,
         routes=composition.routes,
         facts_reader=composition.facts_reader,
         values=_decode_inputs(store, document.get("input_values", {})),
+        views=composition.views,
     )
     return planner, document
 
 
 def _write_takes(planner: Planner, choices: dict[str, dict[str, Any]]) -> Path:
-    path = takes_path(planner.workflow_path, planner.workflow)
+    path = planner.takes_path
     header = f"# {path.name}: written by `gnode reroll` and `gnode pick`; commit it\n"
     body = yaml.safe_dump(choices, sort_keys=True, allow_unicode=True) if choices else ""
     path.write_text(header + body, encoding="utf-8")
@@ -538,9 +559,9 @@ def cmd_pick(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
 
 def cmd_takes(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
     project = Project.find(cwd)
-    workflow_path = find_workflow(args.target, project)
+    workflow_path = find_workflow(args.target, project, load_plugins().workflows)
     document = load_workflow(workflow_path)
-    path = takes_path(workflow_path, document)
+    path = takes_path(workflow_path, document, project)
     choices = read_takes(path)
     if args.takes_verb == "list":
         for step, choice in sorted(choices.items()):
@@ -563,7 +584,7 @@ def cmd_takes(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
 
 def cmd_schema(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
     project = Project.find(cwd)
-    document = load_workflow(find_workflow(args.target, project))
+    document = load_workflow(find_workflow(args.target, project, load_plugins().workflows))
     _print_json(out, compile_inputs(document.inputs))
     return 0
 
@@ -603,6 +624,8 @@ def cmd_doctor(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
         builtins=composition.builtins,
         routes=composition.routes,
         facts_reader=composition.facts_reader,
+        published=composition.workflows,
+        views=composition.views,
     )
     seen: set[str] = set()
     for step in _all_steps(planner.workflow.steps):
@@ -610,7 +633,7 @@ def cmd_doctor(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
             continue
         seen.add(step.uses)
         try:
-            resolved = planner.registry.node_type(step.uses, planner.project.root)
+            resolved = planner.registry.node_type(step.uses, planner.home.root)
         except ValueError as error:
             out.write(f"missing   {step.uses}: {error}\n")
             problems += 1
@@ -636,12 +659,21 @@ def _all_steps(steps: dict[str, Any]) -> list[Any]:
 def cmd_lock(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
     """Pin each versioned node type to its source; a change without a bump is refused.
 
-    ``--same NODE`` confirms that NODE's source changed without changing what it makes.
+    ``--same NODE`` confirms that NODE's source changed without changing what it makes;
+    ``--check`` reports what is not locked and writes nothing.
     """
 
-    project = Project.find(cwd)
     composition = load_plugins()
-    registry = Registry(project_root=project.root, builtins=composition.builtins)
+    where = cwd
+    if args.where:
+        published = composition.workflows.get(args.where)
+        where = published if published is not None else cwd / args.where
+    project = Project.find(where)
+    registry = Registry(
+        project_root=project.root,
+        builtins=composition.builtins,
+        sources=project.document.sources,
+    )
     lock = project.root / "gnode.lock"
     raw = yaml.safe_load(lock.read_text(encoding="utf-8")) if lock.is_file() else None
     locked: dict[str, str] = dict((raw or {}).get("nodes", {}))
@@ -656,6 +688,10 @@ def cmd_lock(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
                 continue
             key = f"{relative}#{name}@{spec.version}"
             source = registry.source_identity(path, spec)
+            if args.check and key not in locked:
+                out.write(f"unlocked  {relative}#{name}@{spec.version}: run gnode lock\n")
+                status = 1
+                continue
             if locked.get(key, source) != source and args.same != f"{relative}#{name}":
                 out.write(
                     f"changed   {relative}#{name}: its source changed but version "
@@ -664,6 +700,10 @@ def cmd_lock(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
                 status = 1
                 continue
             locked[key] = source
+    if args.check:
+        if status == 0:
+            out.write(f"gnode.lock: {len(locked)} versioned node types, all locked\n")
+        return status
     lock.write_text(
         "# gnode.lock: the source behind each versioned node type; commit it\n"
         + yaml.safe_dump({"nodes": dict(sorted(locked.items()))}, sort_keys=True),
@@ -716,6 +756,55 @@ def cmd_project(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
     return 0
 
 
+def _run_folder(given: Path, cwd: Path) -> Path:
+    """A run folder, or a workflow id: that workflow's newest run in this project."""
+
+    folder = cwd / given
+    if folder.is_dir() or given.parts != (given.name,):
+        return folder
+    runs = Project.find(cwd).runs_dir / given.name
+    found = sorted(
+        (run for run in runs.iterdir() if (run / PLAN_FILE).is_file()) if runs.is_dir() else (),
+        key=lambda run: (run / PLAN_FILE).stat().st_mtime,
+    )
+    if not found:
+        raise UsageError(f"no run folder {given}, and no runs of a workflow {given} here")
+    return found[-1]
+
+
+def cmd_inspect(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
+    """What a run did, read only from its folder; ``--verify`` re-checks every file."""
+
+    run = _run_folder(args.run, cwd)
+    try:
+        view = project_run(run)
+    except RunFolderError as error:
+        raise UsageError(str(error)) from error
+    problems = verify_run(run) if args.verify else []
+    if args.json:
+        document: dict[str, Any] = {"view": view.model_dump(mode="json")}
+        if args.verify:
+            document["verification"] = {"verified": not problems, "problems": problems}
+        _print_json(out, document)
+        return 1 if problems else 0
+    plan = read_plan(run)
+    counts = ", ".join(f"{count} {state}" for state, count in view.state_counts.items())
+    out.write(f"{plan['workflow']['id']}  ·  {run.name}\n")
+    out.write(f"state     {view.run_state}   {len(view.nodes)} steps: {counts or 'none'}\n")
+    if view.known_cost_usd is not None:
+        out.write(f"spent     ${view.known_cost_usd:.2f}\n")
+    failed = [node for node in view.nodes if node.state == "failed"]
+    for node in failed:
+        out.write(f"failed    {node.node_id}: {node.error or 'no reason recorded'}\n")
+    if args.verify:
+        files = sum(len(node.artifacts) for node in view.nodes)
+        for problem in problems:
+            out.write(f"differs   {problem}\n")
+        if not problems:
+            out.write(f"verified  {files} files\n")
+    return 1 if problems else 0
+
+
 # ---------------------------------------------------------------------------- main
 
 
@@ -756,6 +845,8 @@ def main(
             return cmd_expand(args, rest, here, out)
         if args.verb == "project":
             return cmd_project(args, here, out)
+        if args.verb == "inspect":
+            return cmd_inspect(args, here, out)
     except (UsageError, PlanError, InputError, DocumentError, RunRefused, OSError) as error:
         errors.write(f"{PROG}: {error}\n")
         return 2

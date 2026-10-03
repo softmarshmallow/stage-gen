@@ -1,0 +1,122 @@
+gnode: workflow/v1
+id: looping-parallax
+title: Looping parallax
+description: >-
+  Layer pictures in; repeating layers and their scroll placement out. Each layer is made to
+  repeat on its own, by mirroring its edges or by repainting the seam, then the layers are
+  composed with their offsets and scroll factors into a manifest and a preview frame.
+
+inputs:
+  canvas:
+    width:  { type: integer, minimum: 1, maximum: 4096 }
+    height: { type: integer, minimum: 1, maximum: 4096 }
+  layers:
+    type: list
+    min_items: 1
+    max_items: 32
+    items:
+      layer_id: { type: string, pattern: "^[a-z][a-z0-9_]{0,63}$" }
+      file:     { type: file, kind: image }
+      order:    { type: integer, default: 0 }
+      parallax: { type: number, default: 1 }
+      offset_x: { type: number, default: 0 }
+      offset_y: { type: number, default: 0 }
+      repeat_x: { type: boolean, default: true }
+      repeat_y: { type: boolean, default: false }
+      loop_construction:
+        type: string
+        enum: [mirror_repeat, seam_repaint]
+        default: mirror_repeat
+        description: Mirror the edges (free, doubles the period) or repaint the seam (one edit)
+      description:
+        type: string
+        max_length: 2000
+        default: ""
+        description: What the layer is made of, for the repaint brief; a mirror never reads it
+
+steps:
+  layer:
+    title: Make each layer repeat
+    description: >-
+      Each supplied layer is prepared on its own. By default its repeating edges are
+      mirrored, so the repeat is exact; a seam layer that does not already loop has the cut
+      repainted instead, and falls back to the mirror when the repaint is refused twice.
+    for_each: ${{ inputs.layers }}
+    key: ${{ item.layer_id }}
+    assert:
+      - check: ${{ item.loop_construction == 'mirror_repeat' || (item.repeat_x && !item.repeat_y) }}
+        message: "layer ${{ item.layer_id }} selects seam_repaint, which repeats on x only"
+      - check: ${{ item.loop_construction == 'mirror_repeat' || facts(item.file).width >= 1536 }}
+        message: "layer ${{ item.layer_id }} is narrower than the 1536 px seam window"
+      - check: >-
+          ${{ facts(item.file).width * (item.repeat_x && 2 || 1) <= 16384
+              && facts(item.file).height * (item.repeat_y && 2 || 1) <= 16384 }}
+        message: "layer ${{ item.layer_id }} would repeat past 16384 px"
+    steps:
+      loops_already:
+        title: Check whether it already loops
+        if: ${{ item.loop_construction == 'seam_repaint' }}
+        uses: ./nodes/seams.py#loops_already
+        with:
+          image: ${{ item.file }}
+          transparent: ${{ !facts(item.file).opaque }}
+
+      repaint:
+        title: Repaint the seam
+        if: ${{ item.loop_construction == 'seam_repaint' && steps.loops_already.facts.verdict == 'reject' }}
+        uses: ./nodes/seams.py#seam_repaint
+        requires: [mask, alpha]
+        with:
+          image: ${{ item.file }}
+          transparent: ${{ !facts(item.file).opaque }}
+          description: ${{ item.description }}
+
+      seam_ok:
+        title: Judge the repainted seam
+        uses: ./nodes/seams.py#seam_check
+        judges: repaint
+        with:
+          image: ${{ steps.repaint.outputs.image }}
+          source: ${{ item.file }}
+          report: ${{ steps.repaint.outputs.report }}
+          transparent: ${{ !facts(item.file).opaque }}
+        on_reject: { regenerate: { max: 2, then: continue } }
+
+      mirror:
+        title: Mirror the edges
+        if: >-
+          ${{ (item.repeat_x || item.repeat_y)
+              && (item.loop_construction == 'mirror_repeat'
+                  || steps.seam_ok.facts.verdict == 'reject') }}
+        uses: gnode/image.mirror_repeat@1
+        with:
+          image: ${{ item.file }}
+          axis: ${{ (item.repeat_x && 'x' || '') + (item.repeat_y && 'y' || '') }}
+
+      loop:
+        title: Take the layer's loop
+        uses: gnode/select@1
+        with:
+          first_of:
+            - ${{ steps.repaint.outputs.image }}
+            - ${{ steps.mirror.outputs.image }}
+            - ${{ item.file }}
+        view: true
+
+  compose:
+    title: Compose the scrolling background
+    description: >-
+      The prepared layers are placed with their offsets and scroll factors, and a preview
+      frame is drawn. Changing placement reruns only this step.
+    uses: ./nodes/compose.py#compose
+    with:
+      layers: ${{ steps.layer.*.loop.outputs.image }}
+      constructions: ${{ steps.layer.*.loop.facts.chosen }}
+      specs: ${{ inputs.layers }}
+      canvas: ${{ inputs.canvas }}
+    view: true
+
+outputs:
+  manifest: ${{ steps.compose.outputs.manifest }}
+  preview: ${{ steps.compose.outputs.preview }}
+  layers: ${{ steps.layer.*.loop.outputs.image }}

@@ -1,35 +1,45 @@
-"""Seam-repainted supplied layers: admitted first, repainted through the wrap, else reflected."""
+"""Seam-repainted layers: admitted first, repainted through the wrap, else reflected.
+
+The paid edit goes through Stage Gen's real image handler and routed service; only the
+provider client under them is fake, so no call leaves the machine.
+"""
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import json
 import math
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
+import yaml
 from PIL import Image
-from pydantic import ValidationError
 
 from gnode import (
-    BinaryArtifact,
-    CacheDisposition,
+    HostServices,
     ImageGenerationRequest,
     ImageGenerationResult,
-    ProvenanceInput,
+    Plan,
     ProviderResponseMetadata,
-    SoftwareIdentity,
-    write_artifact_with_provenance,
+    RouteContractV1,
+    RunOutcome,
+    WorkflowRun,
+    plan_async,
 )
-from stage_gen.components.sideview_layers.parallax import ParallaxLayer, ParallaxSpec
 from stage_gen.config import StageGenConfig
 from stage_gen.media.codec import decode_rgba, encode_png
-from stage_gen.pipeline import PipelinePlan, plan, run
-from stage_gen.workflows.looping_parallax import create_pipeline
+from stage_gen.orchestration.gnode_plugin import image_capabilities
+from stage_gen.orchestration.image_routing import RoutedImageGenerationService
 
 WIDTH, HEIGHT = 2048, 512
+Painter = Callable[[Image.Image, Image.Image], Image.Image]
+
+
+@pytest.fixture(autouse=True)
+def _no_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
 
 
 def _band(period: float) -> bytes:
@@ -45,7 +55,7 @@ def _band(period: float) -> bytes:
     return encode_png(image)
 
 
-def _decode_reference(url: str) -> Image.Image:
+def _decode(url: str) -> Image.Image:
     return decode_rgba(base64.b64decode(url.split(",", 1)[1]))
 
 
@@ -70,176 +80,173 @@ def _paint_through(conditioning: Image.Image, mask: Image.Image) -> Image.Image:
     return painted
 
 
-class FakeImages:
-    """Answer an edit by carrying the art through the span, or by returning the canvas as sent."""
+class FakeClient:
+    """The provider client under the routed service: answers each edit offline."""
 
-    def __init__(self, paint: Callable[[Image.Image, Image.Image], Image.Image] | None) -> None:
+    def __init__(self, route: RouteContractV1, paint: Painter | None, sent: list[Any]) -> None:
+        self.provider = route.model.provider
+        self.model = route.model.model
+        self.adapter_id = route.adapter_id
+        self.adapter_behavior_version = route.adapter_behavior_version
         self.paint = paint
-        self.requests: list[ImageGenerationRequest] = []
+        self.sent = sent
+
+    def endpoint_for(self, request: ImageGenerationRequest) -> str:
+        assert request.resolved_binding is not None
+        return request.resolved_binding.route.endpoint
 
     async def generate(self, request: ImageGenerationRequest) -> ImageGenerationResult:
-        self.requests.append(request)
-        conditioning = _decode_reference(request.input_references[0].url)
+        self.sent.append(request)
+        conditioning = _decode(request.input_references[0].url)
         assert request.mask_reference is not None
-        mask = _decode_reference(request.mask_reference.url)
+        mask = _decode(request.mask_reference.url)
         returned = conditioning if self.paint is None else self.paint(conditioning, mask)
-        data = encode_png(returned)
-        path = Path(request.artifact_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        provenance = await asyncio.to_thread(
-            write_artifact_with_provenance,
-            path,
-            BinaryArtifact(data=data, media_type="image/png"),
-            ProvenanceInput(
-                component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
-                tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
-                schema_version=2,
-                provider="fake",
-                model="fake-image",
-                prompt=request.prompt,
-                attempts=1,
-            ),
-        )
         return ImageGenerationResult(
-            data=data,
+            data=encode_png(returned),
             media_type="image/png",
-            provider="fake",
-            model="fake-image",
+            provider=self.provider,
+            model=self.model,
             attempts=1,
-            provenance_path=str(provenance),
-            response_metadata=ProviderResponseMetadata(),
+            provenance_path="",
+            response_metadata=ProviderResponseMetadata(usage={"cost": 0.2}),
         )
 
     async def aclose(self) -> None:
         return None
 
 
-def _spec(**layer: object) -> ParallaxSpec:
-    return ParallaxSpec(
-        width=640,
-        height=360,
-        layers=[
-            ParallaxLayer(
-                layer_id="band",
-                source="band.png",
-                parallax=0.5,
-                loop_construction="seam_repaint",
-                **layer,  # type: ignore[arg-type]
-            )
+def _config() -> StageGenConfig:
+    # Placeholders: the routed service admits a call only when its provider has a key.
+    return StageGenConfig.model_validate(
+        {"openai_api_key": "test-openai", "fal_key": "test-fal", "open_router_api_key": "test"}
+    )
+
+
+def _project(tmp_path: Path, source: bytes, **layer: Any) -> Path:
+    (tmp_path / "gnode.yaml").write_text("gnode: project/v1\nruns: runs\ncache: cache\n")
+    (tmp_path / "band.png").write_bytes(source)
+    inputs = {
+        "canvas": {"width": 640, "height": 360},
+        "layers": [
+            {
+                "layer_id": "band",
+                "file": "band.png",
+                "parallax": 0.5,
+                "loop_construction": "seam_repaint",
+                **layer,
+            }
         ],
-    )
+    }
+    path = tmp_path / "inputs.yaml"
+    path.write_text(yaml.safe_dump(inputs))
+    return path
 
 
-def _plan(tmp_path: Path, source: bytes, spec: ParallaxSpec | None = None) -> PipelinePlan:
-    inputs = tmp_path / "inputs"
-    inputs.mkdir(exist_ok=True)
-    (inputs / "band.png").write_bytes(source)
-    return plan(create_pipeline(spec or _spec(), config=StageGenConfig()), input_root=inputs)
+async def _plan(tmp_path: Path, source: bytes, **layer: Any) -> Plan:
+    inputs = _project(tmp_path, source, **layer)
+    return await plan_async("looping-parallax", input_files=[inputs], cwd=tmp_path)
 
 
-def _run(planned: PipelinePlan, root: Path, name: str, images: FakeImages):  # type: ignore[no-untyped-def]
-    return asyncio.run(
-        run(
-            planned,
-            output_root=root / name,
-            cache_root=root / "cache",
-            services={"image": images},
-            allow_provider_calls=True,
+async def _run(planned: Plan, run_dir: Path, paint: Painter | None) -> tuple[RunOutcome, list[Any]]:
+    sent: list[Any] = []
+    store = planned.planner.store
+
+    def factory(config: StageGenConfig) -> RoutedImageGenerationService:
+        return RoutedImageGenerationService(
+            config, service_factory=lambda route, _: FakeClient(route, paint, sent)
         )
+
+    services = HostServices(
+        store=store,
+        capabilities=image_capabilities(_config(), store, factory=factory),
+        live=True,
     )
+    outcome = await WorkflowRun(planned, run_dir=run_dir, services=services).run()
+    return outcome, sent
 
 
-def _manifest_layer(run_dir: Path) -> dict[str, object]:
-    manifest = json.loads((run_dir / "parallax/manifest.json").read_bytes())
+def _bytes(planned: Plan, file: Any) -> bytes:
+    return planned.planner.store.file_path(file.digest).read_bytes()
+
+
+def _layer(planned: Plan, outcome: RunOutcome) -> dict[str, Any]:
+    manifest = json.loads(_bytes(planned, outcome.outputs["manifest"]))
     assert manifest["kind"] == "parallax-background-v2"
-    assert "construction" not in manifest
-    layer: dict[str, object] = manifest["layers"][0]
+    layer: dict[str, Any] = manifest["layers"][0]
     return layer
 
 
-def test_a_repaint_the_wrap_admits_keeps_the_drawn_period_and_is_reused(tmp_path: Path) -> None:
-    planned = _plan(tmp_path, _band(period=700))
-    node = planned.graph.node("layer.band")
-    assert not node.is_local
-    assert node.card is not None and "hard cut" in (node.card.prompt or "")
-    images = FakeImages(_paint_through)
-    first = _run(planned, tmp_path, "first", images)
-    assert first.summary.ok
-    assert len(images.requests) == 1
-    assert images.requests[0].size == f"1536x{HEIGHT}"
-    report = json.loads((first.run_dir / "parallax/layers/band.loop.json").read_bytes())
-    assert report["construction"] == "seam_repaint"
-    assert report.get("rejected_construction") is None
-    layer = _manifest_layer(first.run_dir)
+async def test_a_repaint_through_the_wrap_keeps_the_drawn_period_and_is_reused(
+    tmp_path: Path,
+) -> None:
+    planned = await _plan(tmp_path, _band(period=700))
+    assert planned.ok, planned.problems
+    outcome, sent = await _run(planned, tmp_path / "runs/first", _paint_through)
+
+    assert outcome.ok, outcome.failed
+    assert len(sent) == 1
+    assert sent[0].size == f"1536x{HEIGHT}"
+    assert "hard cut" in sent[0].prompt
+    assert outcome.results["layer['band'].seam_ok#1"].verdict == "accept"
+    layer = _layer(planned, outcome)
     assert (layer["construction"], layer["width"], layer["height"]) == (
         "seam_repaint",
         WIDTH,
         HEIGHT,
     )
-    edit_meta = json.loads((first.run_dir / "parallax/layers/band.edit.png.meta.json").read_bytes())
-    assert edit_meta["provider"] == "fake"
 
-    again = _run(planned, tmp_path, "again", images)
-    assert again.summary.ok
-    assert len(images.requests) == 1
-    assert {item.node_id: item.cache for item in again.summary.nodes} == {
-        "layer.band": CacheDisposition.HIT,
-        "compose": CacheDisposition.HIT,
-    }
-
-
-def test_a_repaint_that_leaves_the_cut_falls_back_to_the_reflection(tmp_path: Path) -> None:
-    images = FakeImages(None)
-    completed = _run(_plan(tmp_path, _band(period=700)), tmp_path, "run", images)
-    assert completed.summary.ok
-    assert len(images.requests) == 1
-    report = json.loads((completed.run_dir / "parallax/layers/band.loop.json").read_bytes())
-    assert (report["construction"], report["rejected_construction"]) == (
-        "mirror_repeat",
-        "seam_repaint",
+    again, sent_again = await _run(
+        await _plan(tmp_path, _band(period=700)), tmp_path / "runs/again", _paint_through
     )
-    layer = _manifest_layer(completed.run_dir)
+    assert again.ok
+    assert sent_again == []
+
+
+async def test_a_repaint_that_leaves_the_cut_is_redrawn_once_then_reflected(
+    tmp_path: Path,
+) -> None:
+    planned = await _plan(tmp_path, _band(period=700))
+    outcome, sent = await _run(planned, tmp_path / "run", None)
+
+    assert outcome.ok, outcome.failed
+    assert len(sent) == 2
+    assert outcome.results["layer['band'].seam_ok#1"].verdict == "reject"
+    assert outcome.results["layer['band'].seam_ok#2"].verdict == "reject"
+    layer = _layer(planned, outcome)
     assert (layer["construction"], layer["width"]) == ("mirror_repeat", WIDTH * 2)
 
 
-def test_a_layer_that_already_loops_is_published_untouched_without_a_provider(
+async def test_a_layer_that_already_loops_is_published_untouched_without_a_call(
     tmp_path: Path,
 ) -> None:
     source = _band(period=1024)
-    images = FakeImages(_paint_through)
-    completed = _run(_plan(tmp_path, source), tmp_path, "run", images)
-    assert completed.summary.ok
-    assert images.requests == []
-    assert (completed.run_dir / "parallax/layers/band.png").read_bytes() == source
-    assert _manifest_layer(completed.run_dir)["construction"] == "admitted"
-    node = next(item for item in completed.summary.nodes if item.node_id == "layer.band")
-    assert node.provider_operations == 0
+    planned = await _plan(tmp_path, source)
+    outcome, sent = await _run(planned, tmp_path / "run", _paint_through)
+
+    assert outcome.ok, outcome.failed
+    assert sent == []
+    assert _bytes(planned, outcome.outputs["layers"].items[0][1]) == source
+    assert _layer(planned, outcome)["construction"] == "admitted"
 
 
-def test_the_brief_is_cache_identity_and_placement_is_not(tmp_path: Path) -> None:
+async def test_the_brief_is_identity_and_placement_is_not(tmp_path: Path) -> None:
     source = _band(period=700)
-    base = _plan(tmp_path, source).graph
-    described = _plan(tmp_path, source, _spec(description="Low green hills.")).graph
-    moved = _plan(tmp_path, source, _spec(offset_y=12.0)).graph
-    assert described.node("layer.band").cache_key != base.node("layer.band").cache_key
-    assert moved.node("layer.band").cache_key == base.node("layer.band").cache_key
+
+    def repaint(planned: Plan) -> str | None:
+        found = next(i for i in planned.instances if i.id == "layer['band'].repaint#1")
+        return found.identity
+
+    base = repaint(await _plan(tmp_path, source))
+    described = repaint(await _plan(tmp_path, source, description="Low green hills."))
+    moved = repaint(await _plan(tmp_path, source, offset_y=12.0))
+    assert base is not None
+    assert described != base
+    assert moved == base
 
 
-def test_a_mirrored_layer_keeps_the_identity_it_always_had() -> None:
-    layer = ParallaxLayer(layer_id="hills", source="hills.png")
-    assert layer.generation_identity("0" * 64) == {
-        "source_sha256": "0" * 64,
-        "repeat_x": True,
-        "repeat_y": False,
-        "construction": "mirror_repeat_v1",
-    }
-
-
-def test_seam_repaint_is_refused_where_it_cannot_run(tmp_path: Path) -> None:
-    with pytest.raises(ValidationError, match="repeats on x only"):
-        ParallaxLayer(
-            layer_id="band", source="band.png", loop_construction="seam_repaint", repeat_y=True
-        )
+async def test_seam_repaint_is_refused_where_it_cannot_run(tmp_path: Path) -> None:
+    upright = await _plan(tmp_path, _band(period=700), repeat_y=True)
+    assert any("repeats on x only" in problem.message for problem in upright.problems)
     narrow = encode_png(Image.new("RGBA", (1024, HEIGHT), (10, 20, 30, 255)))
-    with pytest.raises(ValueError, match="at least that width"):
-        _plan(tmp_path, narrow)
+    refused = await _plan(tmp_path, narrow)
+    assert any("1536 px seam window" in problem.message for problem in refused.problems)

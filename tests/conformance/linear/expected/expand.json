@@ -19,6 +19,7 @@
     "high_usd": 0,
     "low_usd": 0
    },
+   "reads": [],
    "routes": {},
    "state": "planned",
    "step": "count",
@@ -42,6 +43,9 @@
     "high_usd": 0.04,
     "low_usd": 0.01
    },
+   "reads": [
+    "count#1"
+   ],
    "routes": {
     "image.generate": "img-a@acme"
    },

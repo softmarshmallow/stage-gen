@@ -19,20 +19,20 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from gnode import Graph
 from scripts.graph_contracts import document_contract, write_contract
-
-if TYPE_CHECKING:
-    from gnode import Graph
+from stage_gen.workflows._gnode import SamplePlan
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 UNIVERSE_ADMITTED_REF = "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
@@ -44,7 +44,7 @@ class ContractBlock:
 
     workflow_id: str
     label: str | None
-    plan: Callable[[Path, Path], Graph]
+    plan: Callable[[Path, Path], Graph | SamplePlan]
 
     @property
     def name(self) -> str:
@@ -54,14 +54,16 @@ class ContractBlock:
         return repo / "src/stage_gen/workflows" / self.workflow_id.replace("-", "_") / "contract.md"
 
 
-def _sample_plan(workflow_id: str) -> Callable[[Path, Path], Graph]:
-    def planned(scratch: Path, repo: Path) -> Graph:
+def _sample_plan(workflow_id: str) -> Callable[[Path, Path], Graph | SamplePlan]:
+    def planned(scratch: Path, repo: Path) -> Graph | SamplePlan:
         del repo
         from stage_gen.workflows._registry import load_code
 
         graph = load_code(workflow_id).sample_plan(scratch)
         if graph is None:
             raise ValueError(f"{workflow_id} has no offline sample plan")
+        if not isinstance(graph, Graph | SamplePlan):
+            raise TypeError(f"{workflow_id} plans a {type(graph).__name__}")
         return graph
 
     return planned
@@ -108,8 +110,18 @@ BLOCKS: tuple[ContractBlock, ...] = (
 )
 
 
-def contract_of(graph: Graph) -> dict[str, Any]:
+def contract_of(graph: Graph | SamplePlan) -> dict[str, Any]:
     """The machine-independent shape of one planned graph."""
+    if not isinstance(graph, Graph):
+        # A workflow file's plan: no terminal node or resource table, and declared outputs.
+        return {
+            "graph_kind": graph.kind,
+            "topology_sha256": graph.topology_sha256,
+            "node_count": len(graph.nodes),
+            "operation_counts": dict(sorted(Counter(n.operation for n in graph.nodes).items())),
+            "outputs": sorted(graph.artifact_refs),
+            "type_ids": sorted({node.type_id for node in graph.nodes}),
+        }
     return {
         "topology_sha256": graph.topology_sha256,
         "node_count": len(graph.nodes),

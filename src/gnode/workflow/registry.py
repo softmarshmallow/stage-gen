@@ -85,9 +85,12 @@ def _sha256_file(path: Path) -> str:
 class ProjectModules:
     """Import your project's node modules once, and say which project files they read."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, packages: Iterable[str] = ()) -> None:
         self.root = root.resolve()
+        #: Installed packages whose modules count as project source (``sources:``).
+        self.packages = tuple(packages)
         self._modules: dict[Path, ModuleType] = {}
+        self._package_folders: dict[str, Path | None] = {}
 
     def load(self, path: Path) -> ModuleType:
         path = path.resolve()
@@ -140,7 +143,7 @@ class ProjectModules:
                         package = current.parent
                         for _ in range(node.level - 1):
                             package = package.parent
-                        prefix = package.relative_to(self.root).as_posix().replace("/", ".")
+                        prefix = self.label(package).replace("/", ".")
                         base = ".".join(part for part in (prefix, base) if part)
                     names = [base, *(f"{base}.{alias.name}" for alias in node.names)]
                 for dotted in names:
@@ -149,16 +152,44 @@ class ProjectModules:
                         frontier.append(candidate)
         return sorted(seen)
 
+    def label(self, path: Path) -> str:
+        """A source file's stable name: from the project root, or from a package's parent."""
+
+        path = path.resolve()
+        if path.is_relative_to(self.root):
+            return path.relative_to(self.root).as_posix()
+        for name in self.packages:
+            folder = self._package_folder(name)
+            if folder is not None and path.is_relative_to(folder):
+                return path.relative_to(folder.parent).as_posix()
+        raise RegistryError(f"{path.name} is outside the project and its sources")
+
+    def _package_folder(self, name: str) -> Path | None:
+        if name not in self._package_folders:
+            found = importlib.util.find_spec(name)
+            locations = None if found is None else found.submodule_search_locations
+            self._package_folders[name] = (
+                Path(next(iter(locations))).resolve() if locations else None
+            )
+        return self._package_folders[name]
+
     def _project_file(self, dotted: str) -> Path | None:
         if not dotted:
             return None
-        relative = Path(*dotted.split("."))
-        for candidate in (
-            self.root / relative.with_suffix(".py"),
-            self.root / relative / "__init__.py",
-        ):
-            if candidate.is_file():
-                return candidate.resolve()
+        top = dotted.partition(".")[0]
+        bases = [(self.root, dotted)]
+        if top in self.packages:
+            folder = self._package_folder(top)
+            if folder is not None:
+                bases.append((folder.parent, dotted))
+        for base, name in bases:
+            relative = Path(*name.split("."))
+            for candidate in (
+                base / relative.with_suffix(".py"),
+                base / relative / "__init__.py",
+            ):
+                if candidate.is_file():
+                    return candidate.resolve()
         return None
 
 
@@ -173,6 +204,7 @@ class Registry(Resolver):
         locks: Mapping[str, str] | None = None,
         route_defaults: Mapping[str, str] | None = None,
         facts_reader: FactsReader | None = None,
+        sources: Iterable[str] = (),
     ) -> None:
         self.project_root = project_root.resolve()
         self.builtins: dict[tuple[str, int], NodeSpec] = {}
@@ -180,7 +212,7 @@ class Registry(Resolver):
             self.builtins[(builtin.spec.name, builtin.major)] = builtin.spec
         self.locks = dict(locks or {})
         self.route_defaults = dict(route_defaults or {})
-        self.modules = ProjectModules(self.project_root)
+        self.modules = ProjectModules(self.project_root, sources)
         self.facts_reader = facts_reader
         self.lock_problems: list[str] = []
         self._files: dict[Path, FileValue] = {}
@@ -234,7 +266,7 @@ class Registry(Resolver):
 
     def source_identity(self, path: Path, spec: NodeSpec) -> str:
         files = {
-            item.relative_to(self.project_root).as_posix(): _sha256_file(item)
+            self.modules.label(item): _sha256_file(item)
             for item in self.modules.source_closure(path)
         }
         for resource in spec.resources:

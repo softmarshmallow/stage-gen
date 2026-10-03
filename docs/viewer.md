@@ -110,29 +110,38 @@ The historical `motion` field still describes a uniform strip of 1 through 16 fr
 application-owned parser preserves that bound; a different atlas layout needs its own preview
 kind. The existing motion player provides frame stepping and sample playback.
 
-A `preview` object with `kind = "parallax-background-v2"` describes supplied layers: canvas
-size, run-local image references, layer order, dimensions, offsets, parallax factors, repeat
-flags, and how each layer repeats (`mirror_repeat`, `seam_repaint`, or `admitted`). Version 1
-manifests, which claimed one reflection for every layer, fall back to the ordinary artifact view.
-The node inspector provides horizontal and vertical camera-offset sliders and per-layer visibility
-controls. This inspects a composition; it does not infer layers from a reference or simulate a
-game. The renderer accepts up to 32 layers with dimensions up to 16384 pixels and rejects
-malformed geometry and paths. Unknown preview kinds retain the ordinary artifact fallback. Model
-files such as GLB retain their media type and can be opened or downloaded; there is no dedicated
-spatial renderer yet.
+Unknown preview kinds retain the ordinary artifact fallback. Model files such as GLB retain their
+media type and can be opened or downloaded; there is no dedicated spatial renderer yet.
+[`artifact-preview.ts`](../web/ui/contracts/artifact-preview.ts) owns these adapters. Adding a
+renderer is an application change, independent of adding a workflow.
 
-[`artifact-preview.ts`](../web/ui/contracts/artifact-preview.ts) owns these adapters and
-[`ParallaxPreview.tsx`](../web/viewer/app/runs/[root]/[tag]/ParallaxPreview.tsx) owns the
-interactive layer preview. Adding a renderer is an application change, independent of adding a
-workflow.
+## Step views
+
+A run of a gnode workflow can keep its steps' own views. A view is an HTML template and a
+read-only context ([`view-context.ts`](../web/ui/contracts/view-context.ts)); a node type declares
+its default view, and a step's `view: true` (a generic image or JSON view when its type has none)
+or `view: <file>` marks it as worth looking at. When such a step finishes, the run keeps the
+template under `views/<digest>.html` and every file the view shows under `views/files/`, so a
+copied run folder still shows its views. `stage-gen view` derives each context next to the run's
+view, in `view-contexts.json`: the step's inputs, outputs, facts and title, with each file's
+run-local path and a small JSON file's value inline.
+
+The node inspector shows a step's view first, in a frame
+([`ViewFrame.tsx`](../web/viewer/app/runs/[root]/[tag]/ViewFrame.tsx)) sandboxed to scripts
+only, so it runs in an opaque origin. The frame asks for its context when it is ready; the viewer
+answers with each file given its asset URL. A view only draws: it can open nothing in the viewer,
+reach no file it was not given, and load only from the origins the run's `gnode.yaml` lists in
+`view_origins`. Looping parallax's compose step ships one that scrolls the composed layers.
 
 ## Serving and boundaries
 
 `/api/assets/<root>/<tag>/<path>` serves files under one run folder of one configured root. It
 validates the root key, each tag segment and the portable artifact path, checks filesystem
 confinement, and refuses symlink escapes. It serves known passive image, audio, video, model,
-text, and JSON media types, with an opaque fallback and `nosniff`. It does not serve executable
-HTML or SVG media types.
+text, and JSON media types, with an opaque fallback and `nosniff`. It serves HTML only for a
+run's kept view templates (`views/<digest>.html`), always under a content security policy that
+sandboxes it to scripts in an opaque origin and limits what it may load; it serves no other HTML,
+and no SVG media type.
 
 Nothing under [`lib/shell`](../web/viewer/lib/shell) starts a subprocess, and a docs check fails if
 anything there imports one. Generation, retry, cache admission, artifact publication and deriving a
