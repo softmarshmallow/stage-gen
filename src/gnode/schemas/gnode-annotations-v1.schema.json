@@ -1,0 +1,70 @@
+{
+ "$id": "urn:gnode:schema:gnode-annotations-v1",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "properties": {
+  "annotations": {
+   "items": {
+    "properties": {
+     "at": {
+      "items": {
+       "type": "number"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": "array"
+     },
+     "box": {
+      "items": {
+       "type": "number"
+      },
+      "maxItems": 4,
+      "minItems": 4,
+      "type": "array"
+     },
+     "closed": {
+      "type": "boolean"
+     },
+     "color": {
+      "type": "string"
+     },
+     "label": {
+      "type": "string"
+     },
+     "points": {
+      "items": {
+       "items": {
+        "type": "number"
+       },
+       "maxItems": 2,
+       "minItems": 2,
+       "type": "array"
+      },
+      "minItems": 2,
+      "type": "array"
+     },
+     "shape": {
+      "enum": [
+       "point",
+       "points",
+       "box"
+      ]
+     },
+     "tag": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "type": "array"
+  },
+  "kind": {
+   "const": "gnode-annotations-v1"
+  }
+ },
+ "required": [
+  "kind",
+  "annotations"
+ ],
+ "title": "gnode annotations: a list of marks on an image; what they mean is the prompt's",
+ "type": "object"
+}

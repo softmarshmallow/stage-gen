@@ -286,6 +286,29 @@ from gnode.view import (
     generic_artifact_annotation,
     write_run_view,
 )
+from gnode.workflow import cli
+from gnode.workflow.api import PlanRefused, RunResult, plan, plan_async, run, run_async
+from gnode.workflow.builder import Workflow
+from gnode.workflow.expand import Expansion, Instance, Problem, Result
+from gnode.workflow.host import (
+    CapabilityHandler,
+    Ctx,
+    HostServices,
+    NodeFailure,
+    Spending,
+    register_reader,
+    register_writer,
+    tool,
+)
+from gnode.workflow.plan import Plan, Planner, Project, make_plan, make_planner
+from gnode.workflow.plugins import Plugin
+from gnode.workflow.registry import BuiltinType
+from gnode.workflow.routes import Route, RoutePrice, RouteTable, route_table_from_document
+from gnode.workflow.run import RunOutcome, RunRefused, WorkflowRun
+from gnode.workflow.schemas import all_schemas as document_schemas
+from gnode.workflow.spec import NodeSpec, PortSpec, node, param_schema
+from gnode.workflow.store import CallRecord, Store
+from gnode.workflow.values import FileValue
 
 __all__ = [
     "AbortError",
@@ -528,4 +551,46 @@ __all__ = [
     "resume_check",
     "run_graph",
     "worst_case_usd",
+    "BuiltinType",
+    "FileValue",
+    "NodeSpec",
+    "node",
+    "param_schema",
+    "PortSpec",
+    "Ctx",
+    "NodeFailure",
+    "Plugin",
+    "register_reader",
+    "register_writer",
+    "tool",
+    "Workflow",
+    "PlanRefused",
+    "RunResult",
+    "plan",
+    "plan_async",
+    "run",
+    "run_async",
+    "CallRecord",
+    "CapabilityHandler",
+    "Expansion",
+    "HostServices",
+    "Instance",
+    "Plan",
+    "Planner",
+    "Problem",
+    "Project",
+    "Result",
+    "Route",
+    "RoutePrice",
+    "RouteTable",
+    "RunOutcome",
+    "RunRefused",
+    "Spending",
+    "Store",
+    "WorkflowRun",
+    "cli",
+    "document_schemas",
+    "make_plan",
+    "make_planner",
+    "route_table_from_document",
 ]

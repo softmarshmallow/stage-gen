@@ -1,0 +1,102 @@
+{
+ "$id": "urn:gnode:schema:gnode-run-events-v1",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "properties": {
+  "amount_usd": {
+   "minimum": 0,
+   "type": "number"
+  },
+  "cache": {
+   "enum": [
+    "hit",
+    "miss"
+   ]
+  },
+  "charged_usd": {
+   "minimum": 0,
+   "type": "number"
+  },
+  "error": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "event": {
+   "enum": [
+    "run_started",
+    "run_finished",
+    "run_canceled",
+    "phase_planned",
+    "node_started",
+    "node_finished",
+    "node_failed",
+    "node_skipped",
+    "node_retry",
+    "call",
+    "budget_reserved",
+    "budget_settled",
+    "budget_refused",
+    "problem"
+   ]
+  },
+  "facts": {
+   "type": "object"
+  },
+  "graph_sha256": {
+   "pattern": "^[0-9a-f]{64}$",
+   "type": "string"
+  },
+  "id": {
+   "type": "string"
+  },
+  "identity": {
+   "anyOf": [
+    {
+     "pattern": "^[0-9a-f]{64}$",
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "invocation_id": {
+   "type": "string"
+  },
+  "kind": {
+   "const": "gnode-run-events-v1"
+  },
+  "offset_ms": {
+   "minimum": 0,
+   "type": "integer"
+  },
+  "outputs": {
+   "type": "object"
+  },
+  "path": {
+   "type": "string"
+  },
+  "schema_version": {
+   "const": 1
+  },
+  "take": {
+   "items": {
+    "minimum": 1,
+    "type": "integer"
+   },
+   "minItems": 1,
+   "type": "array"
+  }
+ },
+ "required": [
+  "schema_version",
+  "kind",
+  "event",
+  "invocation_id",
+  "graph_sha256",
+  "offset_ms"
+ ],
+ "title": "gnode run record: one event per line of events.jsonl, oldest first",
+ "type": "object"
+}

@@ -1,0 +1,205 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0.12,
+  "low_usd": 0.01
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "build.draw#1.1",
+   "identity": "0df7187ebe8eab73a11afe408f2a21d8a8fd9d0404b0fe9b3bf5aadd137ee5b7",
+   "judged_by": [
+    "build.audit#1.1"
+   ],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "build.draw",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "build.draw",
+   "take": [
+    1,
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "build.audit#1.1",
+   "identity": null,
+   "judged_by": [],
+   "judges": "build.draw#1.1",
+   "key": null,
+   "needs": [],
+   "path": "build.audit",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "build.audit",
+   "take": [
+    1,
+    1
+   ],
+   "uses": "./nodes/cases.py#verdict",
+   "view": false,
+   "waiting_on": [
+    "build.draw#1.1"
+   ]
+  },
+  {
+   "id": "build.draw#2.1",
+   "identity": "b354eb72d94747ca03d4c190476e908912c6d8e02c49192b6bc4e6379fbbec88",
+   "judged_by": [
+    "build.audit#2.1"
+   ],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "build.draw",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "maybe",
+   "step": "build.draw",
+   "take": [
+    2,
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "build.audit#2.1",
+   "identity": null,
+   "judged_by": [],
+   "judges": "build.draw#2.1",
+   "key": null,
+   "needs": [],
+   "path": "build.audit",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "maybe",
+   "step": "build.audit",
+   "take": [
+    2,
+    1
+   ],
+   "uses": "./nodes/cases.py#verdict",
+   "view": false,
+   "waiting_on": [
+    "build.draw#2.1"
+   ]
+  },
+  {
+   "id": "build.draw#3.1",
+   "identity": "670af6d3edfd042a4866df972fe73aad2c6f2adbe33716e358e753f8f396aba1",
+   "judged_by": [
+    "build.audit#3.1"
+   ],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "build.draw",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "maybe",
+   "step": "build.draw",
+   "take": [
+    3,
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "build.audit#3.1",
+   "identity": null,
+   "judged_by": [],
+   "judges": "build.draw#3.1",
+   "key": null,
+   "needs": [],
+   "path": "build.audit",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "maybe",
+   "step": "build.audit",
+   "take": [
+    3,
+    1
+   ],
+   "uses": "./nodes/cases.py#verdict",
+   "view": false,
+   "waiting_on": [
+    "build.draw#3.1"
+   ]
+  },
+  {
+   "id": "export#1",
+   "identity": null,
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "export",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "export",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": [
+    "build.audit#1.1",
+    "build.audit#2.1",
+    "build.audit#3.1",
+    "build.draw#1.1",
+    "build.draw#2.1",
+    "build.draw#3.1"
+   ]
+  }
+ ],
+ "pending": [],
+ "problems": [],
+ "workflow": "case"
+}

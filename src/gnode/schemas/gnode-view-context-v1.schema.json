@@ -1,0 +1,93 @@
+{
+ "$defs": {
+  "file": {
+   "properties": {
+    "digest": {
+     "pattern": "^[0-9a-f]{64}$",
+     "type": "string"
+    },
+    "facts": {
+     "type": "object"
+    },
+    "key": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "kind": {
+     "type": "string"
+    },
+    "url": {
+     "type": "string"
+    },
+    "value": {}
+   },
+   "required": [
+    "kind",
+    "url",
+    "digest"
+   ],
+   "type": "object"
+  }
+ },
+ "$id": "urn:gnode:schema:gnode-view-context-v1",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "properties": {
+  "run": {
+   "properties": {
+    "cost_usd": {
+     "minimum": 0,
+     "type": "number"
+    },
+    "outputs": {
+     "type": "object"
+    },
+    "state": {
+     "type": "string"
+    },
+    "workflow": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "workflow",
+    "state",
+    "outputs"
+   ],
+   "type": "object"
+  },
+  "step": {
+   "properties": {
+    "facts": {
+     "type": "object"
+    },
+    "instances": {
+     "type": "array"
+    },
+    "outputs": {
+     "additionalProperties": {},
+     "type": "object"
+    },
+    "path": {
+     "type": "string"
+    },
+    "take": {
+     "type": "integer"
+    },
+    "with": {
+     "type": "object"
+    }
+   },
+   "type": "object"
+  },
+  "steps": {
+   "type": "object"
+  }
+ },
+ "required": [
+  "run"
+ ],
+ "title": "gnode view context: what a view's HTML template reads",
+ "type": "object"
+}

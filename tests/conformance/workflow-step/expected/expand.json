@@ -1,0 +1,59 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0,
+  "low_usd": 0
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "each['ada'].loud#1",
+   "identity": "21d85eb1bf90852864258e4dca8184f17bf6e12d7d00c06be0f2b4e9c3ef12f3",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "each['ada'].loud",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "each.loud",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "each['bo'].loud#1",
+   "identity": "dc4aced9a0ff1dae6fd028a5837154be2311e0f6cb936e1bf385ef51eb9032bc",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "each['bo'].loud",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "each.loud",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": []
+  }
+ ],
+ "pending": [],
+ "problems": [],
+ "workflow": "case"
+}

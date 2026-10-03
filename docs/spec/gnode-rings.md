@@ -18,10 +18,10 @@ the SDK grows above it.
 
 | Ring | Name | Contents | Media-aware? |
 | --- | --- | --- | --- |
-| 0 | engine core | graph topology, the node ABI (typed node types, registry dispatch, ports, cards, policy, the graph builder and its subgraph-template stamping), scheduling, the runner and its spending ceiling, the run record, run view, model bindings, provider-neutral route-catalog and exact-size contract shapes, reliability, provenance contracts | no — media-free by lint |
+| 0 | engine core | graph topology, the node ABI (typed node types, registry dispatch, ports, cards, policy, the graph builder and its subgraph-template stamping), scheduling, the runner and its spending ceiling, the run record, run view, model bindings, provider-neutral route-catalog and exact-size contract shapes, reliability, provenance contracts; the workflow file, its expressions and expander, the planner, the node protocol host and call cache, and the `gnode` command (`gnode/workflow/`) | no — media-free by lint |
 | 1 | modality disciplines | per-modality model specs and their retry-owning services: image, structured, tool loop, music, sound effect, speech, background removal, video (`gnode/modalities/`) | yes — modality-generic only |
 | 2 | first-party providers | vendor adapters implementing ring-1 specs: `openai`, `openrouter`, `fal`, `elevenlabs` (`gnode/providers/`) | yes |
-| 3 | standard nodes | individually promoted, cross-domain node types | empty by policy (see below) |
+| 3 | standard nodes | the node types workflows use by name (`uses: gnode/<name>@<major>`), their file facts and picture helpers: the separate `gnode_std` package, loaded as a plugin | yes |
 
 **Layering law.** A ring imports only rings strictly below it. Ring 0 imports
 nothing above it and stays free of media libraries and HTTP clients; ring 1
@@ -171,9 +171,15 @@ recipe-specific admission or repair semantics into the engine.
 
 ## Ring 3 — the promotion bar
 
-Ring 3 is the engine's standard library of node types. It ships **empty**, on
-purpose. A node type is promoted individually, manually, and never first —
-only when all three hold:
+Ring 3 is the engine's standard library of node types: the `gnode_std` package,
+which imports only the flat `gnode` surface and reaches the command line as a
+`gnode.plugins` entry point, so the engine never imports it by name. Its catalog
+is the one the user guide documents (generation, judges and annotators, media
+transforms, plumbing). A type in that catalog is declared before it is built: it
+plans and prices like any other and refuses to run until a first-party workflow
+is ported onto it and gives it a body ([decision 0072](../decisions/0072-gnode-is-one-engine-behind-text-contracts.md)).
+A node type outside that catalog is promoted individually, manually, and never
+first — only when all three hold:
 
 1. **proven** — it ran in production inside at least one application;
 2. **cross-domain** — it is genuinely useful beyond the genre that built it;

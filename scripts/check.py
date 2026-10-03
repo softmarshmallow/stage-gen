@@ -175,6 +175,10 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
             )
         ),
         Step(("stage-gen", "inspect", str(run), "--verify")),
+        # gnode's published document schemas, and the language-neutral conformance suite that
+        # any gnode implementation must pass, run through the gnode command only.
+        Step((python, "scripts/write_gnode_schemas.py", "--check")),
+        Step((python, "tests/conformance/run.py")),
         Step(
             (
                 "stage-gen",

@@ -1,0 +1,201 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0.12,
+  "low_usd": 0.01
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "draw#1",
+   "identity": "f43bb0e1f5dce1511a9288cbc43cefd7492b759c24d3e1d7b88c570843873d9c",
+   "judged_by": [
+    "check#1"
+   ],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "draw",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "draw",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "draw#2",
+   "identity": "74292b470892afdee44ae4ab567166e9aa8bdb3d0c08622657e3b6a9ef69d31d",
+   "judged_by": [
+    "check#2"
+   ],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "draw",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "reason": "only if the take before it is rejected",
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "maybe",
+   "step": "draw",
+   "take": [
+    2
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "draw#3",
+   "identity": "7ee51f4f2ef032a334d45230ff405e4220abb316a8561e666da768a985e8f79e",
+   "judged_by": [
+    "check#3"
+   ],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "draw",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "reason": "only if the take before it is rejected",
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "maybe",
+   "step": "draw",
+   "take": [
+    3
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "check#1",
+   "identity": null,
+   "judged_by": [],
+   "judges": "draw#1",
+   "key": null,
+   "needs": [],
+   "path": "check",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "check",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#verdict",
+   "view": false,
+   "waiting_on": [
+    "draw#1"
+   ]
+  },
+  {
+   "id": "check#2",
+   "identity": null,
+   "judged_by": [],
+   "judges": "draw#2",
+   "key": null,
+   "needs": [],
+   "path": "check",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "maybe",
+   "step": "check",
+   "take": [
+    2
+   ],
+   "uses": "./nodes/cases.py#verdict",
+   "view": false,
+   "waiting_on": [
+    "draw#2"
+   ]
+  },
+  {
+   "id": "check#3",
+   "identity": null,
+   "judged_by": [],
+   "judges": "draw#3",
+   "key": null,
+   "needs": [],
+   "path": "check",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "maybe",
+   "step": "check",
+   "take": [
+    3
+   ],
+   "uses": "./nodes/cases.py#verdict",
+   "view": false,
+   "waiting_on": [
+    "draw#3"
+   ]
+  },
+  {
+   "id": "after#1",
+   "identity": null,
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "after",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "after",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": [
+    "check#1",
+    "check#2",
+    "check#3",
+    "draw#1",
+    "draw#2",
+    "draw#3"
+   ]
+  }
+ ],
+ "pending": [],
+ "problems": [],
+ "workflow": "case"
+}

@@ -318,6 +318,7 @@ ENGINE_RINGS = {
     "schedule": 0,
     "trace": 0,
     "view": 0,
+    "workflow": 0,
     "modalities": 1,
     "providers": 2,
 }

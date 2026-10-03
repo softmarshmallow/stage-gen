@@ -1,0 +1,107 @@
+{
+ "$defs": {
+  "Budget": {
+   "additionalProperties": false,
+   "properties": {
+    "max_usd": {
+     "minimum": 0,
+     "title": "Max Usd",
+     "type": "number"
+    }
+   },
+   "required": [
+    "max_usd"
+   ],
+   "title": "Budget",
+   "type": "object"
+  },
+  "RouteDefault": {
+   "additionalProperties": false,
+   "properties": {
+    "concurrency": {
+     "anyOf": [
+      {
+       "maximum": 1024,
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concurrency"
+    },
+    "route": {
+     "minLength": 3,
+     "title": "Route",
+     "type": "string"
+    }
+   },
+   "required": [
+    "route"
+   ],
+   "title": "RouteDefault",
+   "type": "object"
+  }
+ },
+ "$id": "urn:gnode:schema:gnode-project-v1",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "additionalProperties": false,
+ "description": "``gnode.yaml``: where runs and the cache live, defaults, and allowed view origins.",
+ "properties": {
+  "budget": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/Budget"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null
+  },
+  "cache": {
+   "default": ".gnode/cache",
+   "title": "Cache",
+   "type": "string"
+  },
+  "gnode": {
+   "const": "project/v1",
+   "title": "Gnode",
+   "type": "string"
+  },
+  "routes": {
+   "additionalProperties": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "$ref": "#/$defs/RouteDefault"
+     }
+    ]
+   },
+   "title": "Routes",
+   "type": "object"
+  },
+  "runs": {
+   "default": "runs",
+   "title": "Runs",
+   "type": "string"
+  },
+  "view_origins": {
+   "default": [],
+   "items": {
+    "type": "string"
+   },
+   "title": "View Origins",
+   "type": "array"
+  }
+ },
+ "required": [
+  "gnode"
+ ],
+ "title": "ProjectDocument",
+ "type": "object"
+}

@@ -1,0 +1,23 @@
+{
+ "$id": "urn:gnode:schema:gnode-takes-v1",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "additionalProperties": {
+  "additionalProperties": false,
+  "properties": {
+   "result": {
+    "pattern": "^sha256:[0-9a-f]{64}$",
+    "type": "string"
+   },
+   "take": {
+    "minimum": 1,
+    "type": "integer"
+   }
+  },
+  "required": [
+   "take"
+  ],
+  "type": "object"
+ },
+ "title": "gnode takes file: the take each step path uses, written by reroll and pick",
+ "type": "object"
+}

@@ -19,7 +19,10 @@ uv run --group games python scripts/check.py --scope godot
 The default product gate requires Python tools only. Among its steps it runs a real
 offline looping-parallax run and its `inspect --verify`, the universe dry run,
 `stage-gen catalog export --check --allow-missing-examples`, and `--help` for every
-workflow verb.
+workflow verb. It also checks gnode's published document schemas
+(`scripts/write_gnode_schemas.py --check`) and runs the
+[conformance suite](tests/conformance/README.md) through the `gnode` command only: the
+cases any gnode implementation must pass.
 
 ## Web
 

@@ -18,10 +18,17 @@ dependencies = [
   "numpy>=2.2,<3",
   "scipy>=1.15,<2",
   "opencv-python-headless>=4.13,<5",
+  "pyyaml>=6.0.2,<7",
 ]
 
 [project.scripts]
+gnode = "gnode.workflow.cli:entrypoint"
 stage-gen = "stage_gen.interfaces.cli:entrypoint"
+
+# What the gnode command line composes: standard node types, file facts, routes and the
+# provider adapters that serve them. The engine never imports a plugin by name.
+[project.entry-points."gnode.plugins"]
+std = "gnode_std:plugin"
 
 [dependency-groups]
 dev = [
@@ -33,6 +40,7 @@ dev = [
   "pytest-asyncio>=0.26,<1",
   "pytest-timeout>=2.3,<3",
   "ruff>=0.11,<1",
+  "types-pyyaml>=6.0.12,<7",
 ]
 games = ["demo-game-collection"]
 apps = ["stage-gen-concept"]
@@ -63,7 +71,7 @@ exclude = [
 path = "scripts/build_hooks.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/gnode", "src/stage_gen"]
+packages = ["src/gnode", "src/gnode_std", "src/stage_gen"]
 # A target's exclude replaces the build-wide list, so the wheel repeats it. Workflow prose
 # (page.mdx, contract.md) is read from the checkout by the site, never by installed code.
 exclude = [
@@ -130,13 +138,15 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
 ignore = ["RUF022"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["gnode", "stage_gen", "scenario_authoring", "demo_game_tools", "demo_game_collection", "bellweather_pipeline", "iron_petal_unit_pipeline", "ember_hollow_pipeline", "the_grain_pipeline", "concept_studio"]
+known-first-party = ["gnode", "gnode_std", "stage_gen", "scenario_authoring", "demo_game_tools", "demo_game_collection", "bellweather_pipeline", "iron_petal_unit_pipeline", "ember_hollow_pipeline", "the_grain_pipeline", "concept_studio"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 files = ["src", "tests", "scripts"]
+# A conformance case's project is an input to the gnode command, not part of this code base.
+exclude = ["^tests/conformance/[^/]+/in/"]
 
 [[tool.mypy.overrides]]
 module = ["PIL.*"]

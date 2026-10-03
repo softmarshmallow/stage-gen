@@ -1,0 +1,109 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0,
+  "low_usd": 0
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "loud['ada']#1",
+   "identity": "634d042cec6b414b225ae61afc0c3423c60dfceec0c1d9e020ed8e85a8881f67",
+   "judged_by": [],
+   "judges": null,
+   "key": "ada",
+   "needs": [],
+   "path": "loud['ada']",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "loud",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "loud['bo']#1",
+   "identity": "a9f2c66fc2b8875ee00ef4b50e1d145d453b26b9d35465695c8ac7706e2c6e16",
+   "judged_by": [],
+   "judges": null,
+   "key": "bo",
+   "needs": [],
+   "path": "loud['bo']",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "loud",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "loud['cy']#1",
+   "identity": "6998b6f8215f576c059f53977a7a791397145bd77458322a47baa6b48e9fd6a2",
+   "judged_by": [],
+   "judges": null,
+   "key": "cy",
+   "needs": [],
+   "path": "loud['cy']",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "loud",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "joined#1",
+   "identity": null,
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "joined",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "joined",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#join",
+   "view": false,
+   "waiting_on": [
+    "loud['ada']#1",
+    "loud['bo']#1",
+    "loud['cy']#1"
+   ]
+  }
+ ],
+ "pending": [],
+ "problems": [],
+ "workflow": "case"
+}

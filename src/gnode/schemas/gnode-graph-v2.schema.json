@@ -1,0 +1,191 @@
+{
+ "$id": "urn:gnode:schema:gnode-graph-v2",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "properties": {
+  "estimate": {
+   "type": "object"
+  },
+  "gnode": {
+   "const": "graph/v2"
+  },
+  "inputs": {},
+  "instances": {
+   "items": {
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "identity": {
+      "anyOf": [
+       {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "judged_by": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "judges": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "key": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "needs": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "path": {
+      "type": "string"
+     },
+     "phase": {
+      "minimum": 1,
+      "type": "integer"
+     },
+     "price": {
+      "properties": {
+       "high_usd": {
+        "minimum": 0,
+        "type": "number"
+       },
+       "low_usd": {
+        "minimum": 0,
+        "type": "number"
+       }
+      },
+      "type": "object"
+     },
+     "reason": {
+      "type": "string"
+     },
+     "routes": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "state": {
+      "enum": [
+       "planned",
+       "maybe",
+       "absent",
+       "blocked",
+       "failed",
+       "done"
+      ]
+     },
+     "step": {
+      "type": "string"
+     },
+     "take": {
+      "items": {
+       "minimum": 1,
+       "type": "integer"
+      },
+      "minItems": 1,
+      "type": "array"
+     },
+     "uses": {
+      "type": "string"
+     },
+     "view": {
+      "type": [
+       "boolean",
+       "string"
+      ]
+     },
+     "waiting_on": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "path",
+     "step",
+     "take",
+     "uses",
+     "state",
+     "identity",
+     "phase"
+    ],
+    "type": "object"
+   },
+   "type": "array"
+  },
+  "pending": {
+   "items": {
+    "properties": {
+     "high_usd": {
+      "minimum": 0,
+      "type": "number"
+     },
+     "max": {
+      "minimum": 1,
+      "type": "integer"
+     },
+     "path": {
+      "type": "string"
+     },
+     "phase": {
+      "minimum": 1,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "path",
+     "max",
+     "phase"
+    ],
+    "type": "object"
+   },
+   "type": "array"
+  },
+  "plan": {
+   "pattern": "^[0-9a-f]{64}$",
+   "type": "string"
+  },
+  "problems": {
+   "items": {
+    "properties": {
+     "message": {
+      "type": "string"
+     },
+     "where": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "where",
+     "message"
+    ],
+    "type": "object"
+   },
+   "type": "array"
+  },
+  "workflow": {}
+ },
+ "required": [
+  "gnode",
+  "instances"
+ ],
+ "title": "gnode expanded graph: every step instance with its wiring, identity, state and price",
+ "type": "object"
+}

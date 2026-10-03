@@ -1,0 +1,45 @@
+{
+ "instances": {
+  "joined#1": {
+   "cache": "miss",
+   "facts": {},
+   "path": "joined",
+   "state": "succeeded"
+  },
+  "loud['ada']#1": {
+   "cache": "miss",
+   "facts": {},
+   "path": "loud['ada']",
+   "state": "succeeded"
+  },
+  "loud['bo']#1": {
+   "cache": "miss",
+   "facts": {},
+   "path": "loud['bo']",
+   "state": "succeeded"
+  }
+ },
+ "run": {
+  "run_finished": {
+   "charged_usd": 0.0,
+   "event": "run_finished",
+   "failed": [],
+   "graph_sha256": "161c24ee81a3950cab6263fec2d5dc3486ba0fa1e642dd95b004c4c3fce44e88",
+   "incomplete": false,
+   "ok": true,
+   "stopped": null
+  },
+  "run_started": {
+   "ceiling_usd": null,
+   "charged_usd": 0.0,
+   "estimate": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "event": "run_started",
+   "graph_sha256": "161c24ee81a3950cab6263fec2d5dc3486ba0fa1e642dd95b004c4c3fce44e88",
+   "resumed": false,
+   "workflow": "case"
+  }
+ }
+}

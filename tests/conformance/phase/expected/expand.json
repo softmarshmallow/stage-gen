@@ -1,0 +1,43 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0.24,
+  "low_usd": 0
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "split#1",
+   "identity": "b6e4bf178a00b2f079678d6e8f256001bfe0f491d13b7d1d53f53a846fba8bf5",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "split",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "split",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#lines",
+   "view": false,
+   "waiting_on": []
+  }
+ ],
+ "pending": [
+  {
+   "high_usd": 0.24,
+   "max": 6,
+   "path": "draw",
+   "phase": 2
+  }
+ ],
+ "problems": [],
+ "workflow": "case"
+}

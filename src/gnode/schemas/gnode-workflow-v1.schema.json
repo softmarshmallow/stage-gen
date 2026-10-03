@@ -1,0 +1,601 @@
+{
+ "$defs": {
+  "Assertion": {
+   "additionalProperties": false,
+   "properties": {
+    "check": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "boolean"
+      }
+     ],
+     "title": "Check"
+    },
+    "message": {
+     "minLength": 1,
+     "title": "Message",
+     "type": "string"
+    },
+    "on_fail": {
+     "default": "fail",
+     "enum": [
+      "fail",
+      "skip"
+     ],
+     "title": "On Fail",
+     "type": "string"
+    }
+   },
+   "required": [
+    "check",
+    "message"
+   ],
+   "title": "Assertion",
+   "type": "object"
+  },
+  "BestPick": {
+   "additionalProperties": false,
+   "properties": {
+    "best": {
+     "$ref": "#/$defs/KeepBest"
+    }
+   },
+   "required": [
+    "best"
+   ],
+   "title": "BestPick",
+   "type": "object"
+  },
+  "Budget": {
+   "additionalProperties": false,
+   "properties": {
+    "max_usd": {
+     "minimum": 0,
+     "title": "Max Usd",
+     "type": "number"
+    }
+   },
+   "required": [
+    "max_usd"
+   ],
+   "title": "Budget",
+   "type": "object"
+  },
+  "KeepBest": {
+   "additionalProperties": false,
+   "properties": {
+    "by": {
+     "minLength": 1,
+     "title": "By",
+     "type": "string"
+    },
+    "order": {
+     "enum": [
+      "lowest",
+      "highest"
+     ],
+     "title": "Order",
+     "type": "string"
+    }
+   },
+   "required": [
+    "by",
+    "order"
+   ],
+   "title": "KeepBest",
+   "type": "object"
+  },
+  "OnRejectRegenerate": {
+   "additionalProperties": false,
+   "properties": {
+    "regenerate": {
+     "$ref": "#/$defs/Regeneration"
+    }
+   },
+   "required": [
+    "regenerate"
+   ],
+   "title": "OnRejectRegenerate",
+   "type": "object"
+  },
+  "Regeneration": {
+   "additionalProperties": false,
+   "description": "Redo a judged step, or a group, as further takes.\n\n``max`` counts every take, the first included. On a judge's ``on_reject``, a\nrejection asks for the next take; on a group, ``until`` decides after each take.",
+   "properties": {
+    "feedback": {
+     "default": false,
+     "title": "Feedback",
+     "type": "boolean"
+    },
+    "max": {
+     "maximum": 12,
+     "minimum": 1,
+     "title": "Max",
+     "type": "integer"
+    },
+    "then": {
+     "anyOf": [
+      {
+       "enum": [
+        "fail",
+        "continue",
+        "skip"
+       ],
+       "type": "string"
+      },
+      {
+       "additionalProperties": {
+        "$ref": "#/$defs/KeepBest"
+       },
+       "propertyNames": {
+        "const": "keep_best"
+       },
+       "type": "object"
+      }
+     ],
+     "default": "fail",
+     "title": "Then"
+    },
+    "until": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Until"
+    }
+   },
+   "required": [
+    "max"
+   ],
+   "title": "Regeneration",
+   "type": "object"
+  },
+  "Step": {
+   "additionalProperties": false,
+   "description": "One step: a node type (``uses``) or a group (``steps``), maybe repeated.",
+   "properties": {
+    "as": {
+     "default": "item",
+     "maxLength": 64,
+     "pattern": "^[a-z][a-z0-9_]*$",
+     "title": "As",
+     "type": "string"
+    },
+    "assert": {
+     "default": [],
+     "items": {
+      "$ref": "#/$defs/Assertion"
+     },
+     "title": "Assert",
+     "type": "array"
+    },
+    "at": {
+     "anyOf": [
+      {
+       "const": "plan",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "At"
+    },
+    "budget": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Budget"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "concurrency": {
+     "anyOf": [
+      {
+       "maximum": 1024,
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concurrency"
+    },
+    "description": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Description"
+    },
+    "for_each": {
+     "default": null,
+     "title": "For Each"
+    },
+    "if": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "If"
+    },
+    "independent_of": {
+     "default": [],
+     "items": {
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "type": "string"
+     },
+     "title": "Independent Of",
+     "type": "array"
+    },
+    "judges": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "pattern": "^[a-z][a-z0-9_]*$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Judges"
+    },
+    "key": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Key"
+    },
+    "matrix": {
+     "anyOf": [
+      {
+       "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {}
+       },
+       "propertyNames": {
+        "maxLength": 64
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Matrix"
+    },
+    "max": {
+     "anyOf": [
+      {
+       "maximum": 10000,
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Max"
+    },
+    "needs": {
+     "default": [],
+     "items": {
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "type": "string"
+     },
+     "title": "Needs",
+     "type": "array"
+    },
+    "on_reject": {
+     "anyOf": [
+      {
+       "enum": [
+        "fail",
+        "continue",
+        "skip"
+       ],
+       "type": "string"
+      },
+      {
+       "$ref": "#/$defs/OnRejectRegenerate"
+      }
+     ],
+     "default": "fail",
+     "title": "On Reject"
+    },
+    "pick": {
+     "anyOf": [
+      {
+       "enum": [
+        "manual",
+        "first_accepted"
+       ],
+       "type": "string"
+      },
+      {
+       "$ref": "#/$defs/BestPick"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Pick"
+    },
+    "regenerate": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Regeneration"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "requires": {
+     "default": [],
+     "items": {
+      "type": "string"
+     },
+     "title": "Requires",
+     "type": "array"
+    },
+    "route": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Route"
+    },
+    "steps": {
+     "anyOf": [
+      {
+       "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+         "$ref": "#/$defs/Step"
+        }
+       },
+       "propertyNames": {
+        "maxLength": 64
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Steps"
+    },
+    "takes": {
+     "anyOf": [
+      {
+       "maximum": 24,
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Takes"
+    },
+    "timeout": {
+     "anyOf": [
+      {
+       "exclusiveMinimum": 0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Timeout"
+    },
+    "uses": {
+     "anyOf": [
+      {
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Uses"
+    },
+    "view": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "string"
+      }
+     ],
+     "default": false,
+     "title": "View"
+    },
+    "with": {
+     "additionalProperties": true,
+     "title": "With",
+     "type": "object"
+    }
+   },
+   "title": "Step",
+   "type": "object"
+  }
+ },
+ "$id": "urn:gnode:schema:gnode-workflow-v1",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "additionalProperties": false,
+ "properties": {
+  "assert": {
+   "default": [],
+   "items": {
+    "$ref": "#/$defs/Assertion"
+   },
+   "title": "Assert",
+   "type": "array"
+  },
+  "budget": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/Budget"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null
+  },
+  "description": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Description"
+  },
+  "gnode": {
+   "const": "workflow/v1",
+   "title": "Gnode",
+   "type": "string"
+  },
+  "id": {
+   "maxLength": 96,
+   "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+   "title": "Id",
+   "type": "string"
+  },
+  "inputs": {
+   "patternProperties": {
+    "^[a-z][a-z0-9_]*$": {}
+   },
+   "propertyNames": {
+    "maxLength": 64
+   },
+   "title": "Inputs",
+   "type": "object"
+  },
+  "let": {
+   "patternProperties": {
+    "^[a-z][a-z0-9_]*$": {}
+   },
+   "propertyNames": {
+    "maxLength": 64
+   },
+   "title": "Let",
+   "type": "object"
+  },
+  "outputs": {
+   "patternProperties": {
+    "^[a-z][a-z0-9_]*$": {}
+   },
+   "propertyNames": {
+    "maxLength": 64
+   },
+   "title": "Outputs",
+   "type": "object"
+  },
+  "steps": {
+   "patternProperties": {
+    "^[a-z][a-z0-9_]*$": {
+     "$ref": "#/$defs/Step"
+    }
+   },
+   "propertyNames": {
+    "maxLength": 64
+   },
+   "title": "Steps",
+   "type": "object"
+  },
+  "tables": {
+   "patternProperties": {
+    "^[a-z][a-z0-9_]*$": {}
+   },
+   "propertyNames": {
+    "maxLength": 64
+   },
+   "title": "Tables",
+   "type": "object"
+  },
+  "title": {
+   "maxLength": 256,
+   "minLength": 1,
+   "title": "Title",
+   "type": "string"
+  },
+  "view": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "View"
+  }
+ },
+ "required": [
+  "gnode",
+  "id",
+  "title",
+  "steps"
+ ],
+ "title": "WorkflowDocument",
+ "type": "object"
+}

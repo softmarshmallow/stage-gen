@@ -1,0 +1,82 @@
+{
+ "$id": "urn:gnode:schema:gnode-routes-v1",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "properties": {
+  "gnode": {
+   "const": "routes/v1"
+  },
+  "routes": {
+   "items": {
+    "additionalProperties": false,
+    "properties": {
+     "capability": {
+      "type": "string"
+     },
+     "concurrency": {
+      "minimum": 1,
+      "type": "integer"
+     },
+     "contract": {
+      "type": "object"
+     },
+     "features": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "price": {
+      "additionalProperties": false,
+      "properties": {
+       "high_usd": {
+        "minimum": 0,
+        "type": "number"
+       },
+       "low_usd": {
+        "minimum": 0,
+        "type": "number"
+       },
+       "max_units": {
+        "exclusiveMinimum": 0,
+        "type": "number"
+       },
+       "unit": {
+        "enum": [
+         "call",
+         "1k_chars",
+         "second"
+        ]
+       },
+       "usd": {
+        "minimum": 0,
+        "type": "number"
+       }
+      },
+      "type": "object"
+     },
+     "requests_per_minute": {
+      "minimum": 1,
+      "type": "integer"
+     },
+     "route": {
+      "pattern": "^.+@[a-z0-9._-]+$",
+      "type": "string"
+     }
+    },
+    "required": [
+     "capability",
+     "route",
+     "price"
+    ],
+    "type": "object"
+   },
+   "type": "array"
+  }
+ },
+ "required": [
+  "gnode",
+  "routes"
+ ],
+ "title": "gnode route catalog: which model serves a capability, its price and features",
+ "type": "object"
+}

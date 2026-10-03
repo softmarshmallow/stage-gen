@@ -26,10 +26,13 @@ run-view file, and `_checks.py` imports the CLI parser lazily to parse `[try]` c
 import rules below are what the tests enforce; this ordering is not tested.
 
 1. **GNode** (`src/gnode/`) keeps its three rings. Ring 0 owns media-independent topology,
-   scheduling, traces, run views, model binding, reliability and provenance. Ring 1 owns
-   modality specifications and retry-owning services. Ring 2 owns first-party provider
-   adapters. Imports point inward. GNode imports no Stage Gen package, workflow, game or
-   brand. Consumers use declared public surfaces. See [ring rules](docs/spec/gnode-rings.md).
+   scheduling, traces, run views, model binding, reliability and provenance, and the
+   workflow file with its expander, planner, node host, call cache and the `gnode` command.
+   Ring 1 owns modality specifications and retry-owning services. Ring 2 owns first-party
+   provider adapters. Imports point inward. GNode imports no Stage Gen package, workflow,
+   game or brand. Consumers use declared public surfaces. The standard node types live in
+   `src/gnode_std/` (ring 3), a plugin that imports only the `gnode` surface. See
+   [ring rules](docs/spec/gnode-rings.md).
 2. **SDK** (`src/stage_gen/pipeline/`): definitions, planning, execution and persisted-run
    inspection over ordinary GNode graphs, plus `GraphDocument`, the sealed-document base
    class. It supplies explicit roots, selected-node closure, input lineage, service

@@ -1,0 +1,141 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0.046,
+  "low_usd": 0.013
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "draw#1",
+   "identity": "a8a1de81430abb15e53ed46ef11c7700995bc9cf33899053a17e768dd52be6dc",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "draw",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "draw",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "write#1",
+   "identity": "8efb32c80679d8d187d86c9726c953feec4ffbbc3937b752c3aaa9136bef5032",
+   "judged_by": [
+    "review#1"
+   ],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "write",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.002,
+    "low_usd": 0.001
+   },
+   "routes": {
+    "structured.generate": "llm-a@acme"
+   },
+   "state": "planned",
+   "step": "write",
+   "take": [
+    1
+   ],
+   "uses": "gnode/structured.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "review#1",
+   "identity": "6566c455b30fb0d46b0e1c2ee63410f73daeb2e15ca95d1f542b1901e38707b9",
+   "judged_by": [],
+   "judges": "write#1",
+   "key": null,
+   "needs": [],
+   "path": "review",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.004,
+    "low_usd": 0.002
+   },
+   "routes": {
+    "vision.review": "llm-a@other"
+   },
+   "state": "planned",
+   "step": "review",
+   "take": [
+    1
+   ],
+   "uses": "gnode/vision.review@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "lost#1",
+   "identity": "acef4f59f21f27bb7d1633c9d521ba0ab8264fbf1221c6d70b5cb2eff00d8657",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "lost",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "lost",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  }
+ ],
+ "pending": [
+  {
+   "high_usd": 0,
+   "max": 1,
+   "path": "unbounded",
+   "phase": 2
+  }
+ ],
+ "problems": [
+  {
+   "message": "at most one name",
+   "where": "workflow.assert[0]"
+  },
+  {
+   "message": "img-a@acme does not support mask",
+   "where": "draw.requires"
+  },
+  {
+   "message": "shares the model llm-a with write; route one of them to a different model",
+   "where": "review.independent_of"
+  },
+  {
+   "message": "no route img-z@nowhere serves image.generate (known routes: img-a@acme)",
+   "where": "lost.route"
+  },
+  {
+   "message": "the list comes from a step, so the plan cannot count it: add max: (the most items this repeat may run)",
+   "where": "unbounded"
+  }
+ ],
+ "workflow": "case"
+}

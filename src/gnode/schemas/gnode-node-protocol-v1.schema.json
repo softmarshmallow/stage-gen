@@ -1,0 +1,189 @@
+{
+ "$defs": {
+  "callback": {
+   "properties": {
+    "call": {
+     "enum": [
+      "capability",
+      "fact",
+      "annotate",
+      "progress",
+      "tool"
+     ]
+    },
+    "capability": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "request": {
+     "type": "object"
+    },
+    "value": {}
+   },
+   "required": [
+    "call"
+   ],
+   "type": "object"
+  },
+  "request": {
+   "properties": {
+    "inputs": {
+     "additionalProperties": {
+      "anyOf": [
+       {
+        "properties": {
+         "digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+         },
+         "facts": {
+          "type": "object"
+         },
+         "key": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "kind": {
+          "type": "string"
+         },
+         "path": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "path",
+         "kind",
+         "digest"
+        ],
+        "type": "object"
+       },
+       {
+        "items": {
+         "properties": {
+          "digest": {
+           "pattern": "^[0-9a-f]{64}$",
+           "type": "string"
+          },
+          "facts": {
+           "type": "object"
+          },
+          "key": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "kind": {
+           "type": "string"
+          },
+          "path": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "path",
+          "kind",
+          "digest"
+         ],
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "additionalProperties": {
+         "properties": {
+          "digest": {
+           "pattern": "^[0-9a-f]{64}$",
+           "type": "string"
+          },
+          "facts": {
+           "type": "object"
+          },
+          "key": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "kind": {
+           "type": "string"
+          },
+          "path": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "path",
+          "kind",
+          "digest"
+         ],
+         "type": "object"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "type": "object"
+    },
+    "instance": {
+     "type": "string"
+    },
+    "params": {
+     "type": "object"
+    },
+    "take": {
+     "minimum": 1,
+     "type": "integer"
+    },
+    "type": {
+     "type": "string"
+    },
+    "work_dir": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "instance",
+    "type",
+    "params",
+    "inputs"
+   ],
+   "type": "object"
+  },
+  "response": {
+   "properties": {
+    "failure": {
+     "type": "string"
+    },
+    "outputs": {
+     "type": "object"
+    }
+   },
+   "required": [
+    "outputs"
+   ],
+   "type": "object"
+  }
+ },
+ "$id": "urn:gnode:schema:gnode-node-protocol-v1",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "oneOf": [
+  {
+   "$ref": "#/$defs/request"
+  },
+  {
+   "$ref": "#/$defs/callback"
+  },
+  {
+   "$ref": "#/$defs/response"
+  }
+ ],
+ "title": "gnode node protocol: request, callbacks and response of one node body"
+}

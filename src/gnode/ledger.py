@@ -105,26 +105,51 @@ class CeilingLedger:
     async def reserve(self, node: Node) -> None:
         """Hold ``node``'s worst case, or refuse it before anything is dispatched."""
 
-        amount = worst_case_usd(node)
+        await self.hold(node.node_id, worst_case_usd(node))
+
+    async def hold(self, key: str, amount: float) -> None:
+        """Hold ``amount`` under ``key``, or refuse before anything is spent.
+
+        ``key`` names what is reserved for: a node, or one paid call of a step.
+        """
+
         if amount == 0.0:
             return
         async with self._lock:
-            if node.node_id in self._open:
-                raise RuntimeError(f"{node.node_id} already holds a reservation")
+            if key in self._open:
+                raise RuntimeError(f"{key} already holds a reservation")
             remaining = self.remaining_usd
             if remaining is not None and amount > remaining + 1e-9:
                 self._emit(
                     {
                         "event": BUDGET_REFUSED,
-                        "node_id": node.node_id,
+                        "node_id": key,
                         "needed_usd": amount,
                         "remaining_usd": remaining,
                         "ceiling_usd": self.ceiling_usd,
                     }
                 )
-                raise CeilingExceeded(node.node_id, needed_usd=amount, remaining_usd=remaining)
-            self._open[node.node_id] = amount
-            self._emit({"event": BUDGET_RESERVED, "node_id": node.node_id, "amount_usd": amount})
+                raise CeilingExceeded(key, needed_usd=amount, remaining_usd=remaining)
+            self._open[key] = amount
+            self._emit({"event": BUDGET_RESERVED, "node_id": key, "amount_usd": amount})
+
+    def charge(self, key: str, cost_usd: float | None) -> None:
+        """Replace ``key``'s hold with a reported cost, or keep all of it when none was."""
+
+        held = self._open.pop(key, None)
+        charged = round(cost_usd if cost_usd is not None else (held or 0.0), 6)
+        if held is None and charged == 0.0:
+            return
+        self._charged += charged
+        self._emit(
+            {
+                "event": BUDGET_SETTLED,
+                "node_id": key,
+                "charged_usd": charged,
+                "reported": cost_usd is not None,
+                "provider_operations": None,
+            }
+        )
 
     def settle(
         self,

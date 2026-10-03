@@ -1,0 +1,117 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0.08,
+  "low_usd": 0.01
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "base#1",
+   "identity": "8edc3e73833bda2fd1c0a2dedda62fad1c58eb1243d9a8aa4bc436a48deff16f",
+   "judged_by": [
+    "check#1"
+   ],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "base",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "base",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "check#1",
+   "identity": null,
+   "judged_by": [],
+   "judges": "base#1",
+   "key": null,
+   "needs": [],
+   "path": "check",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "check",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#verdict",
+   "view": false,
+   "waiting_on": [
+    "base#1"
+   ]
+  },
+  {
+   "id": "fix#1",
+   "identity": "bb3989e0a1389df2947c1ced9d5ea9dbda1dbf97691a39cf64a9331bfac38626",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "fix",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "maybe",
+   "step": "fix",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "chosen#1",
+   "identity": null,
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "chosen",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "chosen",
+   "take": [
+    1
+   ],
+   "uses": "gnode/select@1",
+   "view": false,
+   "waiting_on": [
+    "base#1",
+    "check#1",
+    "fix#1"
+   ]
+  }
+ ],
+ "pending": [],
+ "problems": [],
+ "workflow": "case"
+}

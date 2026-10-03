@@ -1,0 +1,111 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0.12,
+  "low_usd": 0.03
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "split#1",
+   "identity": "d2b22a452593c7f64b5aebad74379b01bcf93a52ad13bc8332114d94cc65c48e",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "split",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "done",
+   "step": "split",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#lines",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "draw['l0']#1",
+   "identity": "2c362002ba1f76a004c5845de857618234e400dac7cbd49cf43c2aa10ceff30b",
+   "judged_by": [],
+   "judges": null,
+   "key": "l0",
+   "needs": [],
+   "path": "draw['l0']",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "draw",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "draw['l1']#1",
+   "identity": "fa005729cdf1f5e9d7f14cbf9e68da00c72510ae07809555fd1c50ac3e6fe178",
+   "judged_by": [],
+   "judges": null,
+   "key": "l1",
+   "needs": [],
+   "path": "draw['l1']",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "draw",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "draw['l2']#1",
+   "identity": "4da325212bc59e8889013b389ab3276d4f71b1a336bc0da97260dfd861fa6073",
+   "judged_by": [],
+   "judges": null,
+   "key": "l2",
+   "needs": [],
+   "path": "draw['l2']",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "draw",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": []
+  }
+ ],
+ "pending": [],
+ "problems": [],
+ "workflow": "case"
+}

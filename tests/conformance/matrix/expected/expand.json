@@ -1,0 +1,133 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0,
+  "low_usd": 0
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "combo['open']['smile']#1",
+   "identity": "043a26fc0dcefd2f6ce85744497929787c6d36e704c9677f08eed78131525b49",
+   "judged_by": [],
+   "judges": null,
+   "key": "open.smile",
+   "needs": [],
+   "path": "combo['open']['smile']",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "combo",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "combo['open']['flat']#1",
+   "identity": "ccaddb6a3f5ecb78d39d763f9677978ef1a8a68907f4f5b4e04ecdebb13838e2",
+   "judged_by": [],
+   "judges": null,
+   "key": "open.flat",
+   "needs": [],
+   "path": "combo['open']['flat']",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "combo",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "combo['shut']['smile']#1",
+   "identity": "68ed55784ac646df39fc1a5a121b10729ee7ce1d1ce05703ead2cae68bc03328",
+   "judged_by": [],
+   "judges": null,
+   "key": "shut.smile",
+   "needs": [],
+   "path": "combo['shut']['smile']",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "combo",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "combo['shut']['flat']#1",
+   "identity": "f4a8f73553f23ba1a128481b710466b519a64089ca3f0edba035472910900244",
+   "judged_by": [],
+   "judges": null,
+   "key": "shut.flat",
+   "needs": [],
+   "path": "combo['shut']['flat']",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "combo",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#shout",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "all#1",
+   "identity": null,
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "all",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "all",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#join",
+   "view": false,
+   "waiting_on": [
+    "combo['open']['flat']#1",
+    "combo['open']['smile']#1",
+    "combo['shut']['flat']#1",
+    "combo['shut']['smile']#1"
+   ]
+  }
+ ],
+ "pending": [],
+ "problems": [],
+ "workflow": "case"
+}

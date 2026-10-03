@@ -1,0 +1,63 @@
+{
+ "estimate": {
+  "ceiling_usd": null,
+  "high_usd": 0.04,
+  "low_usd": 0.01
+ },
+ "gnode": "graph/v2",
+ "instances": [
+  {
+   "id": "count#1",
+   "identity": "db4f53f11462bfbb1e61e3a13616d17f449b6c584bb93bee4ccb3b29251048f1",
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "count",
+   "phase": 1,
+   "price": {
+    "high_usd": 0,
+    "low_usd": 0
+   },
+   "routes": {},
+   "state": "planned",
+   "step": "count",
+   "take": [
+    1
+   ],
+   "uses": "./nodes/cases.py#lines",
+   "view": false,
+   "waiting_on": []
+  },
+  {
+   "id": "draw#1",
+   "identity": null,
+   "judged_by": [],
+   "judges": null,
+   "key": null,
+   "needs": [],
+   "path": "draw",
+   "phase": 1,
+   "price": {
+    "high_usd": 0.04,
+    "low_usd": 0.01
+   },
+   "routes": {
+    "image.generate": "img-a@acme"
+   },
+   "state": "planned",
+   "step": "draw",
+   "take": [
+    1
+   ],
+   "uses": "gnode/image.generate@1",
+   "view": false,
+   "waiting_on": [
+    "count#1"
+   ]
+  }
+ ],
+ "pending": [],
+ "problems": [],
+ "workflow": "case"
+}
