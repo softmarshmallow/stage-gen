@@ -91,13 +91,18 @@ a game for the repository.
 ```sh
 uv sync --frozen --group games
 uv run --group games python godot/games/bellweather/pipeline/prepare.py
-uv run --group games python godot/games/iron_petal_unit/pipeline/prepare.py
 uv run --group games python godot/games/ember_hollow/pipeline/prepare.py
 uv run --group games python godot/games/the_grain/pipeline/prepare.py
 ```
 
 These defaults plan or validate inputs offline. Run `--help` on the selected
-script for generation, deterministic rehearsal and output options. The collection
+script for generation, deterministic rehearsal and output options. Iron Petal Unit is
+built with gnode from its own folder instead:
+
+```sh
+cd godot/games/iron_petal_unit && uv run gnode plan pipeline/workflow.py:build --arg package=inputs
+```
+ The collection
 CLI, `uv run --group games demo-games --help`, maintains existing format inspection
 and authoring commands without making those formats part of the public asset SDK.
 

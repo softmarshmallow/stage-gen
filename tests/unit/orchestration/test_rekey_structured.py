@@ -92,7 +92,7 @@ async def test_the_same_question_is_answered_with_the_old_json(tmp_path: Path) -
 
 @pytest.mark.parametrize(
     "case",
-    ["max_tokens", "policy", "property_order", "constraint"],
+    ["max_tokens", "policy", "property_order", "constraint", "canonicalized"],
 )
 async def test_any_difference_in_the_question_is_refused(tmp_path: Path, case: str) -> None:
     store = Store(tmp_path / "cache")
@@ -105,8 +105,9 @@ async def test_any_difference_in_the_question_is_refused(tmp_path: Path, case: s
     elif case == "property_order":
         swapped = {**SCHEMA, "properties": dict(reversed(list(PROPERTIES.items())))}
         request = _request(store, swapped)
-    else:
+    elif case == "constraint":
         loose = {**SCHEMA, "properties": {**PROPERTIES, "status": {"type": "integer"}}}
         request = _request(store, loose)
+    old = {"artifact_value": "caller-canonicalized"} if case == "canonicalized" else {}
     with pytest.raises(CallRefused):
-        await _answer(tmp_path, route, request)
+        await _answer(tmp_path, route, request, **old)

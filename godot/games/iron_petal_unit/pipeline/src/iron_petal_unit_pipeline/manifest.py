@@ -28,7 +28,7 @@ from iron_petal_unit_pipeline.content import (
     declared_boss_motion_states,
     declared_motion_states,
 )
-from iron_petal_unit_pipeline.fx.block import fx_manifest_block
+from iron_petal_unit_pipeline.fx.block import FX_MANIFEST_BLOCK_VERSION, fx_manifest_block
 from iron_petal_unit_pipeline.gameplay import (
     COLLISION_BOXES,
     DUCK_PROFILES,
@@ -37,14 +37,11 @@ from iron_petal_unit_pipeline.gameplay import (
     VITALS_PROFILES,
     RunnerGameplayContract,
 )
-from iron_petal_unit_pipeline.runner_types import (
-    MANIFEST_KIND,
-    MANIFEST_SCHEMA_VERSION,
-    RUNNER_MANIFEST_BLOCK_VERSIONS,
-)
+from iron_petal_unit_pipeline.runner_prompts import visual_direction_digest
 from iron_petal_unit_pipeline.track import (
     STRUCTURAL_GROUND_CELL_PX,
     RunnerStructuralGround,
+    structural_ground_material_identity,
     validate_structural_ground_canonical,
     validate_structural_ground_seam_bridge,
 )
@@ -56,6 +53,30 @@ if TYPE_CHECKING:
 
     from iron_petal_unit_pipeline.runner_request import ResolvedRunnerPackage
     from iron_petal_unit_pipeline.track import RunnerTrack
+
+#: Moves on structural change only (C-R3); the web parser pins kind and version together.
+MANIFEST_SCHEMA_VERSION = 13
+MANIFEST_KIND = f"sideview-runner-runtime-v{MANIFEST_SCHEMA_VERSION}"
+#: The manifest's blocks, each at its own version, in the order the document publishes
+#: them. A block whose shape moves bumps its version here and in the parser; the ``fx``
+#: block is the family's and is declared beside the function that builds it.
+RUNNER_MANIFEST_BLOCK_VERSIONS: dict[str, str] = {
+    "presentation": "runner-presentation-block-v1",
+    "camera": "runner-camera-block-v1",
+    "scale": "runner-scale-block-v1",
+    "gameplay": "runner-gameplay-block-v1",
+    "ground": "runner-ground-block-v1",
+    "layers": "runner-layers-block-v1",
+    "segments": "runner-segments-block-v1",
+    "avatar": "runner-avatar-block-v1",
+    "props": "runner-props-block-v1",
+    "items": "runner-items-block-v1",
+    "bosses": "runner-bosses-block-v1",
+    "projectiles": "runner-projectiles-block-v1",
+    "audio": "runner-audio-block-v1",
+    "soundtrack": "runner-soundtrack-block-v1",
+    "fx": FX_MANIFEST_BLOCK_VERSION,
+}
 
 #: The one place the unit meets pixels in this recipe, matching the platformer's
 #: projection so a shared avatar reads at the same magnitude in both genres.
@@ -281,23 +302,42 @@ def manifest_rebase_multipliers(
     return multipliers
 
 
-def build_manifest(
-    resolved: ResolvedRunnerPackage,
-    *,
-    run_dir: Path,
-    read_artifact: Callable[[str], bytes],
-    structural_material_identity: Callable[[], str],
-) -> dict[str, object]:
-    """Project admitted game inputs and prepared media into this game's runtime document.
+def runner_material_identity(resolved: ResolvedRunnerPackage) -> str:
+    """The structural ground's shared material: its prompt, the art direction, its references.
 
-    Reading and validation belong here. The node handler owns reference publication,
-    the final atomic write and execution bookkeeping. The material identity callback
-    is evaluated only for structural ground, preserving the original admission path.
+    Every guide, seam and published chunk is bound to it, so the manifest can refuse chunks
+    painted from different materials.
+    """
+
+    track = resolved.runner.track
+    ground = track.ground
+    if not isinstance(ground, RunnerStructuralGround):
+        raise ValueError("runner track does not declare structural ground")
+    sources = {entry.reference_id: entry.source for entry in track.references}
+    return structural_ground_material_identity(
+        prompt=ground.prompt,
+        visual_direction_sha256=visual_direction_digest(resolved),
+        reference_sha256=[
+            resolved.package.file(sources[reference_id]).sha256
+            for reference_id in ground.reference_ids
+        ],
+        projection=ground.projection_mode(),
+    )
+
+
+def build_manifest(resolved: ResolvedRunnerPackage, *, run_dir: Path) -> dict[str, object]:
+    """Project admitted game inputs and the published media into this game's runtime document.
+
+    ``run_dir`` holds every published file at its runtime path; reading and validating them
+    belongs here, and writing the document is the caller's.
     """
     package = resolved.package
     runner = resolved.runner
     track = runner.track
     scale = package.game.scale
+
+    def read_artifact(ref: str) -> bytes:
+        return (run_dir / ref).read_bytes()
 
     def read_json(ref: str) -> dict[str, object]:
         return cast("dict[str, object]", json.loads((run_dir / ref).read_bytes()))
@@ -523,7 +563,7 @@ def build_manifest(
             raise ValueError("structural ground chunks do not share the right bridge role")
         if bridge_lineage != {bridge_ref}:
             raise ValueError("structural ground chunks do not share bridge lineage")
-        if material_identities != {structural_material_identity()}:
+        if material_identities != {runner_material_identity(resolved)}:
             raise ValueError("structural ground chunks do not share the authored material")
         ground_manifest = manifest_ground(track)
         if ground_manifest["chunks"] != ground_chunks:

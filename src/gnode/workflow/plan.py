@@ -177,13 +177,20 @@ def _built(
     path = (working / match["file"]).resolve()
     if not path.is_file():
         raise PlanError(f"no builder file {match['file']}")
-    module = ProjectModules(project.root, project.document.sources).load(path)
+    try:
+        module = ProjectModules(project.root, project.document.sources).load(path)
+    except RegistryError as error:
+        raise PlanError(str(error)) from error
     build = getattr(module, match["name"], None)
     if not callable(build):
         raise PlanError(f"{match['file']} has no function {match['name']}")
-    # A builder is the user's code: it reads its own files relative to where gnode runs.
-    with contextlib.chdir(working):
-        built = build(**arguments)
+    # A builder is the user's code: it reads its own files relative to where gnode runs, and
+    # what it refuses is a reason the workflow cannot be planned.
+    try:
+        with contextlib.chdir(working):
+            built = build(**arguments)
+    except (LookupError, OSError, TypeError, ValueError) as error:
+        raise PlanError(f"{match['name']}: {type(error).__name__}: {error}") from error
     if not isinstance(built, Workflow):
         raise PlanError(f"{match['name']} returned {type(built).__name__}, not a gnode.Workflow")
     return path, built.document()

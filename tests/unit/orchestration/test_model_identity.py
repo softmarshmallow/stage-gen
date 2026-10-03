@@ -10,7 +10,6 @@ import pytest
 from bellweather_pipeline.package_graph import package_graph_profile
 from ember_hollow_pipeline.survival_graph import oblique_survival_graph_profile
 from gnode import BindingTable
-from iron_petal_unit_pipeline.runner_graph import runner_graph_profile
 from stage_gen.config import StageGenConfig
 from stage_gen.image_product import ImageProvider
 from stage_gen.model_routes import (
@@ -44,7 +43,6 @@ SERVICE_FOR_OPERATION: dict[str, Callable[[RunServices], object]] = {
 
 PROFILES: tuple[tuple[str, Callable[[StageGenConfig], BindingTable]], ...] = (
     ("sideview-platformer", package_graph_profile),
-    ("sideview-runner", runner_graph_profile),
     ("pointclick-room", room_graph_profile),
     ("dialogue-scene", dialogue_graph_profile),
     ("oblique-survival", oblique_survival_graph_profile),

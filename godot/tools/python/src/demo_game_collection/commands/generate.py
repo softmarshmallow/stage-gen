@@ -16,7 +16,7 @@ from bellweather_pipeline.prepared_world import (
     world_review_target_node_ids,
     world_target_node_ids,
 )
-from demo_game_collection.executors import PreparedPackageExecutor, SideviewRunnerExecutor
+from demo_game_collection.executors import RUNNER_BUILD, PreparedPackageExecutor
 from demo_game_collection.game_package import resolve_prepared_package
 from demo_game_tools.application import resolve_genre
 from stage_gen.application import (
@@ -41,46 +41,9 @@ async def dispatch(args: argparse.Namespace, *, config: StageGenConfig, stdout: 
     declared_genres = [entry.genre for entry in generate_package.game.genres]
     genre = resolve_genre(declared_genres, getattr(args, "genre", None))
     output_path = resolve_output_path(args.output_path)
-    # The genre dispatch point: each genre member executes through its own
-    # recipe executor. The runner runs single-shot; the platformer keeps its
-    # bounded checkpoints below.
+    # The genre dispatch point: the platformer keeps its bounded checkpoints below.
     if genre == "runner":
-        runner_cache = resolve_cache_dir(args.cache_dir, config)
-        if args.checkpoint is not None:
-            raise CliUsageError(
-                "the runner genre runs single-shot; --checkpoint is platformer-only"
-            )
-        if args.artifact_roots or args.replace_output:
-            raise ValueError("--artifact-root/--replace-output are platformer integration flags")
-        runner_executor = SideviewRunnerExecutor(config)
-        if args.dry_run:
-            runner_invocation = args.invocation_id or f"dry-run-{uuid.uuid4().hex}"
-            runner_result = await runner_executor.dry_run(
-                Path(args.input_path),
-                run_dir=output_path,
-                cache_dir=runner_cache,
-                invocation_id=runner_invocation,
-                failure_node_id=args.failure_node,
-            )
-        else:
-            if args.failure_node is not None:
-                raise CliUsageError("--failure-node is available only with --dry-run")
-            runner_invocation = args.invocation_id or f"runner-{uuid.uuid4().hex}"
-            runner_result = await runner_executor.run(
-                Path(args.input_path),
-                run_dir=output_path,
-                cache_dir=runner_cache,
-                invocation_id=runner_invocation,
-            )
-        return write_report(
-            stdout,
-            run_report(
-                runner_result,
-                run_dir=output_path,
-                genre=genre,
-                invocation_id=runner_invocation,
-            ),
-        )
+        raise CliUsageError(RUNNER_BUILD)
     if genre != "platformer":
         raise CliUsageError(f"no recipe is registered for genre {genre!r}")
     cache_dir = resolve_cache_dir(args.cache_dir, config)

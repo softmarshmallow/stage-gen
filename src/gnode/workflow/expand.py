@@ -963,6 +963,9 @@ class Expander:
             elif earlier.state in {"absent", "blocked", "failed"} or verdict == "accept":
                 later.state = "absent"
                 later.reason = "an earlier take settled it"
+            elif verdict == "failed":
+                later.state = "absent"
+                later.reason = "the take before it failed"
             elif verdict == "reject" and not wants_more:
                 later.state = "absent"
                 later.reason = "the rejection does not regenerate"
@@ -991,7 +994,12 @@ class Expander:
         return True
 
     def verdict(self, instance: Instance) -> str | None:
-        """``accept`` when every judge accepted, ``reject`` when any rejected, else unknown."""
+        """``accept`` when every judge accepted, ``reject`` when any rejected, else unknown.
+
+        ``failed`` when a judge could not judge: the take failed, so its judge never ran, or
+        the judge itself failed. That fails the step; only a rejection asks for another take,
+        so a failed provider call is never drawn again on top of its own retries.
+        """
 
         if not instance.judged_by:
             return None
@@ -1004,7 +1012,7 @@ class Expander:
             if result is None:
                 return None
             if result.status != "succeeded":
-                return "reject"
+                return "failed"
             verdicts.append(result.verdict)
         if not verdicts:
             return None
@@ -1220,6 +1228,8 @@ class Expander:
             return one(value)
         if isinstance(value, list):
             return [one(item) for item in value]
+        if port.shape == "keyed" and isinstance(value, Mapping):
+            return {str(key): one(item) for key, item in value.items()}
         return value
 
     def _routes(
@@ -1388,18 +1398,29 @@ class _StepsView:
         owner = self.frame.find(name)
         if owner is None:
             raise ExpressionError(f"no step {name!r}")
-        expansion = self.expander.step(owner, name)
-        pinned: int | None = None
-        if (
-            self.frame.judging is not None
-            and self.frame.judging[0] == name
-            and owner is self.frame.scope
-        ):
-            pinned = self.frame.judging[1]
-        return _view(self.expander, expansion, pinned)
+        return _view(self.expander, self.expander.step(owner, name), judging=self._judging())
+
+    def _judging(self) -> _Judging | None:
+        """While a judge's take is expanded: the step it judges, and that take.
+
+        A judge reads the take it judges however the step is named (``steps.draw``, or
+        its full path through the groups above it), never the take downstream steps get.
+        """
+
+        if self.frame.judging is None:
+            return None
+        name, take = self.frame.judging
+        if name not in self.frame.scope.steps:
+            return None
+        return self.expander.step(self.frame.scope, name), take
 
 
-def _view(expander: Expander, expansion: _StepExpansion, pinned: int | None = None) -> Any:
+#: The step a judge's take judges, and the take: what a reference to it resolves to.
+_Judging = tuple["_StepExpansion", int]
+
+
+def _view(expander: Expander, expansion: _StepExpansion, judging: _Judging | None = None) -> Any:
+    pinned = judging[1] if judging is not None and expansion is judging[0] else None
     kind = expansion.kind
     if kind == "absent":
         return MISSING
@@ -1413,7 +1434,7 @@ def _view(expander: Expander, expansion: _StepExpansion, pinned: int | None = No
     if kind == "repeat":
         return _RepeatView(expander, expansion)
     if kind in {"group", "workflow"}:
-        return _GroupView(expander, expansion)
+        return _GroupView(expander, expansion, judging)
     if kind == "regenerating":
         return _RegeneratingView(expander, expansion)
     raise ExpressionError(f"cannot refer to a {kind} step")
@@ -1477,6 +1498,8 @@ class _NodeView:
             verdict = expander.verdict(last)
             if verdict is None:
                 return self._waiting(live, "last")
+            if verdict == "failed":
+                return Failed(last.id)
             if verdict == "reject":
                 policy = expander.rejection_policy(last)
                 if policy == "fail":
@@ -1545,7 +1568,7 @@ class _NodeView:
             return Failed(chosen.id)
         if what == "facts":
             return dict(result.facts)
-        if expander._selecting and expander.verdict(chosen) == "reject":
+        if expander._selecting and expander.verdict(chosen) in {"reject", "failed"}:
             # ``select`` takes the first result that exists and was not rejected; everyone
             # else still reads a result kept with ``on_reject: continue``.
             return MISSING
@@ -1694,9 +1717,12 @@ class _Every:
 
 
 class _GroupView:
-    def __init__(self, expander: Expander, expansion: _StepExpansion) -> None:
+    def __init__(
+        self, expander: Expander, expansion: _StepExpansion, judging: _Judging | None = None
+    ) -> None:
         self.expander = expander
         self.expansion = expansion
+        self.judging = judging
 
     def expression_member(self, name: str) -> Any:
         expansion = self.expansion
@@ -1710,7 +1736,7 @@ class _GroupView:
             }
         if scope is None or name not in scope.steps:
             raise ExpressionError(f"the group has no step {name!r}")
-        return _view(self.expander, self.expander.step(scope, name))
+        return _view(self.expander, self.expander.step(scope, name), self.judging)
 
 
 class _RegeneratingView:
@@ -1778,8 +1804,20 @@ def _is_project_path(value: Any) -> bool:
 
 
 def _missing_required(spec: NodeSpec, values: Mapping[str, Any]) -> bool:
+    """An input it needs does not exist, or a list or map it was given has a hole in it.
+
+    An optional input may be left out whole; the files written into a list or map are each
+    asked for, so one that does not exist leaves the step unable to run as declared.
+    """
+
     for name, port in spec.inputs.items():
-        if not port.optional and name in values and expr.is_nothing(values[name]):
+        if name not in values:
+            continue
+        value = values[name]
+        if not port.optional and expr.is_nothing(value):
+            return True
+        items = value.values() if isinstance(value, Mapping) else value
+        if isinstance(value, Mapping | list) and any(expr.is_nothing(item) for item in items):
             return True
     return False
 

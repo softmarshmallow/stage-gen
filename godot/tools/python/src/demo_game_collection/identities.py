@@ -265,7 +265,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
         "manifest",
         _constant("recipes.sideview_platformer.package_types", "PREPARED_RUNTIME_MANIFEST_KIND"),
     ),
-    ("manifest", _constant("recipes.sideview_runner.runner_types", "MANIFEST_KIND")),
+    ("manifest", _constant("recipes.sideview_runner.manifest", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.pointclick_room.room_types", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.oblique_survival.manifest", "MANIFEST_KIND")),
     # Execution graphs.
@@ -275,14 +275,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
             "recipes.sideview_platformer.execution_graph",
             "EXECUTION_GRAPH_KIND",
             "ExecutionGraph",
-        ),
-    ),
-    (
-        "graph",
-        _graph(
-            "recipes.sideview_runner.runner_graph",
-            "RUNNER_GRAPH_KIND",
-            "SideviewRunnerGraph",
         ),
     ),
     (
@@ -322,7 +314,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
         "namespace",
         _constant("recipes.sideview_platformer.package_graph", "CONTENT_CACHE_NAMESPACE"),
     ),
-    ("namespace", _constant("recipes.sideview_runner.runner_graph", "RUNNER_CACHE_NAMESPACE")),
     ("namespace", _constant("recipes.pointclick_room.room_graph", "POINTCLICK_CACHE_NAMESPACE")),
     ("namespace", _constant("recipes.dialogue_scene.scene_graph", "DIALOGUE_CACHE_NAMESPACE")),
     (
@@ -346,7 +337,7 @@ BLOCK_REGISTRIES: tuple[IdentitySource, ...] = (
     _constant(
         "recipes.sideview_platformer.prepared_manifest", "PLATFORMER_MANIFEST_BLOCK_VERSIONS"
     ),
-    _constant("recipes.sideview_runner.runner_types", "RUNNER_MANIFEST_BLOCK_VERSIONS"),
+    _constant("recipes.sideview_runner.manifest", "RUNNER_MANIFEST_BLOCK_VERSIONS"),
 )
 
 #: Families with no current member: the whole family is retired, at every version. A family
@@ -369,6 +360,11 @@ RETIRED_FAMILIES: tuple[tuple[str, str], ...] = (
     ("prepared-game-execution-summary", "renamed with the node ABI"),
     ("prepared-game-execution-projection", "renamed with the node ABI"),
     ("prepared-game-execution-view", "renamed with the node ABI"),
+    (
+        "sideview-runner-execution-graph",
+        "the runner builds through gnode; its plan is a `gnode-graph`",
+    ),
+    ("sideview-runner-nodes", "retired with the runner's execution graph; gnode keeps one cache"),
 )
 
 #: Strings that are not `<family>-v<n>` shaped but name a retired thing all the same.

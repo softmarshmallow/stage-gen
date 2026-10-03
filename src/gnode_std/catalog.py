@@ -104,7 +104,9 @@ STANDARD_TYPES: tuple[tuple[int, NodeSpec], ...] = (
             params={
                 "text": TEXT,
                 "voice": TEXT,
-                "style": _p(str, optional=True),
+                # How literally the voice follows the text, and the language it reads in.
+                "stability": _p(float, optional=True),
+                "language_code": _p(str, optional=True),
                 "max_chars": _p(int, optional=True),
             },
             outputs=_ports(audio="audio"),
@@ -116,7 +118,13 @@ STANDARD_TYPES: tuple[tuple[int, NodeSpec], ...] = (
         _spec(
             "sound.generate",
             1,
-            params={"prompt": TEMPLATE, "duration": _p(float, optional=True)},
+            params={
+                "prompt": TEMPLATE,
+                "duration": _p(float, optional=True),
+                # How literally the prompt is followed, and whether the clip should loop.
+                "prompt_influence": _p(float, optional=True),
+                "loop": _p(bool, default=False),
+            },
             outputs=_ports(audio="audio"),
             capability="sound.generate",
         ),

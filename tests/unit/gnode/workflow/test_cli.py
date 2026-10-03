@@ -128,3 +128,46 @@ def test_identity_and_price_are_json(tmp_path: Path) -> None:
     assert status == 0 and set(identities) == {"loud['ada']#1", "loud['bo']#1", "joined#1"}
     status, out, _ = _gnode(root, "price", "shouts", "--inputs", "inputs/names.yaml")
     assert status == 0 and json.loads(out)["estimate"] == {"low_usd": 0.0, "high_usd": 0.0}
+
+
+VERSIONED = """
+from gnode import Ctx, node
+
+
+@node("stamp", params={"text": str}, outputs={"text": "text"}, version=1)
+def stamp(ctx: Ctx) -> dict:
+    return {"text": ctx.out.text(ctx.params["text"])}
+"""
+
+
+def test_lock_pins_the_node_folder_the_project_names(tmp_path: Path) -> None:
+    write(
+        tmp_path,
+        {
+            "gnode.yaml": "gnode: project/v1\nnodes: pipeline/nodes\n",
+            "pipeline/nodes/stamps.py": VERSIONED,
+        },
+    )
+
+    status, out, _ = _gnode(tmp_path, "lock")
+
+    assert status == 0, out
+    locked = yaml.safe_load((tmp_path / "gnode.lock").read_text(encoding="utf-8"))["nodes"]
+    assert list(locked) == ["pipeline/nodes/stamps.py#stamp@1"]
+
+
+def test_a_builder_that_refuses_its_input_is_a_plan_error(tmp_path: Path) -> None:
+    write(
+        tmp_path,
+        {
+            "gnode.yaml": "gnode: project/v1\n",
+            "build.py": (
+                "def build(level: str):\n    raise ValueError(f'no level named {level}')\n"
+            ),
+        },
+    )
+
+    status, _, err = _gnode(tmp_path, "plan", "build.py:build", "--arg", "level=docks")
+
+    assert status != 0
+    assert "no level named docks" in err and "Traceback" not in err

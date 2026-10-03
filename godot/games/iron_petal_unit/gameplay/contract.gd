@@ -21,11 +21,10 @@ const Parallax = preload("res://addons/sideview_rendering/parallax.gd")
 const RUNTIME_KIND := "sideview-runner-runtime-v13"
 const RUNTIME_SCHEMA_VERSION := 13
 
-## The refusal the browser published, kept word for word: a player who sees it
-## needs the command, not the version number.
+## A player who sees this refusal needs the command, not the version number.
 const UNSUPPORTED := (
-	"unsupported sideview-runner manifest; regenerate this track with a current "
-	+ "stage-gen (stage-gen generate --genre runner)"
+	"unsupported sideview-runner manifest; rebuild this track from the game's folder "
+	+ "(gnode run pipeline/workflow.py:build --arg package=inputs)"
 )
 
 ## Every block this build reads, and the version it reads it at.

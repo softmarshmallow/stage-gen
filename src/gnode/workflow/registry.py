@@ -153,16 +153,23 @@ class ProjectModules:
         return sorted(seen)
 
     def label(self, path: Path) -> str:
-        """A source file's stable name: from the project root, or from a package's parent."""
+        """A source file's stable name: from the project root, or from a package's parent.
+
+        When both hold it (a source package kept inside the project, or a project kept
+        inside a source package), the nearer one names it, so the name does not depend on
+        where else the project sits.
+        """
 
         path = path.resolve()
-        if path.is_relative_to(self.root):
-            return path.relative_to(self.root).as_posix()
+        bases = [self.root] if path.is_relative_to(self.root) else []
         for name in self.packages:
             folder = self._package_folder(name)
             if folder is not None and path.is_relative_to(folder):
-                return path.relative_to(folder.parent).as_posix()
-        raise RegistryError(f"{path.name} is outside the project and its sources")
+                bases.append(folder.parent)
+        if not bases:
+            raise RegistryError(f"{path.name} is outside the project and its sources")
+        nearest = max(bases, key=lambda base: len(base.parts))
+        return path.relative_to(nearest).as_posix()
 
     def _package_folder(self, name: str) -> Path | None:
         if name not in self._package_folders:

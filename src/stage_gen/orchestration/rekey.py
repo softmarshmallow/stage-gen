@@ -6,7 +6,8 @@ each paid call from the provider results of old v1 runs, but only from the resul
 made from exactly this request: the same provider and model, the same route, prompt and
 input pictures, and the same size and background for a picture, or length, resolution
 and aspect ratio for a clip, as the old result's provenance sidecar records them, and
-bytes that still match the sidecar. A structured answer also needs the same system prompt,
+bytes that still match the sidecar. A structured answer must be the model's own (not a
+record the caller rewrote from it), and needs the same system prompt,
 token limit and request policy, the pictures in the same order, and a schema that holds an
 answer to the same constraints (both inlined and made canonical, as a provider is sent
 them; the schema's name is a label). The answer is written to gnode's call cache as the
@@ -172,7 +173,9 @@ def _same_question(old: OldResult, route: Route, request: Mapping[str, Any]) -> 
     recorded = params.get("schema")
     policy = (params.get("metadata") or {}).get("request_policy")
     return (
-        (old.provider, old.model) == (route.provider, route.model)
+        # A record the caller rewrote from the answer is not what the model said.
+        params.get("artifact_value") != "caller-canonicalized"
+        and (old.provider, old.model) == (route.provider, route.model)
         and old.prompt_sha256 == hashlib.sha256(question.prompt.encode("utf-8")).hexdigest()
         and old.sent == tuple(picture.digest for picture in question.pictures)
         and params.get("system") == question.system

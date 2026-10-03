@@ -289,7 +289,7 @@ from gnode.view import (
 )
 from gnode.workflow import cli
 from gnode.workflow.api import PlanRefused, RunResult, plan, plan_async, run, run_async
-from gnode.workflow.builder import Workflow
+from gnode.workflow.builder import Group, StepRef, Workflow
 from gnode.workflow.describe import StepDescription, WorkflowDescription, describe
 from gnode.workflow.expand import Expansion, Instance, Problem, Result
 from gnode.workflow.host import (
@@ -307,7 +307,7 @@ from gnode.workflow.host import (
     resolve_tool,
     tool,
 )
-from gnode.workflow.plan import Plan, Planner, Project, make_plan, make_planner
+from gnode.workflow.plan import Plan, PlanError, Planner, Project, make_plan, make_planner
 from gnode.workflow.plugins import Plugin, load_plugins
 from gnode.workflow.registry import BuiltinType
 from gnode.workflow.routes import Route, RoutePrice, RouteTable, route_table_from_document
@@ -581,7 +581,10 @@ __all__ = [
     "tool",
     "ToolReply",
     "resolve_tool",
+    "Group",
+    "StepRef",
     "Workflow",
+    "PlanError",
     "PlanRefused",
     "RunResult",
     "plan",

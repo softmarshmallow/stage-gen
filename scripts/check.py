@@ -78,6 +78,9 @@ GAME_PYTHON_ROOTS = (
     "godot/games/the_grain/pipeline/src",
     "godot/tools/python/src",
 )
+#: Games built with gnode: each one's builder and node modules are typed in their own run,
+#: because node modules are top-level files whose names would collide across projects.
+GNODE_GAME_PROJECTS = ("godot/games/iron_petal_unit",)
 GAME_TYPED_TOOLS = (
     "godot/games/bellweather/tools/author_terrain.py",
     "godot/games/bellweather/tools/design_map.py",
@@ -93,12 +96,18 @@ GAME_TYPED_TOOLS = (
 )
 
 
+def _gnode_game_typechecks() -> tuple[Step, ...]:
+    return tuple(
+        Step(("mypy", "--strict", f"{game}/pipeline/workflow.py", f"{game}/pipeline/nodes"))
+        for game in GNODE_GAME_PROJECTS
+    )
+
+
 def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
     """Exercise game-owned preparation entry points without provider work."""
     plans = (
         ("bellweather", ()),
         ("bellweather", ("--variant", "waves")),
-        ("iron_petal_unit", ()),
         ("ember_hollow", ()),
         ("the_grain", ("--mode", "case")),
         ("the_grain", ("--mode", "room")),
@@ -108,6 +117,14 @@ def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
         Step((python, f"godot/games/{game}/pipeline/prepare.py", "--plan", *options))
         for game, options in plans
     ]
+    # A game built with gnode: its node types are locked and its builder plans its own
+    # package, offline, from the game's folder.
+    for game, builder in (("iron_petal_unit", "pipeline/workflow.py:build"),):
+        home = REPOSITORY_ROOT / "godot/games" / game
+        result.append(Step(("gnode", "lock", "--check"), cwd=home))
+        result.append(
+            Step(("gnode", "plan", builder, "--arg", "package=inputs", "--check"), cwd=home)
+        )
     for game, label, options in (
         ("the_grain", "room", ("--mode", "room")),
         ("the_grain", "dialogue", ("--mode", "dialogue")),
@@ -277,6 +294,7 @@ def steps(
         ),
         "games": (
             Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "games"))),
+            *_gnode_game_typechecks(),
             *_game_steps(python, scratch=scratch),
         ),
         "apps": (Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "apps"))),),

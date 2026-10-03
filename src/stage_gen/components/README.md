@@ -79,7 +79,7 @@ holding:
   a graph shipped the family under its own type ids), an `add_<family>_nodes` graph
   helper that declares the nodes and their ports over a builder, and a
   `<Family>Handlers` kit over a `<Family>Host` that a workflow or game graph binds into its own node
-  handler - the soundtrack, motion-rebase, layer, UI atlas, inventory-panel and cut-in
+  handler - the soundtrack, motion-rebase, layer, UI atlas and inventory-panel
   families are the shape;
 - private helpers as `_<name>.py`, shared across components through
   `components/_node_kit.py` and its siblings rather than copied.
@@ -88,9 +88,9 @@ A component imports the engine, `stage_gen.media`, `stage_gen.canonical` and oth
 components; never a workflow, a game, the orchestration layer or a provider. Workflows and
 game graphs host node families; they do not own node semantics. No graph-helper departure
 stands today: `GRAPH_HELPER_DEPARTURES` in `tests/contract/test_component_structure.py` is
-empty, and any new one must be named there. One family differs by design:
-`effects_art/sprite_nodes.py` exposes request builders rather than a handler kit, because the
-runner drives its retries.
+empty, and any new one must be named there. A game built with gnode instead hosts a family
+as gnode step types (`demo_game_tools.steps`), over the pure parts of its kit: the effects
+kit is only those (`effects_art/directions.py`, `cut_in.py`, `sprite.py`).
 
 ### Independence rule
 

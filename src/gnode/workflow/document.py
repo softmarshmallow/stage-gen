@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal, Self
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 WORKFLOW_DOCUMENT = "workflow/v1"
 PROJECT_DOCUMENT = "project/v1"
@@ -180,6 +180,16 @@ class ProjectDocument(_Document):
     #: Python packages, beyond this folder, whose modules count as the project's source: in
     #: the identity of node types without a version, and in what ``gnode.lock`` guards.
     sources: tuple[Annotated[str, Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")], ...] = ()
+    #: The folder, inside this one, that holds the project's node modules: what
+    #: ``gnode lock`` pins.
+    nodes: str = Field(default="nodes", pattern=r"^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$")
+
+    @field_validator("nodes")
+    @classmethod
+    def _inside(cls, value: str) -> str:
+        if ".." in value.split("/"):
+            raise ValueError("nodes is a folder inside the project")
+        return value
 
     def route_for(self, capability: str) -> RouteDefault | None:
         entry = self.routes.get(capability)

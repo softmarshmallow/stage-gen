@@ -71,6 +71,12 @@
    "title": "Gnode",
    "type": "string"
   },
+  "nodes": {
+   "default": "nodes",
+   "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+   "title": "Nodes",
+   "type": "string"
+  },
   "routes": {
    "additionalProperties": {
     "anyOf": [

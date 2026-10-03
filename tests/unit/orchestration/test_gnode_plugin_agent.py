@@ -85,7 +85,7 @@ async def test_a_turn_carries_the_transcript_and_its_pictures(tmp_path: Path) ->
         "tool_choice": "required",
         "max_tokens": 4000,
     }
-    [route] = agent_routes()
+    route = next(r for r in agent_routes() if r.model == "openai/gpt-6-astra")
     record, backend = await _turn(tmp_path, route, request)
 
     assert record.data == {
@@ -106,7 +106,7 @@ async def test_a_turn_carries_the_transcript_and_its_pictures(tmp_path: Path) ->
 
 
 async def test_a_turn_on_a_route_stage_gen_does_not_call_is_refused(tmp_path: Path) -> None:
-    [route] = agent_routes()
+    route = next(r for r in agent_routes() if r.model == "openai/gpt-6-astra")
     other = Route(
         capability="agent.turn", model="someone/else", provider="openrouter", price=route.price
     )

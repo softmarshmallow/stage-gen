@@ -41,11 +41,14 @@ from gnode import (
     ImageRouteRequirementsV1,
     JobLog,
     LongJob,
+    MusicGenerationRequest,
     NonRetryableError,
     Plugin,
     Route,
     RoutePrice,
     RouteTable,
+    SoundEffectGenerationRequest,
+    SpeechGenerationRequest,
     Store,
     StructuredGenerationRequest,
     StructuredOutputSchema,
@@ -79,7 +82,12 @@ from stage_gen.model_routes import (
     resolve_image_route,
 )
 from stage_gen.orchestration.image_routing import RoutedImageGenerationService
-from stage_gen.orchestration.runtime import create_structured_service
+from stage_gen.orchestration.runtime import (
+    create_music_service,
+    create_sound_effect_service,
+    create_speech_service,
+    create_structured_service,
+)
 from stage_gen.orchestration.services import OPENROUTER_BASE_URL
 from stage_gen.pipeline.structured_transport import (
     decode_completion_wrapper,
@@ -876,17 +884,21 @@ def rig_job(config: StageGenConfig, store: Store, *, factory: TripoFactory = _tr
 #: million out (2026-09-11). A turn with a full picture window and a long answer stays under
 #: the worst case; most cost cents.
 _AGENT_PRICE = RoutePrice(0.01, 1.50)
+#: A turn on the configured text model: a games' placement episode of six looks was held at
+#: USD 0.60, so a turn at a tenth of a dollar.
+_TEXT_AGENT_PRICE = RoutePrice(0.003, 0.10)
 _AGENT_TIMEOUT_SECONDS = 600
 AgentBackendFactory = Callable[..., Any]
 
 
-def agent_routes() -> list[Route]:
-    """``agent.turn`` on the verified vision judge, with its request settings."""
+def agent_routes(config: StageGenConfig | None = None) -> list[Route]:
+    """``agent.turn`` on the verified vision judge, with its request settings, and on the
+    configured text model with the provider's own defaults (the games' placement agents)."""
 
     model = "openai/gpt-6-astra"
     policy = _VERIFIED_STRUCTURED[model].policy
     assert policy is not None
-    return [
+    routes = [
         Route(
             capability="agent.turn",
             model=model,
@@ -901,6 +913,19 @@ def agent_routes() -> list[Route]:
             },
         )
     ]
+    text_model = (config or StageGenConfig()).text_model
+    if text_model != model:
+        routes.append(
+            Route(
+                capability="agent.turn",
+                model=text_model,
+                provider="openrouter",
+                price=_TEXT_AGENT_PRICE,
+                features=frozenset({"tool_use", "image_input"}),
+                contract={"adapter": "openrouter-tool-loop", "adapter_behavior": 1},
+            )
+        )
+    return routes
 
 
 def _turn_picture(file: Any) -> str:
@@ -957,7 +982,7 @@ def agent_turn_job(
     """``agent.turn``: one model turn of a node's agent, its tool calls returned to it."""
 
     del store
-    routes = {route.route_id: route for route in agent_routes()}
+    routes = {route.route_id: route for route in agent_routes(config)}
 
     async def handle(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
         del take
@@ -979,7 +1004,8 @@ def agent_turn_job(
             )
         except (_NotSent, ValueError, KeyError) as error:
             raise CallRefused(str(error)) from error
-        policy = _VERIFIED_STRUCTURED[route.model].policy
+        verified = _VERIFIED_STRUCTURED.get(route.model)
+        policy = verified.policy if verified is not None else None
         backend = factory(
             api_key=config.open_router_api_key,
             model=route.model,
@@ -1008,6 +1034,173 @@ def agent_turn_job(
     return handle
 
 
+# ----------------------------------------------------------------------------- audio
+
+#: Each audio capability's worst case a call: a track, a short effect, a bark. Measured in
+#: the runner spikes (2026-08-20 music, 2026-09-02 effects, 2026-09-03 speech).
+_MUSIC_PRICE = RoutePrice(0.05, 0.50)
+_SOUND_PRICE = RoutePrice(0.001, 0.10)
+_SPEECH_PRICE = RoutePrice(0.001, 0.05)
+_MUSIC_TIMEOUT_SECONDS, _CLIP_TIMEOUT_SECONDS = 900, 120
+
+
+def audio_routes(config: StageGenConfig | None = None) -> list[Route]:
+    """``music.generate``, ``sound.generate`` and ``speech.generate`` on the configured models."""
+
+    settings = config or StageGenConfig()
+    return [
+        Route(
+            capability="music.generate",
+            model=settings.music_model,
+            provider="openrouter",
+            price=_MUSIC_PRICE,
+            contract={"adapter": "openrouter-music", "adapter_behavior": 1},
+        ),
+        Route(
+            capability="sound.generate",
+            model=settings.sound_effect_model,
+            provider="elevenlabs",
+            price=_SOUND_PRICE,
+            features=frozenset({"exact_duration"}),
+            contract={"adapter": "elevenlabs-sound-effect", "adapter_behavior": 1},
+        ),
+        Route(
+            capability="speech.generate",
+            model=settings.speech_model,
+            provider="elevenlabs",
+            price=_SPEECH_PRICE,
+            features=frozenset({"audio_tags", "stability"}),
+            contract={"adapter": "elevenlabs-speech", "adapter_behavior": 1},
+        ),
+    ]
+
+
+AudioServiceFactory = Callable[..., Any]
+
+
+def _audio_record(store: Store, result: Any) -> CallRecord:
+    audio = store.put_bytes(result.data, kind="audio/mpeg", name="audio")
+    return CallRecord({"audio": audio}, {"attempts": result.attempts}, None)
+
+
+def _number(request: Mapping[str, Any], name: str) -> float | None:
+    value = request.get(name)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise _NotSent(f"{name} is a number")
+    return float(value)
+
+
+def music_job(
+    config: StageGenConfig, store: Store, *, factory: AudioServiceFactory = create_music_service
+) -> CapabilityHandler:
+    """``music.generate``: one track from its prompt; what it must be is the steps' to judge."""
+
+    async def handle(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
+        del take
+        prompt = request.get("prompt")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise CallRefused("a music call needs its prompt as text")
+        if not config.open_router_api_key:
+            raise CallRefused("OPENROUTER_API_KEY is not set")
+        service = factory(
+            api_key=config.open_router_api_key,
+            model=route.model,
+            base_url=config.open_router_base_url or OPENROUTER_BASE_URL,
+        )
+        with tempfile.TemporaryDirectory(prefix="gnode-music-") as scratch:
+            result = await service.generate(
+                MusicGenerationRequest(
+                    prompt=prompt,
+                    artifact_path=Path(scratch) / "track.mp3",
+                    output_format="mp3",
+                    timeout_seconds=_MUSIC_TIMEOUT_SECONDS,
+                )
+            )
+        return _audio_record(store, result)
+
+    return handle
+
+
+def sound_job(
+    config: StageGenConfig,
+    store: Store,
+    *,
+    factory: AudioServiceFactory = create_sound_effect_service,
+) -> CapabilityHandler:
+    """``sound.generate``: one effect at its exact length, its prompt sent verbatim."""
+
+    async def handle(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
+        del take
+        try:
+            prompt = request.get("prompt")
+            if not isinstance(prompt, str) or not prompt.strip():
+                raise _NotSent("a sound call needs its prompt as text")
+            if not config.elevenlabs_api_key:
+                raise _NotSent("ELEVENLABS_API_KEY is not set")
+            duration = _number(request, "duration")
+            influence = _number(request, "prompt_influence")
+        except _NotSent as error:
+            raise CallRefused(str(error)) from error
+        service = factory(api_key=config.elevenlabs_api_key, model=route.model)
+        with tempfile.TemporaryDirectory(prefix="gnode-sound-") as scratch:
+            result = await service.generate(
+                SoundEffectGenerationRequest(
+                    prompt=prompt,
+                    artifact_path=Path(scratch) / "clip.mp3",
+                    duration_seconds=duration,
+                    prompt_influence=influence,
+                    loop=bool(request.get("loop", False)),
+                    output_format="mp3",
+                    timeout_seconds=_CLIP_TIMEOUT_SECONDS,
+                )
+            )
+        return _audio_record(store, result)
+
+    return handle
+
+
+def speech_job(
+    config: StageGenConfig,
+    store: Store,
+    *,
+    factory: AudioServiceFactory = create_speech_service,
+) -> CapabilityHandler:
+    """``speech.generate``: one line in the provider voice the step names, read verbatim."""
+
+    async def handle(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
+        del take
+        try:
+            text, voice = request.get("text"), request.get("voice")
+            if not isinstance(text, str) or not text.strip():
+                raise _NotSent("a speech call needs its text")
+            if not isinstance(voice, str) or not voice.strip():
+                raise _NotSent("a speech call needs its provider voice")
+            if not config.elevenlabs_api_key:
+                raise _NotSent("ELEVENLABS_API_KEY is not set")
+            stability = _number(request, "stability")
+            language = request.get("language_code")
+        except _NotSent as error:
+            raise CallRefused(str(error)) from error
+        service = factory(api_key=config.elevenlabs_api_key, model=route.model)
+        with tempfile.TemporaryDirectory(prefix="gnode-speech-") as scratch:
+            result = await service.generate(
+                SpeechGenerationRequest(
+                    text=text,
+                    voice=voice,
+                    artifact_path=Path(scratch) / "line.mp3",
+                    stability=stability,
+                    language_code=str(language) if language else None,
+                    output_format="mp3",
+                    timeout_seconds=_CLIP_TIMEOUT_SECONDS,
+                )
+            )
+        return _audio_record(store, result)
+
+    return handle
+
+
 def published_workflows() -> dict[str, Path]:
     """Every first-party workflow written as a workflow file, by id."""
 
@@ -1027,7 +1220,13 @@ def plugin() -> Plugin:
         name="stage_gen",
         routes=image_routes(config).merged(
             RouteTable(
-                [*video_routes(), *structured_routes(config), *agent_routes(), *mesh_routes()]
+                [
+                    *video_routes(),
+                    *structured_routes(config),
+                    *agent_routes(config),
+                    *mesh_routes(),
+                    *audio_routes(config),
+                ]
             )
         ),
         capabilities=lambda store: {
@@ -1037,6 +1236,9 @@ def plugin() -> Plugin:
             "agent.turn": agent_turn_job(config, store),
             "mesh.generate": mesh_job(config, store),
             "mesh.rig": rig_job(config, store),
+            "music.generate": music_job(config, store),
+            "sound.generate": sound_job(config, store),
+            "speech.generate": speech_job(config, store),
         },
         workflows=published_workflows(),
     )
@@ -1046,6 +1248,10 @@ __all__ = [
     "StructuredQuestion",
     "agent_routes",
     "agent_turn_job",
+    "audio_routes",
+    "music_job",
+    "sound_job",
+    "speech_job",
     "mesh_job",
     "mesh_routes",
     "rig_job",

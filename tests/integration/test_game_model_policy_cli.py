@@ -54,7 +54,6 @@ def test_models_routes_is_credential_network_and_adapter_free(
         "oblique_survival",
         "pointclick_room",
         "sideview_platformer",
-        "sideview_runner",
     }
 
 

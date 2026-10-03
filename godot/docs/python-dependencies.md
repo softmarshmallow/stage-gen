@@ -19,9 +19,12 @@ Owned compiler and adapter tests moved with those responsibilities.
 
 ```text
 godot/games/
+├── iron_petal_unit/             # A gnode project: gnode.yaml, gnode.lock
+│   ├── pipeline/workflow.py     # The builder: the package, read by the game, as steps
+│   └── pipeline/nodes/          # The game's node types, and the shared step families
 ├── iron_petal_unit/pipeline/src/iron_petal_unit_pipeline/
-│   ├── prepared_runner.py       # Node dispatch, provider orchestration, publication
-│   ├── manifest.py              # Read prepared media and project this game's document
+│   ├── admission.py             # What a painting must be, shared by judges and publishers
+│   ├── manifest.py              # Read the published media and project this game's document
 │   ├── audio/                   # Authored event/audio contracts
 │   ├── gameplay/                # Runner movement and encounter contracts
 │   └── track/                   # Runner track and structural ground contracts
@@ -34,12 +37,12 @@ godot/games/
     └── shell/                  # This game's complete title/loading/cinematic composition
 ```
 
-Iron Petal's manifest builder accepts its resolved package, a prepared run directory,
-a validation-record reader and the existing structural-material identity operation.
-It does not generate, republish or write artifacts. The handler still republishes
-authored references, writes the final document atomically and reports node results.
-Audio, ground, gameplay, rebase and encounter projection now live with that document.
-Existing `prepared_runner` helper imports remain available for supported callers.
+Iron Petal's manifest builder accepts its resolved package and a folder holding every
+published file at its runtime path. It does not generate, republish or write artifacts:
+the builder's `package` step lays the folder out, republishes the authored references and
+writes the document. Audio, ground, gameplay, rebase and encounter projection live with
+that document. Its node handler, executor and graph document are gone: gnode runs its steps,
+and the shared step families live in `demo_game_tools.steps`.
 
 Ember already delegated its complete manifest to `manifest.py`; that boundary stays.
 Its seasonal/raster helpers now run independently of a node handler or provider
@@ -48,7 +51,7 @@ helper imports from `prepared_survival` remain available. Graph identities, cach
 namespaces, prompt text, media policies and manifest fields are unchanged.
 
 This does not finish every local decomposition. Ember's request loader and manifest,
-and both games' provider handlers, still contain substantial game-specific logic.
+and its provider handler, still contain substantial game-specific logic.
 Further splits should follow a caller and contract review, not a target file length.
 
 ## Dependency decisions
@@ -61,8 +64,10 @@ Further splits should follow a caller and contract review, not a target file len
 | `demo_game_tools.authored_package` | Four The Grain readers | **Separate SDK review:** these combine portable member names, root handling, confined reads and authored digest checks. They deliberately resolve the operator's root while refusing symlinks below it. Any shared replacement must preserve that distinction; game case/scene schemas stay local. |
 | `stage_gen.components._node_kit`: `ProviderCall`, `card_prompt`, `node_result`, `write_local_image` | Ember's shell node implementation; the games' kits (`demo_game_tools.kits`) publish locally composed images with `write_local_image` until each game is ported to gnode | **Game-owned adapter / separate SDK review:** callback policy and shell card lookup need no public abstraction. Artifact/result collection overlaps product component kits; review its result, sidecar and cost semantics before promising it as a public SDK helper. The already-public `artifact_port`, `record_port` and `object_digest` imports have been switched directly to `stage_gen.pipeline`. |
 
-There is no remaining direct game import of `effects_art._host`: the runner uses
-the existing component node surface. The removed UI, soundtrack-node, FX,
+The effects kit keeps only its pure half (`effects_art/directions.py`, `cut_in.py`,
+`sprite.py`, the models and the manifest block): its graph node types, host and request
+builders went with the runner's executor, and the runner's steps live in
+`demo_game_tools.steps.effects`. The removed UI, soundtrack-node, FX,
 structural-terrain and screen-art forwarding modules have no implementation to
 maintain; real game input models, the FX manifest adapter and soundtrack prompt
 adapter remain game-owned.

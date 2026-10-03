@@ -27,7 +27,6 @@ def build_repository_model_policy_projection(
         PreparedPackageExecutor,
     )
     from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
-    from iron_petal_unit_pipeline.runner_executor import SideviewRunnerExecutor
     from stage_gen.config import StageGenConfig
     from stage_gen.image_product import ImageProvider
     from stage_gen.model_routes import IMAGE_ROUTE_CATALOG, image_workload_policies
@@ -44,7 +43,6 @@ def build_repository_model_policy_projection(
         "oblique_survival": "godot/games/ember_hollow/inputs",
         "pointclick_room": "godot/games/the_grain/inputs/rooms/window",
         "sideview_platformer": "godot/games/bellweather/inputs/default",
-        "sideview_runner": "godot/games/iron_petal_unit/inputs",
     }
     available = tuple(sorted(fixture_by_recipe))
     if recipe_id is not None and recipe_id not in fixture_by_recipe:
@@ -72,10 +70,6 @@ def build_repository_model_policy_projection(
             PreparedPackageExecutor(config)
             .plan(root / fixture_by_recipe["sideview_platformer"])
             .graph
-        )
-    if "sideview_runner" in selected:
-        graphs["sideview_runner"] = (
-            SideviewRunnerExecutor(config).plan(root / fixture_by_recipe["sideview_runner"]).graph
         )
     policy_selections = {
         "default": image_workload_policies(),

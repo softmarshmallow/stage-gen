@@ -21,6 +21,7 @@ import hashlib
 import shutil
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 
 from PIL import Image
 
@@ -813,14 +814,30 @@ def runner_only_package(
     *,
     avatar: str = RUNNER_AVATAR,
     piloted_heads_tall: float | None = None,
+    **options: Any,
 ) -> Path:
-    """Build the same passing runner closure without any platformer-owned members."""
+    """Build the same passing runner closure without any platformer-owned members.
 
-    source = two_genre_package(tmp_path / "staged", avatar=avatar)
+    ``options`` are ``two_genre_package``'s (chunks, bosses, a spoken line ...); the members
+    they add are declared on the runner genre here too.
+    """
+
+    source = two_genre_package(tmp_path / "staged", avatar=avatar, **options)
     package = tmp_path / "runner-only"
     package.mkdir()
     shutil.copy2(source / "universe.md", package / "universe.md")
     shutil.copytree(source / "runner", package / "runner")
+    if (source / "voices.toml").is_file():
+        shutil.copy2(source / "voices.toml", package / "voices.toml")
+    members = "".join(
+        block
+        for declared, block in (
+            (options.get("bosses") is not None, BOSS_MEMBER_SOURCE),
+            (options.get("projectiles") is not None, PROJECTILE_MEMBER_SOURCE),
+            (bool(options.get("spoken")), VOICES_MEMBER_SOURCE),
+        )
+        if declared
+    )
     references = package / "references"
     references.mkdir()
     for name in ("cover.png", "cover.provenance.json", "cover.visual-review.md"):
@@ -895,7 +912,7 @@ source = "runner/audio.toml"
 
 [genres.soundtrack]
 source = "runner/soundtrack.toml"
-
+{members}
 [evidence.cover]
 artifact_source = "references/cover.png"
 artifact_sha256 = "{COVER_SHA256}"

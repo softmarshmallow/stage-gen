@@ -21,7 +21,7 @@ from iron_petal_unit_pipeline.gameplay import (
     jump_arc,
     load_runner_gameplay_bytes,
 )
-from iron_petal_unit_pipeline.prepared_runner import (
+from iron_petal_unit_pipeline.manifest import (
     manifest_audio,
     manifest_gameplay,
 )

@@ -3,15 +3,16 @@
 > **Scope: game consumers.** This document describes the formats used by these Godot games.
 > The public asset SDK and new games do not require this authoring format.
 
-> **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_generation_pipeline_docs.py`, `tests/unit/games/sideview_runner/test_execution_graph_identity.py`.
+> **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_generation_pipeline_docs.py`, `tests/unit/games/sideview_runner/test_workflow.py`.
 
 > **Contract maturity: exact-current authored contracts.** Executable
 > authority: `godot/games/iron_petal_unit/pipeline/src/iron_petal_unit_pipeline/gameplay/`,
 > `godot/games/iron_petal_unit/pipeline/src/iron_petal_unit_pipeline/track/`,
 > `godot/games/iron_petal_unit/pipeline/src/iron_petal_unit_pipeline/content/`,
 > `godot/games/iron_petal_unit/pipeline/src/iron_petal_unit_pipeline/audio/`, and the runner member resolution
-> in `godot/games/iron_petal_unit/pipeline/src/iron_petal_unit_pipeline/validation.py`. The generation
-> recipe lives in `godot/games/iron_petal_unit/pipeline/src/iron_petal_unit_pipeline/`, the playable
+> in `godot/games/iron_petal_unit/pipeline/src/iron_petal_unit_pipeline/validation.py`. The asset
+> build is the gnode builder `godot/games/iron_petal_unit/pipeline/workflow.py` over the node
+> types in `pipeline/nodes/`, the playable
 > simulation in `godot/games/iron_petal_unit/gameplay/` and its host in
 > `godot/games/iron_petal_unit/scenes/` (decision 0065). The browser runner it replaced
 > is gone; `web/` lists and inspects a runner run and plays none.
@@ -631,9 +632,9 @@ The plate the encounter slams up is the **boss**, not the operator: the moment
 announces what has arrived. A generated actor cannot be announced from authored
 art, so the portrait takes its identity through a graph edge to the concept
 plate this same run drew - `subject = { kind = "actor_concept_v1", actor_id }`,
-resolved here to the boss concept node and refused for any other id. The plate
-is re-drawn whenever the boss is, because the concept is its cache lineage
-rather than a digest of words about it.
+resolved by the builder to the boss's concept painting and refused for any
+other id while planning. The plate is re-drawn whenever the boss is, because
+the concept picture is one of the files it reads rather than words about it.
 
 An encounter plays over a run that is already going. The boss cut-in does
 **not** hold the simulation the way `stage_start` does: the avatar keeps
@@ -659,117 +660,121 @@ lower-zone pointer is released. The visible control hint states the lower-zone
 mapping only when the manifest admits both a duck profile and slide motion;
 pointer capture preserves release when a finger leaves the canvas.
 
-## Machine-checked graph contract
+## Building the assets
 
-The embedded contract is content-insensitive where content does not change
-topology: a changed prompt or reference re-keys node cache identities and
-`graph_sha256`, not `topology_sha256`. Adding a segment in structural-ground
-mode, a layer, a motion state, a catalog entry, a soundtrack member, or a
-generated-clip or spoken-line effect changes the topology and therefore this
-checked snapshot. So does a selected route when it changes the declared resource;
-the `elevenlabs-sound-effect` and `elevenlabs-speech`
-resources below serve Iron Petal's generated clips and its spoken stage start.
-A node type's contract version instead re-keys caches and `graph_sha256`
-without changing `topology_sha256`: manifest assembly moved to v8 when the
-audio block gained music transitions, which re-keyed the graph with no new
-node. The checked runner fixture is
-Iron Petal Unit so the snapshot covers the per-segment structural-ground fan-out
-rather than only the atlas branch. Regenerate with
+The game builds its assets with gnode, from its own folder: `gnode.yaml` names the routes,
+`gnode.lock` pins the node types in `pipeline/nodes/`, and the builder
+`pipeline/workflow.py:build` reads the package with the game's own reader and writes one
+group of steps per asset. Planning never spends; a live run needs `--live` and a ceiling.
+
+```sh
+cd godot/games/iron_petal_unit
+gnode plan pipeline/workflow.py:build --arg package=inputs
+gnode run pipeline/workflow.py:build --arg package=inputs --live --max-usd 80 \
+  --deliver package=../../../out/iron-petal/{key}
+```
+
+`godot --path godot/games/iron_petal_unit -- --run "$PWD/out/iron-petal"` then plays the
+delivered folder. The package must sit inside the project, because its references are
+project files read by content.
+
+Every painting and draw is a standard gnode call (`gnode/image.edit@1`,
+`music.generate`, `sound.generate`, `speech.generate`) judged by the game's own
+admission, which asks for another take when it rejects one: at most six takes, then the
+step fails. A call that fails is never drawn again on top of its own retries. The rebase
+readings and the cut-in reviews are `gnode/structured.generate@1`; the cut-in placement is
+one agent episode inside `place_portrait`. A pinned take is republished from the package
+and buys nothing. The last step reads the whole package closure again, lays every
+published file out at the path the host reads it from, and writes `manifest.json`.
+
+A step is keyed by its type, its settings, the bytes of the files it reads and its route,
+so an authored edit re-runs only the steps whose inputs changed; renaming a track re-bills
+nothing, because no picture changes.
+
+| Group | Steps per asset | Image | Structured | Agent | Music | Sound + speech |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `ground` | Per segment: guide, painting, its judge, publish (mask and seam); one shared seam bridge. Atlas mode instead: the packed template, painting, judge, assembly | 12 | 0 | 0 | 0 | 0 |
+| `layers` | Per layer: painting, judge, loop (a seam repaint for a generative construction, as all three of Iron Petal's are), publish | 3 + 3 | 0 | 0 | 0 | 0 |
+| `avatar`, `bosses` | Concept and its judge; per state a strip, its judge and the repack; two rebase readings, each judged and recorded | 6 + 4 | 2 + 2 | 0 | 0 | 0 |
+| `props`, `items`, `projectiles` | Per entry: painting, judge, trim | 7 | 0 | 0 | 0 | 0 |
+| `soundtrack` | Per track: draw, judge, measure | 0 | 0 | 0 | 2 | 0 |
+| `sounds`, `lines` | Per clip: draw, judge, measure; per line: read on the cast voice, judge, measure, or a pinned take republished | 0 | 0 | 0 | 0 | 3 |
+| `fx` | Frame and portraits: painting, judge, placement (portraits), canonicalize, review; the dust atlas: painting, judge, canonicalize | 4 | 3 | 2 | 0 | 0 |
+| `package` | Lay out the runtime package and write the manifest | 0 | 0 | 0 | 0 | 0 |
+| **First takes** | **166 steps** | **39** | **7** | **2** | **2** | **3** |
+
+## Machine-checked plan contract
+
+The embedded contract is the builder's plan of the shipped package: every planned step
+instance (later takes included), what each one reads (`topology_sha256`), the calls at
+first takes, the outputs and the node types. A changed prompt or reference re-keys steps
+without moving the topology; adding a segment, a layer, a motion state, a catalog entry, a
+track or an effect moves it. Regenerate with
 `uv run python godot/tools/write_game_graph_contract.py --write`; the gate is
 `tests/contract/test_generation_pipeline_docs.py`.
 
 <!-- pipeline-graph-contract:start -->
 ```json
 {
-  "kind": "sideview-runner-execution-graph-contract-v1",
+  "kind": "sideview-runner-gnode-plan-contract-v1",
   "fixture_ref": "godot/games/iron_petal_unit/inputs",
-  "graph_schema_version": 2,
-  "topology_sha256": "f634afc9c267d21b68e091c09eebaeafcae85b5b713ac3fa3b2a63b4105f6ff9",
-  "node_count": 109,
-  "terminal_node_id": "manifest-assemble",
-  "operation_counts": {
-    "local": 56,
-    "image_generation": 39,
-    "structured_generation": 7,
-    "tool_loop": 2,
-    "music_generation": 2,
-    "sound_effect_generation": 3,
-    "speech_generation": 0
+  "builder": "pipeline/workflow.py:build",
+  "workflow_id": "iron-petal-unit",
+  "topology_sha256": "93485a6eb87320eebadc59af8aaacede7601f17fdb832d4026cdeab1c86b1605",
+  "node_count": 616,
+  "step_count": 166,
+  "first_take_operation_counts": {
+    "agent.turn": 2,
+    "image.edit": 39,
+    "local": 113,
+    "music.generate": 2,
+    "sound.generate": 3,
+    "structured.generate": 7
   },
-  "resources": [
-    {
-      "resource_id": "local",
-      "max_in_flight": 32,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "openrouter-structured",
-      "max_in_flight": null,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "openrouter-tool-loop",
-      "max_in_flight": null,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "openrouter-music",
-      "max_in_flight": null,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "elevenlabs-sound-effect",
-      "max_in_flight": null,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "elevenlabs-speech",
-      "max_in_flight": null,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "openai-image",
-      "max_in_flight": null,
-      "requests_per_minute": 150,
-      "rate_limit_owner": "provider_adapter"
-    }
+  "outputs": [
+    "package"
+  ],
+  "type_ids": [
+    "./pipeline/nodes/actors.py#admit_concept",
+    "./pipeline/nodes/actors.py#admit_motion",
+    "./pipeline/nodes/actors.py#repack_motion",
+    "./pipeline/nodes/audio.py#admit_clip",
+    "./pipeline/nodes/audio.py#record_clip",
+    "./pipeline/nodes/audio.py#record_line",
+    "./pipeline/nodes/audio.py#republish_take",
+    "./pipeline/nodes/catalog.py#admit_catalog",
+    "./pipeline/nodes/catalog.py#publish_catalog",
+    "./pipeline/nodes/effects.py#admit_dust",
+    "./pipeline/nodes/effects.py#admit_plate",
+    "./pipeline/nodes/effects.py#canonicalize_dust",
+    "./pipeline/nodes/effects.py#canonicalize_plate",
+    "./pipeline/nodes/effects.py#place_portrait",
+    "./pipeline/nodes/effects.py#review_schema",
+    "./pipeline/nodes/ground.py#admit_structural",
+    "./pipeline/nodes/ground.py#canonicalize_structural",
+    "./pipeline/nodes/ground.py#seam_bridge",
+    "./pipeline/nodes/ground.py#structural_guide",
+    "./pipeline/nodes/layers.py#admit_layer",
+    "./pipeline/nodes/layers.py#publish_layer",
+    "./pipeline/nodes/layers.py#repaint_loop_layer",
+    "./pipeline/nodes/package.py#assemble_package",
+    "./pipeline/nodes/rebase.py#rebase_admit",
+    "./pipeline/nodes/rebase.py#rebase_plate",
+    "./pipeline/nodes/rebase.py#rebase_record",
+    "./pipeline/nodes/rebase.py#rebase_schema",
+    "./pipeline/nodes/rebase.py#rebase_verify_admit",
+    "./pipeline/nodes/rebase.py#rebase_verify_plate",
+    "./pipeline/nodes/rebase.py#rebase_verify_record",
+    "./pipeline/nodes/soundtrack.py#admit_track",
+    "./pipeline/nodes/soundtrack.py#record_track",
+    "gnode/image.edit@1",
+    "gnode/music.generate@1",
+    "gnode/sound.generate@1",
+    "gnode/structured.generate@1"
   ]
 }
 ```
 <!-- pipeline-graph-contract:end -->
-
-For the exact Iron Petal Unit fixture, the normal graph contains 53 first-pass
-provider operations. Provider transport retries and later semantic
-regenerations are reported by their owning node and are not extra graph nodes.
-Two of those operations are *tool loops*: a bounded episode in which the
-placement agent renders, looks, and adjusts before it submits — many model
-turns, one operation, one attempt ledger.
-Every provider node also publishes one attempt-ledger artifact that binds the exact graph-visible
-prompt, records unsuccessful operations neutrally as `not_selected` when the failure stage is not
-known, and distinguishes provider, fallback, local, or absent output selection. A selected provider
-artifact carries its digest. A cache hit restores that original generation ledger byte-for-byte;
-current hit/miss telemetry stays in the execution trace so it cannot perturb downstream cache
-lineage.
-
-| Domain | Concrete expansion | Image | Structured | Tool loop | Music | Sound + speech | Local |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| World | 12 segments × (guide + structural paint + canonicalize) - the twelfth is the encounter's arena - one shared generated-apron seam bridge, plus 3 layers × (generate + loop + validate) | 18 | 0 | 0 | 0 | 0 | 28 |
-| Avatar | One combined rider-machine concept, 5 motion strips and validations, two whole-silhouette motion-rebase judgements | 6 | 2 | 0 | 0 | 0 | 5 |
-| Boss | One identity concept, 3 motion strips and validations, two whole-silhouette motion-rebase judgements; absent entirely for a member with no encounter | 4 | 2 | 0 | 0 | 0 | 3 |
-| Catalog | 4 obstacles, 1 collectible, and 2 projectiles, each generated and locally validated | 7 | 0 | 0 | 0 | 0 | 7 |
-| Soundtrack | 2 loop-ready tracks and technical validation | 0 | 0 | 0 | 2 | 0 | 2 |
-| Sound effects | One generate-and-admit pair per `generated_clip_v1` effect; Iron Petal realizes its collect, hurt, and death cues this way | 0 | 0 | 0 | 0 | 3 | 3 |
-| Spoken lines | One speak-and-admit pair per `spoken_line_v1` effect, on the voice the catalog casts - or, for a pinned take, one republish-and-admit pair and no provider call; Iron Petal announces its stage start with a pinned take | 0 | 0 | 0 | 0 | 0 | 2 |
-| Screen FX | One cut-in frame plate and one portrait plate per bound moment (`stage_start` from authored references, `encounter_start` from the boss's own concept plate), each generated, admitted (mask polygon traced), and reviewed; each portrait placed inside the frame by one tool-loop episode before admission | 3 | 3 | 2 | 0 | 0 | 3 |
-| World-space FX | One ground-dust atlas, generated and admitted into four measured cells; absent entirely for a package that authors no `sprite.dust` | 1 | 0 | 0 | 0 | 0 | 1 |
-| Package | Captured-package barrier and terminal runtime assembly | 0 | 0 | 0 | 0 | 0 | 2 |
-| **Total** | **109 nodes** | **39** | **7** | **2** | **2** | **3** | **56** |
 
 ## Resolution and admission
 
@@ -805,6 +810,5 @@ alongside siblings, registers its files into the same exact closure
 - terrain: hazards never hang or stand over pits, pickups occupy empty cells,
   and rises stay within the jump profile (`invalid_runner_track`).
 
-Address the member from the CLI with `--genre runner` on `demo-games package
-plan` and `demo-games generate`; `--genre` defaults only when a package
-declares a single member.
+`demo-games package validate` and `demo-games package digest` admit and digest the
+package; building it is gnode's (above).

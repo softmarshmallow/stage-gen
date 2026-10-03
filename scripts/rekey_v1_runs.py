@@ -9,6 +9,11 @@ nothing asked for. Exits 1 when anything was refused or left unpaired. Deleted i
     uv run python scripts/rekey_v1_runs.py looping-parallax \\
         --from out/looping-parallax-sunpetal-v1 \\
         --inputs out/looping-parallax-inputs/sunpetal/inputs.yaml
+
+A Python builder is planned from its project, with its arguments:
+
+    cd godot/games/iron_petal_unit && uv run python ../../../scripts/rekey_v1_runs.py \\
+        pipeline/workflow.py:build --arg package=inputs --from ../../../out/iron-petal-c1-parity
 """
 
 from __future__ import annotations
@@ -27,19 +32,21 @@ from stage_gen.orchestration.rekey import rekey
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("workflow", help="the ported workflow's id")
+    parser.add_argument("workflow", help="the ported workflow's id, or a builder file.py:name")
     parser.add_argument("--from", dest="runs", type=Path, action="append", required=True)
-    parser.add_argument("--inputs", type=Path, action="append", required=True)
+    parser.add_argument("--inputs", type=Path, action="append", default=[])
+    parser.add_argument("--arg", action="append", default=[], help="a builder's NAME=VALUE")
     parser.add_argument("--run", type=Path, help="the run folder (default: a new one)")
     args = parser.parse_args(argv)
 
-    plan = asyncio.run(plan_async(args.workflow, input_files=args.inputs))
+    arguments = dict(pair.split("=", 1) for pair in args.arg)
+    plan = asyncio.run(plan_async(args.workflow, input_files=args.inputs, arguments=arguments))
     if not plan.ok:
         for problem in plan.problems:
             print(f"refused   {problem.where}: {problem.message}")
         return 1
     stamp = "rekey"
-    run_dir = args.run or plan.planner.project.runs_dir / args.workflow / stamp
+    run_dir = args.run or plan.planner.project.runs_dir / plan.planner.workflow.id / stamp
     outcome, report = asyncio.run(rekey(plan, args.runs, run_dir=run_dir))
     for answer in report.answers:
         where = f"{answer.capability} on {answer.route}, take {answer.take}"

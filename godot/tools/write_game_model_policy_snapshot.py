@@ -3,7 +3,9 @@
 
 The fixture census is demo-owned and packaged with ``demo-game-collection``.  It records
 the checked-in image route catalog and policy table together with compact plans
-for every canonical recipe fixture.  Checking and writing only parse local
+for every canonical recipe fixture still built by an executor. A game built with gnode
+(Iron Petal Unit) declares its routes in its ``gnode.yaml`` and pins its plan through
+``godot/tools/write_game_graph_contract.py`` instead.  Checking and writing only parse local
 files and build offline graphs; neither path loads credentials or constructs a
 provider adapter.
 
@@ -27,7 +29,6 @@ from bellweather_pipeline.package_executor import PreparedPackageExecutor
 from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
 from ember_hollow_pipeline.survival_types import SCOPES as SURVIVAL_SCOPES
 from gnode import Graph, atomic_write_text
-from iron_petal_unit_pipeline.runner_executor import SideviewRunnerExecutor
 from stage_gen.canonical import canonical_json_bytes
 from stage_gen.config import StageGenConfig
 from stage_gen.image_product import ImageProvider
@@ -48,17 +49,14 @@ SNAPSHOT_PATH = (
 )
 
 PLATFORMER_FIXTURE = "godot/games/bellweather/inputs/default"
-RUNNER_FIXTURE = "godot/games/iron_petal_unit/inputs"
 DIALOGUE_FIXTURE = "godot/games/the_grain/inputs"
 POINTCLICK_FIXTURE = "godot/games/the_grain/inputs/rooms/window"
 SURVIVAL_FIXTURE = "godot/games/ember_hollow/inputs"
 
 PLATFORMER_DOCUMENT = "godot/games/bellweather/docs/generation-pipeline.md"
-RUNNER_DOCUMENT = "godot/games/iron_petal_unit/docs/runner.md"
 SURVIVAL_DOCUMENT = "godot/games/ember_hollow/docs/generation-v1.md"
 
 PLATFORMER_CACHE_GOLDEN = "tests/unit/games/sideview_platformer/bellweather.cache-keys.json"
-RUNNER_CACHE_GOLDEN = "tests/unit/games/sideview_runner/iron-petal-unit.cache-keys.json"
 SURVIVAL_CACHE_GOLDEN = "tests/contract/fixtures/oblique_survival/ember-hollow.cache-keys.json"
 
 
@@ -144,7 +142,6 @@ def _planned_graphs() -> tuple[dict[str, Graph], dict[str, dict[str, str]]]:
 
     config = StageGenConfig()
     platformer = PreparedPackageExecutor(config).plan(REPOSITORY_ROOT / PLATFORMER_FIXTURE).graph
-    runner = SideviewRunnerExecutor(config).plan(REPOSITORY_ROOT / RUNNER_FIXTURE).graph
     dialogue = DialogueSceneExecutor(config).plan(REPOSITORY_ROOT / DIALOGUE_FIXTURE).graph
     pointclick = PointClickRoomExecutor(config).plan(REPOSITORY_ROOT / POINTCLICK_FIXTURE).graph
 
@@ -159,7 +156,6 @@ def _planned_graphs() -> tuple[dict[str, Graph], dict[str, dict[str, str]]]:
         "oblique_survival": survival_graphs["full"],
         "pointclick_room": pointclick,
         "sideview_platformer": platformer,
-        "sideview_runner": runner,
     }
     survival_cache_keys = {
         scope: {node.node_id: node.cache_key for node in graph.nodes}
@@ -173,7 +169,6 @@ def _generated_file_checks(
     survival_cache_keys: dict[str, dict[str, str]],
 ) -> tuple[GeneratedModelPolicyFileSnapshotV1, ...]:
     platformer = graphs["sideview_platformer"]
-    runner = graphs["sideview_runner"]
     survival = graphs["oblique_survival"]
 
     # The product workflows' own contract blocks are checked by
@@ -187,16 +182,6 @@ def _generated_file_checks(
                 platformer,
                 kind="prepared-game-execution-graph-contract-v1",
                 fixture_ref=PLATFORMER_FIXTURE,
-            ),
-        ),
-        (
-            "runner_graph_contract",
-            RUNNER_DOCUMENT,
-            None,
-            _graph_contract(
-                runner,
-                kind="sideview-runner-execution-graph-contract-v1",
-                fixture_ref=RUNNER_FIXTURE,
             ),
         ),
         (
@@ -226,11 +211,6 @@ def _generated_file_checks(
             PLATFORMER_CACHE_GOLDEN,
             {node.node_id: node.cache_key for node in platformer.nodes},
         ),
-        (
-            "runner_cache_keys",
-            RUNNER_CACHE_GOLDEN,
-            {node.node_id: node.cache_key for node in runner.nodes},
-        ),
         ("oblique_survival_cache_keys", SURVIVAL_CACHE_GOLDEN, survival_cache_keys),
     ):
         checks.append(
@@ -258,7 +238,6 @@ def build_snapshot() -> ModelPolicySnapshotV1:
                 "oblique_survival": SURVIVAL_FIXTURE,
                 "pointclick_room": POINTCLICK_FIXTURE,
                 "sideview_platformer": PLATFORMER_FIXTURE,
-                "sideview_runner": RUNNER_FIXTURE,
             }[recipe_id],
             graph,
         )

@@ -5,17 +5,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
+from ember_hollow_pipeline.survival_graph import OBLIQUE_SURVIVAL_CACHE_NAMESPACE as NAMESPACE
 from gnode import Graph
-from iron_petal_unit_pipeline.runner_executor import SideviewRunnerExecutor
-from iron_petal_unit_pipeline.runner_graph import RUNNER_CACHE_NAMESPACE
 from stage_gen.config import StageGenConfig
 from stage_gen.pipeline.cache_report import cache_report
 
-IRON_PETAL = Path(__file__).parents[3] / "godot/games/iron_petal_unit/inputs"
+EMBER_HOLLOW = Path(__file__).parents[3] / "godot/games/ember_hollow/inputs"
 
 
 def _graph() -> Graph:
-    return SideviewRunnerExecutor(StageGenConfig()).plan(IRON_PETAL).graph
+    return ObliqueSurvivalExecutor(StageGenConfig()).plan(EMBER_HOLLOW, "full").graph
 
 
 def _seed(cache_dir: Path, graph: Graph, *, skip: frozenset[str] = frozenset()) -> None:
@@ -25,7 +25,7 @@ def _seed(cache_dir: Path, graph: Graph, *, skip: frozenset[str] = frozenset()) 
         if node.node_id in skip:
             continue
         barriers = set(node.barrier_only)
-        root = cache_dir / RUNNER_CACHE_NAMESPACE / node.cache_key[:2] / node.cache_key
+        root = cache_dir / NAMESPACE / node.cache_key[:2] / node.cache_key
         root.mkdir(parents=True)
         (root / "record.json").write_text(
             json.dumps(
@@ -64,7 +64,7 @@ def test_an_empty_cache_bills_every_provider_operation(tmp_path: Path) -> None:
     graph = _graph()
     provider_count = sum(1 for node in graph.nodes if node.provider is not None)
 
-    report = cache_report(graph, tmp_path, (RUNNER_CACHE_NAMESPACE,))
+    report = cache_report(graph, tmp_path, (NAMESPACE,))
 
     assert report["billed_provider_nodes"] == provider_count
     assert report["restored_provider_nodes"] == 0
@@ -76,7 +76,7 @@ def test_a_complete_cache_bills_nothing(tmp_path: Path) -> None:
     graph = _graph()
     _seed(tmp_path, graph)
 
-    report = cache_report(graph, tmp_path, (RUNNER_CACHE_NAMESPACE,))
+    report = cache_report(graph, tmp_path, (NAMESPACE,))
 
     assert report["billed_provider_nodes"] == 0
     assert report["estimated_cost_high_usd"] == 0
@@ -90,7 +90,7 @@ def test_one_missing_provider_record_dirties_its_provider_descendants(tmp_path: 
     missing = next(node for node in graph.nodes if node.provider is not None)
     _seed(tmp_path, graph, skip=frozenset({missing.node_id}))
 
-    report = cache_report(graph, tmp_path, (RUNNER_CACHE_NAMESPACE,))
+    report = cache_report(graph, tmp_path, (NAMESPACE,))
 
     assert {entry["node_id"] for entry in report["billed"]} == _provider_descendants(
         graph, missing.node_id
@@ -100,12 +100,16 @@ def test_one_missing_provider_record_dirties_its_provider_descendants(tmp_path: 
 def test_a_stale_lineage_is_a_miss_even_with_a_matching_key(tmp_path: Path) -> None:
     graph = _graph()
     _seed(tmp_path, graph)
-    victim = next(node for node in graph.nodes if node.provider is not None and node.depends_on)
-    root = tmp_path / RUNNER_CACHE_NAMESPACE / victim.cache_key[:2] / victim.cache_key
+    victim = next(
+        node
+        for node in graph.nodes
+        if node.provider is not None and set(node.depends_on) - set(node.barrier_only)
+    )
+    root = tmp_path / NAMESPACE / victim.cache_key[:2] / victim.cache_key
     record = json.loads((root / "record.json").read_text(encoding="utf-8"))
     record["lineage"] = []
     (root / "record.json").write_text(json.dumps(record), encoding="utf-8")
 
-    report = cache_report(graph, tmp_path, (RUNNER_CACHE_NAMESPACE,))
+    report = cache_report(graph, tmp_path, (NAMESPACE,))
 
     assert victim.node_id in {entry["node_id"] for entry in report["billed"]}

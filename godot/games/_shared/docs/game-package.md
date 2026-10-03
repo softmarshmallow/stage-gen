@@ -19,11 +19,12 @@ this reader's genre, staging, camera or host taxonomy.
 > is still authored-input truth only; it does not prove that a live run completed,
 > passed semantic review, is playable, or is approved for publication.
 
-Each game selects its own package root through `pipeline/prepare.py` or an
-explicit collection CLI `--input` argument. No repository-level `main.toml`
-selects a game. The current prepared input owners are
+Each game selects its own package root through `pipeline/prepare.py`, its gnode
+builder's `--arg package=`, or an explicit collection CLI `--input` argument. No
+repository-level `main.toml` selects a game. The current prepared input owners are
 `godot/games/bellweather/inputs/default`, its sibling `inputs/waves` variant, and
-`godot/games/iron_petal_unit/inputs`. Each has a game-local `pipeline/prepare.py`.
+`godot/games/iron_petal_unit/inputs`. Bellweather has a game-local `pipeline/prepare.py`;
+Iron Petal Unit builds through gnode (`pipeline/workflow.py:build`).
 Existing package members and relative references remain intact:
 
 ```text
@@ -81,7 +82,8 @@ A prepared-package command accepts a directory or ZIP whose root contains `game.
 generation commands, `--dry-run` uses deterministic fake operations. A live package
 run without `--dry-run` fails before provider work when its input closure is invalid.
 These are the `demo-games` package-command rules; the game-local `prepare.py`
-scripts separately default to planning and require `--live` for provider work.
+scripts separately default to planning and require `--live` for provider work, as
+`gnode run` does for a game built with gnode.
 
 A package may be supplied directly as a directory:
 

@@ -13,7 +13,7 @@ and governs future changes to shared support, packages and game frameworks.
 | [Afterlight](afterlight/README.md) | Authored ensemble adventure and presentation Lab | Game-owned catalogs, story, bindings and tools |
 | [Command Link](command_link/README.md) | Tactical story, video opening and presentation Lab | Game-owned catalogs, story, bindings and tools |
 | [Bellweather](bellweather/README.md) | Side-view platformer | `inputs/default/`, `inputs/waves/`; `pipeline/prepare.py` |
-| [Iron Petal Unit](iron_petal_unit/README.md) | Side-view runner | `inputs/`; `pipeline/prepare.py` |
+| [Iron Petal Unit](iron_petal_unit/README.md) | Side-view runner | `inputs/`; gnode `pipeline/workflow.py:build` |
 | [Ember Hollow](ember_hollow/README.md) | Ground-plane survival | `inputs/`; `pipeline/prepare.py` |
 | [The Grain](the_grain/README.md) | Investigation combining rooms and dialogue | `inputs/`; `pipeline/prepare.py` |
 

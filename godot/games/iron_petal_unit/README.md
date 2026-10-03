@@ -15,8 +15,9 @@ Space, Up or W jumps; Down or S ducks.
 
 The run directory is explicit. Starting the game never generates assets. The
 example path above uses existing local output; a fresh clone has no `out/` media.
-Authored inputs live in `inputs/` and asset preparation starts with
-`pipeline/prepare.py --help`. Existing TOML is this game's configuration.
+Authored inputs live in `inputs/`; this folder is also the gnode project that builds
+them (`gnode plan pipeline/workflow.py:build --arg package=inputs`, see
+[the pipeline README](pipeline/README.md)). Existing TOML is this game's configuration.
 
 ## Source ownership
 

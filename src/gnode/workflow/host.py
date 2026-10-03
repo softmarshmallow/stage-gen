@@ -19,7 +19,7 @@ import tempfile
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from gnode.workflow import expr
 from gnode.workflow.expand import Instance, Result
@@ -486,7 +486,7 @@ class Ctx:
         self,
         *,
         system: str,
-        tools: Sequence[Callable[..., Any]] = (),
+        tools: Sequence[Callable[..., Any] | DeclaredTool] = (),
         recent_images: int | None = None,
         max_tokens: int | None = None,
     ) -> Agent:
@@ -579,7 +579,7 @@ class Agent:
         ctx: Ctx,
         *,
         system: str,
-        tools: Sequence[Callable[..., Any]],
+        tools: Sequence[Callable[..., Any] | DeclaredTool],
         recent_images: int | None = None,
         max_tokens: int | None = None,
     ) -> None:
@@ -729,6 +729,22 @@ class Agent:
                 )
             sent.append(copy)
         return list(reversed(sent))
+
+
+class DeclaredTool(Protocol):
+    """A tool declared by its schema rather than by ``@tool``: ring 1's ``Tool`` is one."""
+
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def description(self) -> str: ...
+
+    @property
+    def parameters(self) -> Mapping[str, Any]: ...
+
+    @property
+    def handler(self) -> Callable[..., Any]: ...
 
 
 def _is_declared(tool: Any) -> bool:

@@ -1,6 +1,8 @@
-# Iron Petal Unit asset preparation
+# Iron Petal Unit asset build
 
-The runner owns its track, gameplay, avatar/boss content, effects, audio triggers and runner generation graph. The prepared source in `inputs/` retains its original game ID and file formats.
+The runner owns its track, gameplay, avatar/boss content, effects, audio triggers and the
+way its assets are built. The prepared source in `inputs/` keeps its original game ID and
+file formats.
 
 Install the optional game tools from the repository root:
 
@@ -8,33 +10,34 @@ Install the optional game tools from the repository root:
 uv sync --group games
 ```
 
-The discoverable script selects this game's own inputs. Its default is offline:
+The game's folder is a gnode project. `gnode.yaml` names the routes, `gnode.lock` pins the
+node types in `pipeline/nodes/`, and `pipeline/workflow.py:build` reads the package with the
+game's own reader and writes one group of steps per asset. From the game's folder:
 
 ```sh
-uv run --group games python godot/games/iron_petal_unit/pipeline/prepare.py
+cd godot/games/iron_petal_unit
+gnode plan pipeline/workflow.py:build --arg package=inputs
+gnode run pipeline/workflow.py:build --arg package=inputs --live --max-usd 80 \
+  --deliver package=../../../out/iron-petal/{key}
 ```
 
-Exercise scheduling and artifact contracts with deterministic fake operations:
+Planning is offline and spends nothing; `--live` is the explicit provider opt-in, and
+launching the Godot project never generates assets. Runs land in `out/runs/iron-petal-unit/`
+and the call cache in `out/gnode-cache/`, so a second run pays only for what changed.
+`--deliver` copies the runtime package (every published file and `manifest.json`) out of
+a successful run. Another package works the same way as long as it sits inside this
+folder: its references are project files, read by content.
 
-```sh
-uv run --group games python godot/games/iron_petal_unit/pipeline/prepare.py --dry-run --output out/iron_petal_unit-smoke
-```
+The installable Python source lives under `src/`. It depends on the public asset product
+and the private shared game tools (the step families in `demo_game_tools.steps`). It does
+not import another named game or the collection's developer CLI.
 
-To generate through configured providers, use `--live --output out/iron-petal-assets`.
-The `--live` flag is the explicit provider opt-in; launching the Godot project never
-generates assets.
+- `admission.py` holds what a painting must be to be admitted, and how a catalog sprite is
+  trimmed; the judges and the publishing steps call the same functions.
+- `manifest.py` owns the runtime projection of gameplay, audio, ground, calibration and
+  the published validation records.
+- `runner_prompts.py` compiles the art direction and every prompt the builder sends.
 
-`--input` explicitly overrides the game-local source. Output directories are
-explicit and must be new. Existing TOML values, node identities, cache namespaces
-and validated asset bytes retain their meaning. Gameplay consumes the resulting
-assets through this game's Godot scripts.
-
-The installable Python source lives under `src/`. It depends on the public asset
-product and the private shared game input/media tools. It does not import another
-named game or the collection's developer CLI.
-
-`manifest.py` owns the runtime projection of gameplay, audio, ground, calibration
-and prepared validation records. `prepared_runner.py` owns node execution,
-reference republishing and the final atomic manifest write. Existing helper
-imports remain compatible. See the [Python dependency review](../../../docs/python-dependencies.md)
-for the remaining private Stage Gen calls and their ownership decisions.
+See the [runner doc](../docs/runner.md) for the steps and the checked plan contract, and the
+[Python dependency review](../../../docs/python-dependencies.md) for the remaining private
+Stage Gen calls.

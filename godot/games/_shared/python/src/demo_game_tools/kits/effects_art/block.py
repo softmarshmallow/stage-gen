@@ -5,18 +5,16 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
-from demo_game_tools.kits.effects_art.cut_in_nodes import (
+from demo_game_tools.kits.effects_art.directions import (
     cut_in_artifact_refs,
     plate_id_for,
+    sprite_dust_artifact_refs,
 )
 from demo_game_tools.kits.effects_art.models import (
     EffectArtwork,
 )
 from demo_game_tools.kits.effects_art.sprite import (
     DUST_CELL_KINDS,
-)
-from demo_game_tools.kits.effects_art.sprite_nodes import (
-    sprite_dust_artifact_refs,
 )
 
 # ---------------------------------------------------------------- manifest

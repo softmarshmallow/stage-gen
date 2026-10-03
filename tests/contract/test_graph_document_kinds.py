@@ -27,11 +27,6 @@ from ember_hollow_pipeline.survival_graph import (
     ObliqueSurvivalGraph,
 )
 from gnode import Graph
-from iron_petal_unit_pipeline.runner_executor import SideviewRunnerExecutor
-from iron_petal_unit_pipeline.runner_graph import (
-    RUNNER_GRAPH_SCHEMA_VERSION,
-    SideviewRunnerGraph,
-)
 from stage_gen.orchestration.graph_executor import GraphExecutor
 from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_handler import CachedNodeHandler
@@ -54,7 +49,6 @@ WORKFLOW_ROOTS = (SOURCE_ROOT / "workflows",)
 #: schema-version constant its module still exports beside the pinned literal.
 GRAPHS: tuple[tuple[type[GraphDocument], str, int], ...] = (
     (ExecutionGraph, "sideview-platformer", EXECUTION_GRAPH_SCHEMA_VERSION),
-    (SideviewRunnerGraph, "sideview-runner", RUNNER_GRAPH_SCHEMA_VERSION),
     (PointClickRoomGraph, "pointclick-room", POINTCLICK_GRAPH_SCHEMA_VERSION),
     (DialogueSceneGraph, "dialogue-scene", DIALOGUE_GRAPH_SCHEMA_VERSION),
     (ObliqueSurvivalGraph, "oblique-survival", OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION),
@@ -62,7 +56,6 @@ GRAPHS: tuple[tuple[type[GraphDocument], str, int], ...] = (
 
 EXECUTORS = (
     PreparedPackageExecutor,
-    SideviewRunnerExecutor,
     PointClickRoomExecutor,
     DialogueSceneExecutor,
     ObliqueSurvivalExecutor,

@@ -185,11 +185,10 @@ def test_package_cli_validates_digests_and_selects_the_only_runner(tmp_path: Pat
     assert main(["package", "digest", "--input", str(package)], stdout=digest_output) == 0
     assert digest_output.getvalue() == f"{report['closure_sha256']}\n"
 
-    plan_output = StringIO()
-    assert main(["package", "plan", "--input", str(package)], stdout=plan_output) == 0
-    plan = json.loads(plan_output.getvalue())
-    assert plan["genre"] == "runner"
-    assert plan["graph"]["nodes"][0]["node_id"] == "package-resolve"
+    # The runner is built with gnode from its own project, and the collection says so.
+    plan_errors = StringIO()
+    assert main(["package", "plan", "--input", str(package)], stderr=plan_errors) == 2
+    assert "gnode plan pipeline/workflow.py:build" in plan_errors.getvalue()
 
 
 def test_combined_avatar_requires_a_package_level_visible_rider_head_override(

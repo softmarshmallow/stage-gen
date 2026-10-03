@@ -224,10 +224,11 @@ godot/
 │   │   ├── tools/                    # Map and terrain authoring, captures and parity
 │   │   ├── tests/                    # Native game regression checks
 │   │   └── docs/                     # Map formats and asset build graph
-│   ├── iron_petal_unit/
+│   ├── iron_petal_unit/              # Also a gnode project: gnode.yaml, gnode.lock
 │   │   ├── inputs/                   # Runner authored closure
 │   │   ├── gameplay/                 # Runner rules and exclusive support
 │   │   ├── scenes/                   # Runner presentation
+│   │   ├── pipeline/workflow.py      # The gnode builder over pipeline/nodes/
 │   │   ├── pipeline/src/iron_petal_unit_pipeline/
 │   │   ├── tools/
 │   │   ├── tests/
@@ -282,9 +283,10 @@ godot/
                                         # Collection CLI and cross-game fixture census
 ```
 
-Each of the four run-consuming games has `project.godot`, its own `main.tscn`,
-`pipeline/prepare.py` and a separately packaged Python builder. The tree expands
-Bellweather's preparation entry point once to avoid repeating identical mechanics.
+Each of the four run-consuming games has `project.godot`, its own `main.tscn` and a
+separately packaged Python builder. Iron Petal Unit builds through gnode from its own
+folder (`gnode plan pipeline/workflow.py:build --arg package=inputs`); the others keep a
+`pipeline/prepare.py` entry point, expanded once for Bellweather above.
 Afterlight and Command Link keep their working project organization and game-local
 Labs; this is not a mandatory directory schema for a new game.
 

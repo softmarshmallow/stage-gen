@@ -5,25 +5,23 @@ from __future__ import annotations
 import json
 from io import BytesIO
 from pathlib import Path
-from typing import Never
 
 from PIL import Image, ImageDraw
 
-from demo_game_collection.executors import SideviewRunnerExecutor
+from demo_game_collection.game_package import resolve_prepared_package
 from iron_petal_unit_pipeline.content import declared_motion_states
 from iron_petal_unit_pipeline.manifest import build_manifest
+from iron_petal_unit_pipeline.runner_request import ResolvedRunnerPackage
+from iron_petal_unit_pipeline.validation import ResolvedRunnerMember
 from stage_gen.canonical import canonical_sha256
-from stage_gen.config import StageGenConfig
 from tests.unit._runner_fixture import two_genre_package
 
 
-def _unexpected_material_identity() -> Never:
-    raise AssertionError("atlas ground must not request a structural material identity")
-
-
 def test_complete_manifest_projection_preserves_the_pre_extraction_document(tmp_path: Path) -> None:
-    plan = SideviewRunnerExecutor(StageGenConfig()).plan(two_genre_package(tmp_path / "input"))
-    runner = plan.resolved.runner
+    package = resolve_prepared_package(two_genre_package(tmp_path / "input"))
+    runner = package.member("runner", ResolvedRunnerMember)
+    assert runner is not None
+    resolved = ResolvedRunnerPackage(package=package, runner=runner)
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     image = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
@@ -66,12 +64,7 @@ def test_complete_manifest_projection_preserves_the_pre_extraction_document(tmp_
         if path.is_file()
     }
 
-    manifest = build_manifest(
-        plan.resolved,
-        run_dir=run_dir,
-        read_artifact=lambda ref: (run_dir / ref).read_bytes(),
-        structural_material_identity=_unexpected_material_identity,
-    )
+    manifest = build_manifest(resolved, run_dir=run_dir)
 
     # Recorded from the previous handler using these exact admitted assets. This
     # pins the entire runtime document, including nulls, block versions and calibration.

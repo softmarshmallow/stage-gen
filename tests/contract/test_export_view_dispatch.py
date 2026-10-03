@@ -26,7 +26,6 @@ import pytest
 
 from bellweather_pipeline.execution_graph import ExecutionGraph
 from ember_hollow_pipeline.survival_graph import ObliqueSurvivalGraph
-from iron_petal_unit_pipeline.runner_graph import SideviewRunnerGraph
 from the_grain_pipeline.dialogue_scene.scene_graph import DialogueSceneGraph
 from the_grain_pipeline.pointclick_room.room_graph import PointClickRoomGraph
 
@@ -49,7 +48,6 @@ GRAPH_MODELS = cast(
         ObliqueSurvivalGraph,
         PointClickRoomGraph,
         ExecutionGraph,
-        SideviewRunnerGraph,
     ),
 )
 #: Every graph document whose runs the viewer reads.

@@ -48,13 +48,6 @@ def _build_run_view_for(run_dir: Path) -> RunView:
             annotators={"sideview-platformer": annotate_sideview_platformer_artifact},
         )
     if (
-        declared == "sideview-runner-execution-graph-v2"
-        or declared == "sideview-runner-execution-graph-v1"
-    ):
-        from iron_petal_unit_pipeline.runner_view import build_sideview_runner_view
-
-        return build_sideview_runner_view(run_dir)
-    if (
         declared == "oblique-survival-execution-graph-v2"
         or declared == "oblique-survival-execution-graph-v1"
     ):

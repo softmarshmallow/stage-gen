@@ -76,13 +76,22 @@ def test_games_gate_exercises_local_defaults_variants_and_explicit_sources() -> 
         if command[0] == "python" and command[1].endswith("/pipeline/prepare.py")
     ]
     plans = [command for command in game_scripts if "--plan" in command]
-    assert len(plans) == 7
+    assert len(plans) == 6
     assert {command[1].split("/")[2] for command in plans} == {
         "bellweather",
-        "iron_petal_unit",
         "ember_hollow",
         "the_grain",
     }
+    # Iron Petal Unit is built with gnode: its lock and its builder's plan are checked.
+    assert ("gnode", "lock", "--check") in commands
+    assert (
+        "gnode",
+        "plan",
+        "pipeline/workflow.py:build",
+        "--arg",
+        "package=inputs",
+        "--check",
+    ) in commands
     assert any(command[-2:] == ("--variant", "waves") for command in plans)
     grain_modes = {command[-1] for command in plans if command[1].split("/")[2] == "the_grain"}
     assert grain_modes == {"case", "room", "dialogue"}
@@ -126,6 +135,16 @@ def test_ci_uses_the_same_typecheck_surface_as_the_aggregate_gate() -> None:
             break
         script_lines.append(line.strip())
     assert tuple(shlex.split(" ".join(script_lines))) == ("uv", "run", "--all-groups", *typecheck)
+    games = [command for command in commands if command[0] == "mypy"][1:]
+    body = workflow.split("      - name: Typecheck gnode game projects\n", 1)[1]
+    game_lines = []
+    for line in body.splitlines()[1:]:
+        if not line.startswith("          "):
+            break
+        game_lines.append(line.strip())
+    assert [tuple(shlex.split(" ".join(game_lines)))] == [
+        ("uv", "run", "--all-groups", *command) for command in games
+    ]
 
 
 def test_the_gate_reports_every_step_rather_than_stopping_at_the_first() -> None:

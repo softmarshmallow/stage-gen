@@ -11,10 +11,9 @@ from bellweather_pipeline.package_graph import (
     CONTENT_CACHE_NAMESPACE,
     WORLD_CACHE_NAMESPACE,
 )
-from demo_game_collection.executors import PreparedPackageExecutor, SideviewRunnerExecutor
+from demo_game_collection.executors import RUNNER_BUILD, PreparedPackageExecutor
 from demo_game_collection.game_package import resolve_prepared_package
 from demo_game_tools.application import resolve_genre
-from iron_petal_unit_pipeline.runner_graph import RUNNER_CACHE_NAMESPACE
 from stage_gen.application import (
     UsageError as CliUsageError,
 )
@@ -31,21 +30,8 @@ def dispatch(args: argparse.Namespace, *, stdout: TextIO) -> int:
     elif args.package_command == "plan":
         declared_genres = [entry.genre for entry in resolved_package.game.genres]
         genre = resolve_genre(declared_genres, getattr(args, "genre", None))
-        # The genre dispatch point: each genre member plans through its own
-        # recipe executor.
         if genre == "runner":
-            runner_plan = SideviewRunnerExecutor(load_config()).plan(Path(args.input_path))
-            plan_report = {
-                "genre": genre,
-                "graph": runner_plan.graph.model_dump(mode="json"),
-                "projection": runner_plan.projection.model_dump(mode="json"),
-            }
-            if args.cache_dir:
-                plan_report["cache"] = cache_report(
-                    runner_plan.graph, Path(args.cache_dir), (RUNNER_CACHE_NAMESPACE,)
-                )
-            stdout.write(f"{json.dumps(plan_report, sort_keys=True, separators=(',', ':'))}\n")
-            return 0
+            raise CliUsageError(RUNNER_BUILD)
         if genre != "platformer":
             raise CliUsageError(f"no recipe is registered for genre {genre!r}")
         plan = PreparedPackageExecutor(load_config()).plan(Path(args.input_path))

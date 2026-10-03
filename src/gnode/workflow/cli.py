@@ -697,7 +697,7 @@ def cmd_lock(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
     lock = project.root / "gnode.lock"
     raw = yaml.safe_load(lock.read_text(encoding="utf-8")) if lock.is_file() else None
     locked: dict[str, str] = dict((raw or {}).get("nodes", {}))
-    nodes = project.root / "nodes"
+    nodes = project.root / project.document.nodes
     status = 0
     for path in sorted(nodes.rglob("*.py")) if nodes.is_dir() else []:
         module = registry.modules.load(path)

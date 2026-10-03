@@ -166,6 +166,23 @@ said TOML; the amendment is posted on issue #3 with the owner's go.
   refused before anything is paid for. The support closure computed from a built wheel in a
   clean environment is byte-identical to the source tree's, and a two-brief cohort plans under
   one target in dry-run mode.
+- **M8a port (Iron Petal Unit).** The runner's executor, node handler, graph document and
+  view (about 3,900 lines), and the effects kit's graph half (about 1,500), gave way to a
+  Python builder over its own TOML package and 38 locked node types in the game's folder,
+  which is a gnode project (about 1,500 lines); the shared families (layers, rebase,
+  soundtrack, effects) became gnode step families in `demo_game_tools.steps`. The plan
+  has 166 steps, 39 image edits, 7 structured calls, 2 agent placements, 2 music and 3 sound
+  calls at first takes. Re-key paired 5 of the parity run's 53 paid results (two tracks, three
+  clips); its images were drawn on `gpt-image-2@openai` and today's route is 2.5, and its
+  rebase readings are stored as evaluated records rather than answers, so those 48 cannot
+  pair. Replayed offline in a scratch cache with every paid call answered from that run by
+  prompt and pictures, the builder delivers a package whose 44 images are byte-identical and
+  whose manifest differs only where code changed after the parity run (the v3 repeat
+  validator now repaints one layer's seam, `cbbdd1b1` changed another's loop). Five engine
+  findings came with it: a judge reading its step by full path read the last take; a failed
+  take, or a failed judge, was drawn again; a list or map input with a missing file still ran;
+  a source package kept inside a project changed its lock digest; and a builder's error was a
+  traceback, not a plan error.
 - **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
   pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
   USD 5.6), about double if a cohort fails.
