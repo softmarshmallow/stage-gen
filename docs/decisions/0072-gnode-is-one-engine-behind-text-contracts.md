@@ -199,6 +199,21 @@ said TOML; the amendment is posted on issue #3 with the owner's go.
   came with it: `gnode lock --same` took one node, so a refactor needed a call per node; and a
   take after an accepted one was still expanded, so a template reading a mark only a
   rejection makes stopped the run. Its four examples stay pinned as records of the v1 build.
+- **M8c port (The Grain).** The room's and the scene's graphs, handlers, executors, type
+  censuses and views (about 3,500 lines) gave way to two builders over the game's own room
+  and scene packages (`room(package)`, `scene(package)`), 21 locked node types and pure
+  brief, gate and finishing modules (about 1,600 lines). The window room plans 99 steps; the
+  scene plans 827, with 47 image edits, 12 structured calls and 4 tracks at first takes, as
+  v1 did; both plans are now checked contracts in the game's docs. The scene bundle moves to
+  v9: provenance sidecars, selected attempts and the attempt ledger leave the bundle for the
+  gnode run, and the Godot host refuses v8 with a notice naming the build. A replay answered
+  every room call and 63 of 63 scene calls by exact request and delivered byte-identical
+  images. Two prompts were corrected after it: a dialogue plan was sent the whole scene
+  request although v1 keyed it on the art request, so under gnode a reworded line re-asked
+  every plan, and it now carries the art request alone; and a base face named an identity
+  plate it was never shown, which it now is. Re-key carried the scene's four tracks; the
+  images were drawn on `gpt-image-2@openai` and the style was compiled on another route, so
+  the rest is refused with its price (at most USD 9.15 for the scene, USD 1.35 a room).
 - **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
   pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
   USD 5.6), about double if a cohort fails.

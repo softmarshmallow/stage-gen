@@ -70,7 +70,7 @@ From the repository root:
 ```sh
 uv run --group games python godot/games/the_grain/tools/compile_narrative.py --check
 uv run --group games python godot/tools/check.py --owner the_grain
-uv run --group games python godot/tools/check.py --owner the_grain --include-rendered --grain-scene-run "$PWD/out/the-grain-scene-a"
+uv run --group games python godot/tools/check.py --owner the_grain --include-rendered --grain-scene-run "$PWD/out/the-grain-scene-gnode"
 ```
 
 The default owner gate includes source and retained native regressions. The

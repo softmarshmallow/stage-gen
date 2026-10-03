@@ -10,10 +10,6 @@ from pathlib import Path
 import pytest
 
 from demo_game_collection.cli import main
-from demo_game_tools.kits.character_profile import (
-    CharacterProfile,
-    canonical_character_profile_json,
-)
 from gnode import ArtifactProvenance
 from the_grain_pipeline.dialogue_scene.identity import content_sha256
 from the_grain_pipeline.dialogue_scene.models import DialogueBundle, IndependentReview
@@ -22,8 +18,9 @@ from the_grain_pipeline.dialogue_scene.review import (
     transition_dialogue_review,
 )
 
-from .package import write_scene_package
-from .test_prepared_scene import run_scene
+from .test_workflow import build_scene, needs_ffprobe
+
+pytestmark = needs_ffprobe
 
 _SHARED_RUN: Path | None = None
 
@@ -39,21 +36,18 @@ def _copy_shared(shared: Path, root: Path) -> None:
 
 
 async def _shared_run(root: Path) -> Path:
-    """One provider-free scene run, executed once per session and copied per test.
+    """One offline scene build, made once per session and copied per test.
 
-    The review validates the character profile's own provenance lineage, so the
-    fixture has to be a run the recipe actually produced rather than hand-written
-    JSON that merely has the right shape. Producing it is the whole recipe -
-    about fifteen seconds - and every test here used to produce its own, which
-    put this one file at more than half the suite's wall time. The run is
-    deterministic under the fakes, so one copy per test is the same evidence.
+    The review checks the bundle's profiles against the bytes it binds, so the fixture
+    has to be a bundle the build actually delivered rather than hand-written JSON that
+    merely has the right shape. The build is deterministic under the stand-ins, so one
+    copy per test is the same evidence.
     """
 
     global _SHARED_RUN
     if _SHARED_RUN is None:
         base = await asyncio.to_thread(_fresh_base)
-        package = write_scene_package(base / "package")
-        await run_scene(package, run_dir=base / "run", cache_dir=base / "cache")
+        await asyncio.to_thread(build_scene, base)
         _SHARED_RUN = base
     await asyncio.to_thread(_copy_shared, _SHARED_RUN, root)
     return root
@@ -186,84 +180,6 @@ async def test_profile_v3_review_rejects_noncanonical_profile_json(
     )
 
     with pytest.raises(ValueError, match="not canonical"):
-        _validate_profile_artifact(bundle_path.parent, changed)
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("field", "value", "message"),
-    [
-        ("profile_id", "other-profile", "params mismatch"),
-        ("revision", 99, "params mismatch"),
-        ("model", "deterministic-dialogue-scene-v4", "producer lineage mismatch"),
-        ("input_sha256", "f" * 64, "source input binding mismatch"),
-        ("rights_basis", ["Tampered rights basis."], "rights mismatch"),
-    ],
-)
-async def test_profile_v3_review_rejects_profile_provenance_lineage_tamper(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    field: str,
-    value: object,
-    message: str,
-) -> None:
-    _source, bundle_path, bundle = await _profile_bundle(tmp_path, monkeypatch)
-    provenance_path = bundle_path.parent / bundle.actors[0].character_profile.provenance_path
-    provenance = json.loads(provenance_path.read_bytes())
-    if field == "model":
-        provenance[field] = value
-    elif field == "input_sha256":
-        provenance["inputs"][0]["sha256"] = value
-    elif field == "rights_basis":
-        provenance["rights"]["basis"] = value
-    else:
-        provenance["params"][field] = value
-    provenance_bytes = json.dumps(provenance, sort_keys=True).encode("utf-8")
-    provenance_path.write_bytes(provenance_bytes)
-    changed = bundle.actors[0].model_copy(
-        update={
-            "character_profile": bundle.actors[0].character_profile.model_copy(
-                update={"provenance_sha256": content_sha256(provenance_bytes)}
-            )
-        }
-    )
-
-    with pytest.raises(ValueError, match=message):
-        _validate_profile_artifact(bundle_path.parent, changed)
-
-
-@pytest.mark.asyncio
-async def test_profile_v3_review_rejects_profile_revision_not_bound_by_provenance(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _source, bundle_path, bundle = await _profile_bundle(tmp_path, monkeypatch)
-    profile_path = bundle_path.parent / bundle.actors[0].character_profile.path
-    profile = CharacterProfile.model_validate_json(profile_path.read_bytes()).model_copy(
-        update={"revision": 2}
-    )
-    profile_bytes = canonical_character_profile_json(profile)
-    profile_sha256 = content_sha256(profile_bytes)
-    profile_path.write_bytes(profile_bytes)
-    provenance_path = bundle_path.parent / bundle.actors[0].character_profile.provenance_path
-    provenance = json.loads(provenance_path.read_bytes())
-    provenance["artifact"]["sha256"] = profile_sha256
-    provenance["artifact"]["bytes"] = len(profile_bytes)
-    provenance["params"]["character_profile_sha256"] = profile_sha256
-    provenance_bytes = json.dumps(provenance, sort_keys=True).encode("utf-8")
-    provenance_path.write_bytes(provenance_bytes)
-    changed = bundle.actors[0].model_copy(
-        update={
-            "character_profile": bundle.actors[0].character_profile.model_copy(
-                update={
-                    "sha256": profile_sha256,
-                    "provenance_sha256": content_sha256(provenance_bytes),
-                }
-            ),
-            "character_profile_sha256": profile_sha256,
-        }
-    )
-
-    with pytest.raises(ValueError, match="params mismatch"):
         _validate_profile_artifact(bundle_path.parent, changed)
 
 

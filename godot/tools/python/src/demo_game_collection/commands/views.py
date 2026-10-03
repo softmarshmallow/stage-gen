@@ -23,20 +23,6 @@ def _build_run_view_for(run_dir: Path) -> RunView:
         raise ValueError(f"run directory has no execution-plan.json: {run_dir.name}")
     declared = json.loads(plan_path.read_text(encoding="utf-8")).get("kind")
     if (
-        declared == "dialogue-scene-execution-graph-v6"
-        or declared == "dialogue-scene-execution-graph-v5"
-    ):
-        from the_grain_pipeline.dialogue_scene.scene_view import build_dialogue_scene_view
-
-        return build_dialogue_scene_view(run_dir)
-    if (
-        declared == "pointclick-room-execution-graph-v2"
-        or declared == "pointclick-room-execution-graph-v1"
-    ):
-        from the_grain_pipeline.pointclick_room.room_view import build_pointclick_room_view
-
-        return build_pointclick_room_view(run_dir)
-    if (
         declared == "oblique-survival-execution-graph-v2"
         or declared == "oblique-survival-execution-graph-v1"
     ):

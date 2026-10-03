@@ -8,8 +8,8 @@ extends SceneTree
 ##
 ## What a case draws that its leaves do not: the bar naming where you are, the
 ## Continue a finished beat offers, the backlog, and the card that closes it. The
-## steps below are written against `out/the-grain-episode-one`, whose eight beats
-## are six scenarios of `the-grain-scene-a` and two rooms.
+## steps below are written against `out/the-grain-episode-one-gnode`, whose eight beats
+## are six scenarios of `the-grain-scene-gnode` and two rooms.
 ##
 ## A case walks forward and never back, so each shot opens on its own beat rather
 ## than playing to it — the same reason the platformer's shot opens on a named

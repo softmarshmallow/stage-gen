@@ -44,6 +44,11 @@ RUNNER_GAME = "godot/games/iron_petal_unit"
 RUNNER_FIXTURE_REF = f"{RUNNER_GAME}/inputs"
 RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / RUNNER_GAME / "docs/runner.md"
 RUNNER_CONTRACT_KIND = "sideview-runner-gnode-plan-contract-v1"
+GRAIN_GAME = "godot/games/the_grain"
+ROOM_DOCUMENT = REPOSITORY_ROOT / GRAIN_GAME / "docs/pointclick-room.md"
+ROOM_CONTRACT_KIND = "pointclick-room-gnode-plan-contract-v1"
+SCENE_DOCUMENT = REPOSITORY_ROOT / GRAIN_GAME / "docs/dialogue-scene-assets.md"
+SCENE_CONTRACT_KIND = "dialogue-scene-gnode-plan-contract-v1"
 OBLIQUE_SURVIVAL_DOCUMENT = REPOSITORY_ROOT / "godot/games/ember_hollow/docs/generation-v1.md"
 OBLIQUE_SURVIVAL_FIXTURE_REF = "godot/games/ember_hollow/inputs"
 OBLIQUE_SURVIVAL_CONTRACT_KIND = "oblique-survival-execution-graph-contract-v1"
@@ -106,6 +111,30 @@ def build_runner_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
     )
 
 
+def build_room_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
+    """Derive The Grain's room contract from the plan its builder makes of the window room."""
+
+    return _gnode_plan_contract(
+        kind=ROOM_CONTRACT_KIND,
+        game=GRAIN_GAME,
+        package="inputs/rooms/window",
+        builder="pipeline/workflow.py:room",
+        repo=repo,
+    )
+
+
+def build_scene_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
+    """Derive The Grain's scene contract from the plan its builder makes of the scene."""
+
+    return _gnode_plan_contract(
+        kind=SCENE_CONTRACT_KIND,
+        game=GRAIN_GAME,
+        package="inputs",
+        builder="pipeline/workflow.py:scene",
+        repo=repo,
+    )
+
+
 def build_oblique_survival_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
     """Derive the survival world's contract from the graph the code builds.
 
@@ -140,6 +169,8 @@ def main(argv: list[str] | None = None) -> int:
     contracts: tuple[tuple[str, Path, Any, str | None], ...] = (
         ("platformer", PIPELINE_DOCUMENT, build_graph_contract, None),
         ("runner", RUNNER_PIPELINE_DOCUMENT, build_runner_graph_contract, None),
+        ("pointclick-room", ROOM_DOCUMENT, build_room_graph_contract, None),
+        ("dialogue-scene", SCENE_DOCUMENT, build_scene_graph_contract, None),
         (
             "oblique-survival",
             OBLIQUE_SURVIVAL_DOCUMENT,

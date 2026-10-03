@@ -6,11 +6,11 @@ and shared game adapter. [Scenario](../../../packages/scenario_runtime/README.md
 owns narrative compilation/execution under Godot; this document does not define
 new v3 staging, presentation capabilities or the asset product's input schema.
 
-> **Checked by:** none.
+> **Checked by:** `tests/contract/test_generation_pipeline_docs.py`, `tests/unit/games/dialogue_scene/test_workflow.py`.
 
-> **Scope: The Grain preparation.** The Python `dialogue-scene`
-> recipe generates a portable, provider-neutral bundle. The web application is
-> a consumer adapter and never generates assets.
+> **Scope: The Grain preparation.** The gnode build `pipeline/workflow.py:scene`
+> generates a portable, provider-neutral bundle. The Godot host plays it and never
+> generates assets.
 
 One scene packages a cast of adult character identities, one backdrop per
 declared stage, a static sprite for each face a drawable actor's own profile
@@ -26,22 +26,23 @@ budget. The alternative, one scene package per scenario, would also put the
 scenario and script files in the tree once per beat, which is a second source of
 truth for the words.
 
-The graph reads no fixed count anywhere: the bound scenarios declare the cast,
+The builder reads no fixed count anywhere: the bound scenarios declare the cast,
 the stages and the tracks between them, and the fan-out follows the union.
 
 ## Ownership and boundary
 
 | Location                                | Responsibility                                                                                                                                                                        |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `godot/games/the_grain/pipeline/src/the_grain_pipeline/dialogue_scene/` | Adult/non-explicit policy, expression taxonomy, prompts, strict v3 models, stage graph, cache identity, validation, and bundle assembly.                                              |
-| `src/stage_gen/components/`             | Provider-neutral structured generation, image generation, music generation, and background removal with one six-attempt retry owner. the independent Godot `scenario_authoring` distribution owns narrative compilation/admission and `demo_game_tools.scenario` retains the production envelope; the game-owned soundtrack binding owns authored track intent and the one music prompt compiler both recipes use. |
-| `src/stage_gen/media/`                  | Shared deterministic image inspection and transforms.                                                                                                                                 |
-| `src/stage_gen/orchestration/`          | Provider composition and generic recipe dispatch.                                                                                                                                     |
-| `web/`                                  | Strict bundle validation, immutable installation, projection into web runtime objects, activation, status, and rollback. It never imports Python recipe internals or calls providers. |
+| `godot/games/the_grain/pipeline/workflow.py` (`scene`) and `pipeline/nodes/scene.py` | The build: one step per plan, image, track and interface sheet, the judges that hold each one, and the package step that writes the bundle. |
+| `godot/games/the_grain/pipeline/src/the_grain_pipeline/dialogue_scene/` | Adult/non-explicit policy, the package reader, prompts, strict models, the briefs and gates the build calls, and bundle assembly. |
+| `src/gnode/`                            | The engine: provider-neutral structured, image and music steps with one six-attempt retry owner, judged redraws, the cache and the run's records. |
+| `src/stage_gen/media/`                  | Shared deterministic image inspection and transforms. |
+| Scenario and soundtrack owners          | The independent Godot `scenario_authoring` distribution owns narrative compilation and admission, `demo_game_tools.scenario` the production envelope, and the game-owned soundtrack binding authored track intent and the music prompt compiler. |
+| `gameplay/dialogue_scene/` (Godot)      | Strict bundle validation and play. It never imports Python build internals or calls providers. |
 
-`dialogue-scene` is a sibling of `sideview-platformer`, not a mode within it.
-Recipe vocabulary and visual assumptions do not enter generic components; web
-camera, UI, and gameplay assumptions do not enter the producer bundle.
+The scene build is a sibling of the room build and of Bellweather's, not a mode
+within either. Its vocabulary and visual assumptions do not enter generic
+components; host camera, UI, and gameplay assumptions do not enter the bundle.
 
 ## Authored package: `dialogue-scene-v5`
 
@@ -107,8 +108,10 @@ entry says which package members draw one actor the bound scenarios can show:
 the scenario says who exists and what they may wear on their face, and never
 which profile or plate supplies it, because the same scenario is meant to be
 staged by more than one consumer. The profile's age is `18..120`.
-`transparency_mode` is quality-first `native`, explicit compatibility `ai`, or
-the explicit degraded `chroma` path. It selects alpha processing, not an image provider.
+`transparency_mode` is quality-first `native` or the explicit degraded `chroma`
+path. It selects alpha processing, not an image provider. The format also admits
+`ai`, which would need a background-removal route; the game declares none, so the
+builder refuses it while planning.
 
 ### Expressions are authored, per actor
 
@@ -143,8 +146,8 @@ Three rules the resolver enforces offline:
 1. **The first entry is the base plate.** It is generated from scratch against
    the style plate; every other entry is a face-only edit of it. So the resting
    face leads — `composed` for Ruth, `blunt` for Ward. Nothing anywhere recovers
-   the base from a name: the graph decides which node is the base and records it
-   in that node's declared type, and the handlers read the type.
+   the base from a name: the builder draws the first entry against the plates and
+   wires every other face to its output.
 2. **Set equality, both directions.** An actor's profile ids must be exactly the
    union of that actor's `expressions` across the bound scenarios. An id the
    script uses and the profile does not describe would be a missing plate; one
@@ -173,39 +176,57 @@ by mistake. Nothing composites the plate - it is attached to provider calls as a
 reference for medium, palette and light - so the bundle pins no canvas for it
 either. It is the one asset in the bundle the pipeline did not make: the run
 republishes the author's exact bytes, proven by digest, so a canvas rule there
-could only ever refuse a valid package at the terminal node after every image had
+could only ever refuse a valid package at the package step after every image had
 been drawn and paid for. The generated roles keep their canvases, because those
 are checks on something the pipeline produced.
 
-The plate is published into the run as the style asset, attached to every
-generated image, and its digest rides each image node's cache identity, so
-replacing the file re-bills the scene deliberately rather than leaving sprites
+The plate is published into the run as the style asset and attached to every
+generated image; it is an input of each image step, so its digest is part of
+that step's identity, and replacing the file re-bills the scene deliberately rather than leaving sprites
 drawn against a plate that no longer exists. It fixes medium, palette and light
 for the whole scene and asserts nobody's identity; only an actor that binds a
 plate as its own `reference_id` is held to the person in it. Its rights decision
 travels with the bytes, because the run ships a copy; the recipe never infers
 redistribution permission. A declared reference nothing consumes is refused.
 
-## Plan and stage graph
+## Plan and build
+
+The game's folder is a gnode project; `pipeline/workflow.py:scene` reads the scene
+package with the scene's own reader and writes one step per plan, image and track.
+From `godot/games/the_grain`:
+
+```bash
+gnode plan pipeline/workflow.py:scene --arg package=inputs
+gnode run pipeline/workflow.py:scene --arg package=inputs --live --max-usd 150 \
+  --deliver package=../../../out/<tag>/{key}
+```
 
 Structured generation writes one `dialogue-scene-plan-v8` per drawable actor,
 with `schema_version: 8`, `recipe_version: "dialogue-scene-v8"`,
 `policy_version: "coming-of-age-nonexplicit-v3"`, and
 `expression_profile: "expression-core-v3"`. It binds the **art** request
 digest - not the whole document, because a plan is not a function of a line of
-dialogue and its cache key says so - the appearance id, the authored profile and
+dialogue and its identity says so - the appearance id, the authored profile and
 identity-plate digests, shared
 identity/wardrobe/pose/lighting locks, fixed canvas geometry, the actor's own
 authored expression directions copied from its profile, and prompt-template
 digests. Only pose, lighting and style are generated: identity and wardrobe are
 composed deterministically from the profile, and the expressions are authored, so
-a provider is never asked to invent a face for anybody.
+a provider is never asked to invent a face for anybody. The model answers with
+those three locks alone; a judge holds the answer inside the authored frame and
+asks again when it does not fit, and the plan is the frame with the accepted
+locks in it. The plan's prompt carries the art request — exactly the fields
+its digest covers — and never the narrative, so rewording a line asks for no plan
+again. (v8 sent the whole request, scenario digests included, and relied on its
+cache key to ignore them; with the request as the step's identity, that would have
+re-asked every plan for a reworded line.)
 
-Before planning or images, structured generation may select only one approved
-style vocabulary mode. Deterministic local code materializes the exact medium,
-observable traits, asset treatment, and exclusions into `style-anchor.json`.
-Its anchor, skill, vocabulary, resource, and compiler digests bind cache, run
-identity, plan provenance, and bundle provenance.
+Before any image, one structured call selects one approved style vocabulary
+mode, judged so it treats every asset kind the scene draws. Deterministic local
+code materializes the exact medium, observable traits, asset treatment, and
+exclusions into `style-anchor.json`, and every image prompt ends with the
+anchor's clause for its asset kind. The anchor's skill, vocabulary, resource and
+compiler digests bind the bundle's run identity.
 
 ### The union, and what it may not silently reconcile
 
@@ -215,12 +236,12 @@ union of what they name:
 
 | Union | Key | Fan-out |
 | --- | --- | --- |
-| Stages | `stage_id` | one `backdrop.generate` per distinct stage |
-| Drawable cast | `actor_id` | one profile, plan, base plate, three edits and four canonicalizations per distinct actor |
-| Tracks | `track_id` | one `track.generate` per distinct track |
+| Stages | `stage_id` | one backdrop (paint, judge, fit) per distinct stage |
+| Drawable cast | `actor_id` | one plan, a base face and one edit per remaining face, each judged and finished into a sprite, per distinct actor |
+| Tracks | `track_id` | one track (compose, judge) per distinct track |
 
 Order is first declaration across the bound scenarios, which is the order the
-graph fans out in and the order the bundle lists.
+build fans out in and the order the bundle lists.
 
 Two scenarios that name one id with different content are **refused while
 resolving**, offline. A stage is one backdrop and a track is one recording, so
@@ -233,71 +254,120 @@ both scenarios and both briefs: keeping the first-bound one would let the order
 `scene.toml` happens to list its scenarios in decide which writer's room gets
 drawn, and discard the other silently.
 
-Node identity is derived from what the image **is**, never from which scenario
-asked for it: a backdrop node is named for its stage and keyed on that stage's own
-brief, an actor's plates are named for the actor and keyed on the profile and
-plate digests, and a track is keyed on its own brief and intent. Binding a
-seventh scenario to a scene therefore leaves every existing node's cache key
-untouched, and costs only the art that scenario introduces.
+A step's identity is what it is asked and shown, never which scenario asked for
+it: a backdrop step is named for its stage and reads that stage's own brief, an
+actor's faces are named for the actor and read the profile, the plan and the
+plates, and a track reads its own brief and intent. Binding another scenario that
+shows only the existing cast therefore leaves every existing step's identity
+untouched, and costs only the stages and tracks it introduces. One that adds an
+actor changes the cast the style is selected for and the art request every plan
+binds, so it re-bills the scene's art deliberately.
 
-The exact stages are:
+Before any step runs, the builder resolves the scene: it validates the package,
+admits every bound scenario (a scenario the proof refuses is refused while
+planning, and nothing is paid for against it) and refuses `ai` transparency. The
+steps are:
 
-1. `prepare`: validate the package and read its digest-bound members.
-2. `scenario-admission`: one node per bound scenario, publishing its compiled
-   program at `scenarios/<id>.json` and the proof that admitted it at
-   `scenarios/<id>.validation.json`. One node each rather than one node for all
-   of them, so editing the fourth scenario does not re-publish the other five and
-   each proof stays an artifact of its own.
-3. `style-selection`: select a mode and locally materialize the style anchor.
-4. `identity-plate`: publish the authored plate into the run; nothing generates it.
-5. `scene-plan`: produce and validate the strict structured plan, per actor.
-6. `backdrops`: one opaque plate per distinct stage, against the style plate.
-7. `base-plate`: draw each actor's first authored face from the style plate.
-8. `expressions`: edit that base plate into the actor's remaining faces, one
-   node each, from each face's own authored direction.
-9. `canonicalize`: create the validated transparent runtime sprites.
-10. `tracks`: one music track per distinct track, from its authored brief and
-    generation intent. Ordered after the request but descended from neither the
-    narrative nor the art: music owes nothing to a style plate, so its own brief
-    and intent are the whole of its cache key.
-11. `bundle`: validate all bindings and write the portable bundle.
+1. `style`: the selection's shape, the selection, its judge, and the anchor with
+   one clause per asset kind.
+2. `stages/<stage>`: paint the backdrop against the style plate at the provider
+   canvas, judge it, and fit it to the runtime canvas.
+3. `actors/<actor>/plan`: the plan's shape, the draft locks, their judge, and the
+   plan.
+4. `actors/<actor>/<expression>`: compose the face's brief from the plan, draw it,
+   judge it, and finish the sprite. The first face is drawn against the style
+   plate (and the actor's own identity plate when it binds one); every other face
+   is an edit of it.
+5. `tracks/<track>`: compose the track and judge it (a playable MP3 of at least
+   20 seconds).
+6. `interface/<role>`: the shared UI sheet family, one sheet per role.
+7. `package`: read the scene again from its own files, lay out every member the
+   bundle binds — request, profiles, plans, compiled scenarios and their proofs,
+   the style plate and every published asset — and write `bundle.json`. A
+   published file the bundle does not bind is refused.
+
+The checked plan contract below pins the build of The Grain's scene package:
+
+<!-- pipeline-graph-contract:start -->
+```json
+{
+  "kind": "dialogue-scene-gnode-plan-contract-v1",
+  "fixture_ref": "godot/games/the_grain/inputs",
+  "builder": "pipeline/workflow.py:scene",
+  "workflow_id": "the-grain-scene",
+  "topology_sha256": "bfd00e9eb348e842f74b12976def7db3c4eace9d2ce16b312866e8d05c3f9e28",
+  "node_count": 827,
+  "step_count": 227,
+  "first_take_operation_counts": {
+    "image.edit": 47,
+    "local": 164,
+    "music.generate": 4,
+    "structured.generate": 12
+  },
+  "outputs": [
+    "package"
+  ],
+  "type_ids": [
+    "./pipeline/nodes/interface.py#admit_ui_sheet",
+    "./pipeline/nodes/interface.py#publish_ui_sheet",
+    "./pipeline/nodes/interface.py#ui_review_schema",
+    "./pipeline/nodes/interface.py#ui_template",
+    "./pipeline/nodes/scene.py#admit_plan",
+    "./pipeline/nodes/scene.py#admit_scene_image",
+    "./pipeline/nodes/scene.py#admit_scene_track",
+    "./pipeline/nodes/scene.py#backdrop",
+    "./pipeline/nodes/scene.py#face_brief",
+    "./pipeline/nodes/scene.py#plan_record",
+    "./pipeline/nodes/scene.py#plan_schema",
+    "./pipeline/nodes/scene.py#scene_package",
+    "./pipeline/nodes/scene.py#sprite",
+    "./pipeline/nodes/style.py#admit_style",
+    "./pipeline/nodes/style.py#selection_schema",
+    "./pipeline/nodes/style.py#style_record",
+    "gnode/image.edit@1",
+    "gnode/music.generate@1",
+    "gnode/structured.generate@1"
+  ]
+}
+```
+<!-- pipeline-graph-contract:end -->
 
 ### Image routing
 
-Each backdrop, base plate, expression edit, and shared UI sheet declares provider-neutral image
-requirements: generation or edit, opaque or transparent background, ordered references, maximum
-quality, and its exact provider canvas. Planning resolves those requirements through the Sunburst
-catalog and records one exact route snapshot per used binding before any key is checked. The
-current 1680x944 backdrop canvas and 1024x1536 face canvas select OpenAI by default; the backdrop
-is normalized locally to 1672x941 for the bundle. `STAGE_GEN_IMAGE_PROVIDER=fal` replans the image
-nodes onto fal's native generation/edit routes. An OpenRouter override cannot plan native
-transparent sprites, and no failed or uncredentialed provider is replaced automatically.
+Each backdrop, face and UI sheet is a `gnode/image.edit@1` step with its
+references attached in order, its exact provider canvas and an opaque or
+transparent background. A transparent face requires the route's
+`transparent_background` feature. The game's `gnode.yaml` binds the image steps,
+structured calls and music to their routes; a route without a feature a step
+requires is refused while planning, before any key is checked. The 1680x944
+backdrop is fitted locally to 1672x941 for the bundle. Nothing replaces a failed
+or uncredentialed provider automatically; re-route by editing the binding table.
 
-`native`, `ai`, and `chroma` remain explicit alpha strategies after routing. `native` requires a
-route with provider-generated transparency. `ai` requests opaque image output and separately uses
-fal background removal. `chroma` keys locally. Neither compatibility mode silently changes the
-selected image provider.
+`native` and `chroma` remain explicit alpha strategies after routing. `native`
+asks the route for provider-generated transparency, judges that the alpha is
+really there, and covers it onto the 1024x1536 canvas. `chroma` asks for an
+opaque draw on the key colour, judges that it keys, and keys and cleans it
+locally. Neither changes the selected route.
 
 Every provider operation owns one initial attempt plus at most five retries.
-Transport, decoding, schema/media, dimension, chroma, and alpha failures remain
-inside that service boundary. The recipe does not wrap providers in another
-retry loop. Resume reuses only digest- and lineage-valid cache entries; force
-invalidates the selected stage and required descendants.
+Transport, decoding and media failures remain inside that service boundary. A
+judge's rejection is a redraw, not a retry: each judged painting, plan and track
+gets at most six takes, then the run stops on it. A rerun reuses only cached
+results whose content and lineage still match.
 
-Within structured provenance, standard JSON Schema vocabulary—including
+Within structured requests, standard JSON Schema vocabulary—including
 `$defs`, `$ref`, `additionalProperties`, `maxLength`, and `minLength`—retains
 its mandated spelling. Recipe-owned property names, definition identifiers,
 and matching reference targets are lower_snake_case.
 
-## Portable bundle: `dialogue-scene-bundle-v8`
+## Portable bundle: `dialogue-scene-bundle-v9`
 
-`bundle.json` is the adapter's sole input. It has `schema_version: 8`,
-`kind: "dialogue-scene-bundle-v8"`, `recipe: "dialogue-scene"`, and
-`recipe_version: "dialogue-scene-v8"`. It binds the game id, canonical document
-and per-actor plan files plus their provenance paths and SHA-256 digests, each
-canonical character profile, the authored style plate and the package path it
-came from, the compiled scenarios, `attempts.json`, run identity, review state,
-rights state, and the selected assets:
+`bundle.json` is the host's sole input. It has `schema_version: 9`,
+`kind: "dialogue-scene-bundle-v9"`, `recipe: "dialogue-scene"`, and
+`recipe_version: "dialogue-scene-v8"`. It binds the game id, the request and
+per-actor plan files by SHA-256, each canonical character profile, the authored
+style plate and the package path it came from, the compiled scenarios and their
+proofs, run identity, review state, rights state, and the selected assets:
 
 - one opaque `style` PNG, republished byte for byte from the authored plate at
   whatever size the author drew it;
@@ -310,14 +380,17 @@ rights state, and the selected assets:
   [UI contract](../../_shared/docs/formats/ui.md) declares.
 
 Each asset record includes its id, role, optional expression state, optional
-actor or track id, portable path, content digest, byte count, media facts,
-provenance path and digest, and selected attempt. Copy the projection derives
-from authored prose - titles and alt text - is cut to its field's budget on a
-word boundary and trimmed, so an author whose sentence happens to be the wrong
-length is not refused by the terminal node. Media facts are discriminated
-on mime type: an image carries width, height and alpha, a track carries its
-probed duration, and each role is held to the one that fits it. Rejected candidates and raw derivations remain lineage and
-are never selected runtime assets.
+actor or track id, portable path, content digest, byte count and media facts.
+Copy the projection derives from authored prose - titles and alt text - is cut
+to its field's budget on a word boundary and trimmed, so an author whose sentence
+happens to be the wrong length is not refused by the package step. Media facts
+are discriminated on mime type: an image carries width, height and alpha, a track
+carries its probed duration, and each role is held to the one that fits it.
+
+v9 binds files by path and digest alone. v8 also bound a provenance sidecar per
+file, the attempt each asset came from and an attempt ledger; which call made
+each file and how many takes it needed is now the gnode run's record, and
+rejected takes stay there and are never delivered.
 
 The strict `scene_data` projection carries recipe/caller-owned copy only:
 `scene_id`, title and label, concept/background asset bindings and background
@@ -338,37 +411,28 @@ admitted it, and the binding both came from. A consumer plays from the programs;
 a flat beat list would only ever be walkable from the first line to the last. The
 `stages`, `actors` and `tracks` beside them are exactly the union over those
 programs — checked in both directions, so a `stage` or `show` naming something
-with no plate is a refused package rather than a missing texture in a browser,
+with no plate is a refused package rather than a missing texture at play time,
 and a plate nothing shows is refused as art paid for and unseen.
 
-The web adapter validates the complete portable bundle before copying it into
-an immutable digest-addressed installation. Only then does it translate
-`scene_data` into the web fixture's internal runtime naming. The adapter may
-not invent missing copy, generation facts, review evidence, or rights.
-
-The consumer accepts exactly one contract. It must bind the style-anchor
-artifact, its provenance, and matching compiler/resource facts through plan and
-bundle provenance, and it checks that the published plate is the one the package
-declared, by digest rather than by path. No style values are synthesized, and
-unknown recipe versions are rejected.
+The Godot host accepts exactly one contract: it validates the complete bundle
+before it plays anything, checks that the published plate is the one the package
+declared, by digest rather than by path, and refuses any other kind or version
+with a notice naming the build that makes the current one. It may not invent
+missing copy, generation facts, review evidence, or rights.
 
 ## Provenance, review, and publication
 
-Every selected request, plan, image, and bundle sidecar uses provenance
-`schema_version: 2` and binds the exact artifact digest. Sidecars preserve the
-sanitized final prompt, provider/model/tool disclosure, seed availability,
-parameters, validation, references and digests, attempts/retries, derivation,
-timestamp, and rights state. Paths are portable and never contain credentials,
-private absolute paths, or signed URLs.
+The gnode run is the provenance: every step's request, route, references by
+digest, takes, judge verdicts and outputs, in the run's records. Nothing the
+build delivers carries credentials, signed URLs, or private absolute paths.
 
 Generation emits `review.status: "pending"`,
 `rights.aggregate: "unreviewed"`, and
-`rights.publication_authorized: false`. Installation may retain such a bundle
-for inspection, but activation fails closed. Activation requires an
-independent digest-bound `pass` review plus `restricted` local-demo rights and
-`publication_authorized: false`. A review pass never grants rights. Local web
-activation never authorizes export, repository publication, or redistribution;
-those remain subject to the separate generated-media publication gate.
+`rights.publication_authorized: false`. `demo-games dialogue-scene review` records an
+independent digest-bound verdict beside the bundle. A review pass never grants
+rights, and local play never authorizes export, repository publication, or
+redistribution; those remain subject to the separate generated-media publication
+gate.
 
 ## Historical built-in assets
 

@@ -9,7 +9,7 @@ extends Node2D
 ## draws it. It owns loading, the window, the letterboxing and the refusal card;
 ## the game selects the installed rich sequence or its supported v2 reader.
 ##
-## **`--scenario` is not optional in practice.** A `dialogue-scene-bundle-v8` run
+## **`--scenario` is not optional in practice.** A `dialogue-scene-bundle-v9` run
 ## publishes the union of every scenario a game holds — The Grain's carries six —
 ## and a bundle with more than one is refused by name rather than opened on
 ## whichever came first. The browser's own `/scene/<tag>` route omits it and

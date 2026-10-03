@@ -9,10 +9,11 @@ from demo_game_tools.kits.character_profile import (
     canonical_character_profile_json,
 )
 from demo_game_tools.media.soundtrack.prompt import music_track_prompt
-from the_grain_pipeline.dialogue_scene.identity import canonical_sha256
+from the_grain_pipeline.dialogue_scene.identity import canonical_json_bytes, canonical_sha256
 from the_grain_pipeline.dialogue_scene.models import (
     DialogueRequest,
     DialogueScenePlan,
+    art_request_document,
 )
 from the_grain_pipeline.dialogue_scene.policy import POLICY_DIGEST
 
@@ -73,7 +74,9 @@ def plan_prompt(
     art_request_sha256: str,
     profile: CharacterProfile | None = None,
 ) -> str:
-    payload = request.model_dump_json(exclude_none=True)
+    # The art request alone: a plan is not a function of a line of dialogue, so the
+    # narrative never reaches the prompt and rewording a line asks for no plan again.
+    payload = canonical_json_bytes(art_request_document(request)).decode("utf-8")
     template_digest = (
         NATIVE_ALPHA_TEMPLATE_DIGEST if request.transparency_mode == "native" else TEMPLATE_DIGEST
     )
@@ -89,7 +92,7 @@ def plan_prompt(
         f"Template digest: {template_digest}. The expressions are authored, not yours to "
         f"choose; return only the shared staging locks.\n"
         f"{STYLE_REFERENCE_CLAUSE}\n"
-        f"REQUEST: {payload}{profile_line}"
+        f"ART REQUEST: {payload}{profile_line}"
     )
 
 
@@ -127,7 +130,7 @@ def background_prompt(brief: str) -> str:
 
 
 def base_plate_prompt(
-    request: DialogueRequest,
+    transparency_mode: str,
     plan: DialogueScenePlan,
     *,
     expression_id: str,
@@ -144,13 +147,13 @@ def base_plate_prompt(
     identity_clause = f"\n{IDENTITY_REFERENCE_CLAUSE}" if has_identity_plate else ""
     template = (
         "Create a full-body character sprite with native alpha."
-        if request.transparency_mode == "native"
+        if transparency_mode == "native"
         else TEMPLATES["neutral"]
     )
     background_direction = (
         "native transparent background with clean, naturally antialiased alpha edges; no "
         "environment, backdrop, floor, cast shadow, or contact shadow."
-        if request.transparency_mode == "native"
+        if transparency_mode == "native"
         else "perfectly flat #ff00ff background."
     )
     return (

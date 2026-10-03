@@ -268,25 +268,9 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
         ),
     ),
     ("manifest", _constant("recipes.sideview_runner.manifest", "MANIFEST_KIND")),
-    ("manifest", _constant("recipes.pointclick_room.room_types", "MANIFEST_KIND")),
+    ("manifest", _constant("recipes.pointclick_room.runtime", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.oblique_survival.manifest", "MANIFEST_KIND")),
     # Execution graphs.
-    (
-        "graph",
-        _graph(
-            "recipes.pointclick_room.room_graph",
-            "POINTCLICK_GRAPH_KIND",
-            "PointClickRoomGraph",
-        ),
-    ),
-    (
-        "graph",
-        _graph(
-            "recipes.dialogue_scene.scene_graph",
-            "DIALOGUE_GRAPH_KIND",
-            "DialogueSceneGraph",
-        ),
-    ),
     (
         "graph",
         _graph(
@@ -303,8 +287,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("mode", _field("components.runner_track.models", "RunnerStructuralGround", "mode")),
     ("mode", _field("components.runner_track.models", "RunnerCamera", "mode")),
     # Cache namespaces.
-    ("namespace", _constant("recipes.pointclick_room.room_graph", "POINTCLICK_CACHE_NAMESPACE")),
-    ("namespace", _constant("recipes.dialogue_scene.scene_graph", "DIALOGUE_CACHE_NAMESPACE")),
     (
         "namespace",
         _constant("recipes.oblique_survival.survival_graph", "OBLIQUE_SURVIVAL_CACHE_NAMESPACE"),
@@ -360,6 +342,16 @@ RETIRED_FAMILIES: tuple[tuple[str, str], ...] = (
     ),
     ("sideview-platformer-world", "retired with the platformer's execution graph"),
     ("sideview-platformer-content", "retired with the platformer's execution graph"),
+    (
+        "pointclick-room-execution-graph",
+        "the room builds through gnode; its plan is a `gnode-graph`",
+    ),
+    ("pointclick-room-nodes", "retired with the room's execution graph"),
+    (
+        "dialogue-scene-execution-graph",
+        "the scene builds through gnode; its plan is a `gnode-graph`",
+    ),
+    ("dialogue-scene-nodes", "retired with the scene's execution graph"),
 )
 
 #: Strings that are not `<family>-v<n>` shaped but name a retired thing all the same.

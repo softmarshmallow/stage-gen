@@ -8,15 +8,16 @@ then launch an existing generated run:
 
 ```sh
 godot --headless --editor --path godot/games/the_grain --quit
-godot --path godot/games/the_grain -- --run "$PWD/out/the-grain-episode-one"
+godot --path godot/games/the_grain -- --run "$PWD/out/the-grain-episode-one-gnode"
 ```
 
 Use the mouse for room interactions and case controls; Space advances dialogue.
 
 The run directory is explicit. Starting the game never generates assets. The
 example path above uses existing local output; a fresh clone has no `out/` media.
-Authored inputs live in `inputs/` and asset preparation starts with
-`pipeline/prepare.py --help`. Existing TOML is this game's configuration.
+Authored inputs live in `inputs/`; the rooms and the scene build with gnode and
+`pipeline/prepare.py` publishes the case over them ([the asset build](pipeline/README.md)).
+Existing TOML is this game's configuration.
 
 ## Source ownership
 
@@ -53,7 +54,7 @@ Open the complete “The way in” scene directly, using the same content and pl
 selected by the case after the motor court:
 
 ```sh
-godot --path godot/games/the_grain res://scenes/dialogue_scene/main.tscn -- --run "$PWD/out/the-grain-scene-a" --scenario e1_way_in
+godot --path godot/games/the_grain res://scenes/dialogue_scene/main.tscn -- --run "$PWD/out/the-grain-scene-gnode" --scenario e1_way_in
 ```
 
 The scene demonstrates location dissolves, cast entrances and repositioning,
@@ -85,14 +86,14 @@ Run this game's native regressions from the repository root:
 
 ```sh
 python3 godot/tools/run_native_suite.py --project the_grain
-uv run --group games python godot/tools/check.py --owner the_grain --include-media --grain-scene-run "$PWD/out/the-grain-scene-a"
+uv run --group games python godot/tools/check.py --owner the_grain --include-media --grain-scene-run "$PWD/out/the-grain-scene-gnode"
 ```
 
 The case owns its leaf scenes. To inspect an existing room or dialogue run independently:
 
 ```sh
-godot --path godot/games/the_grain res://scenes/pointclick_room/main.tscn -- --run "$PWD/out/the-grain-window-a4"
-godot --path godot/games/the_grain res://scenes/dialogue_scene/main.tscn -- --run "$PWD/out/the-grain-scene-a" --scenario e1_office
+godot --path godot/games/the_grain res://scenes/pointclick_room/main.tscn -- --run "$PWD/out/the-grain-window-gnode"
+godot --path godot/games/the_grain res://scenes/dialogue_scene/main.tscn -- --run "$PWD/out/the-grain-scene-gnode" --scenario e1_office
 ```
 
 For a movable source project with real addon files, use:

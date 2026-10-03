@@ -48,8 +48,8 @@ Episode One and the record of how it was made.
 ## Proving it
 
 ```bash
-uv run stage-gen scenario check --input godot/legacy/inputs/the_grain
-uv run stage-gen case check --input godot/legacy/inputs/the_grain
+uv run --group games demo-games scenario check --input godot/games/the_grain/inputs
+uv run --group games python godot/games/the_grain/pipeline/prepare.py
 ```
 
 All six scenarios admit; the case is **admitted and bound** — every beat reachable, a
@@ -58,27 +58,30 @@ it, and every beat's declaration checked against the leaf it names.
 
 ## Playing it
 
-The package is authored data. Playing it needs a generated run and a runtime projection:
+The package is authored data. Playing it needs each leaf built and the case published over
+the delivered folders. From `godot/games/the_grain`:
 
 ```bash
-uv run stage-gen dialogue-scene generate --input godot/legacy/inputs/the_grain --output out/<scene-tag>
-uv run stage-gen pointclick-room generate --input godot/legacy/inputs/the_grain/rooms/motor_court --output out/<court-tag>
-uv run stage-gen pointclick-room generate --input godot/legacy/inputs/the_grain/rooms/window --output out/<window-tag>
-uv run stage-gen case bundle --input godot/legacy/inputs/the_grain --case episode_one \
+gnode run pipeline/workflow.py:scene --arg package=inputs --live --max-usd 150 \
+  --deliver package=../../../out/<scene-tag>/{key}
+gnode run pipeline/workflow.py:room --arg package=inputs/rooms/motor_court --live --max-usd 25 \
+  --deliver package=../../../out/<court-tag>/{key}
+gnode run pipeline/workflow.py:room --arg package=inputs/rooms/window --live --max-usd 25 \
+  --deliver package=../../../out/<window-tag>/{key}
+uv run python pipeline/prepare.py --bundle --case episode_one \
   --beat-run b_office=<scene-tag> --beat-run b_motor_court=<court-tag> ... \
-  --output out/<episode-tag>
+  --output ../../../out/<episode-tag>
 ```
 
-Then `/case/<episode-tag>` in the web consumer. `PILOT.md` records the exact tags that ship.
+Then `godot --path godot/games/the_grain -- --run out/<episode-tag>`. `PILOT.md` records the exact tags that ship.
 
 ## What is not true of it
 
 - **Nothing here is reviewed.** Every generated image and track is `unreviewed`, and the run
   bundle carries `publication_authorized: false`. Accepted visuals need a semantic review by
   someone other than their producer; no such review exists. The list is in `PILOT.md`.
-- **It is not promoted.** There is no root `game.toml`, and `godot/legacy/inputs/main.toml` is
-  untouched and still selects another game. Promotion is the director's decision and
-  requires explicit authorization.
+- **It is not promoted.** There is no root `game.toml`. Promotion is the director's decision
+  and requires explicit authorization.
 - **The window room's forensic looks are not discoverable in the shipped roll.** Most of
   them sit on blank wall; see `PILOT.md`, 07:20.
 - **Episode One is one episode.** The board it produces is designed to open Episode Two, and

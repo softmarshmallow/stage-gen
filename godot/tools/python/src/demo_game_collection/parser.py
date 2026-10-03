@@ -47,42 +47,11 @@ def build_parser() -> argparse.ArgumentParser:
     dialogue_parser = commands.add_parser(
         "dialogue-scene",
         description=(
-            "Plan, execute, and review one non-explicit visual-novel dialogue-scene bundle"
+            "Review one non-explicit visual-novel dialogue-scene bundle; the scene builds "
+            "with gnode from its game folder (pipeline/workflow.py:scene)"
         ),
     )
     dialogue_commands = dialogue_parser.add_subparsers(dest="dialogue_command", required=True)
-    dialogue_generate_parser = dialogue_commands.add_parser(
-        "generate",
-        help="execute one authored scene package as an asset graph",
-    )
-    dialogue_generate_parser.add_argument(
-        "--input",
-        required=True,
-        dest="input_path",
-        metavar="PACKAGE",
-        help="authored scene package directory containing scene.toml",
-    )
-    dialogue_generate_parser.add_argument(
-        "--output",
-        required=True,
-        dest="output_path",
-        help="new immutable execution output directory",
-    )
-    dialogue_generate_parser.add_argument(
-        "--cache-dir",
-        dest="cache_dir",
-        help="content-and-lineage validated execution cache directory",
-    )
-    dialogue_generate_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="execute deterministic fake operations without provider access",
-    )
-    dialogue_generate_parser.add_argument("--invocation-id")
-    dialogue_generate_parser.add_argument(
-        "--failure-node",
-        help="inject one deterministic node failure during a dry run",
-    )
     dialogue_review_parser = dialogue_commands.add_parser(
         "review",
         help="apply a digest-bound independent review to one dialogue bundle",
@@ -93,29 +62,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--acceptance-spec", required=True, dest="acceptance_spec_path"
     )
     dialogue_review_parser.add_argument("--usage", required=True, choices=("local-demo",))
-
-    room_parser = commands.add_parser(
-        "pointclick-room",
-        description="Plan and execute one authored point-and-click puzzle room",
-    )
-    room_commands = room_parser.add_subparsers(dest="room_command", required=True)
-    room_generate_parser = room_commands.add_parser(
-        "generate",
-        help="execute one authored room document as an asset graph",
-    )
-    room_generate_parser.add_argument(
-        "--input",
-        required=True,
-        dest="input_path",
-        help="authored pointclick-room package directory (room.toml plus references/)",
-    )
-    room_generate_parser.add_argument("--output", required=True, dest="output_path")
-    room_generate_parser.add_argument("--cache-dir", dest="cache_dir")
-    room_generate_parser.add_argument("--dry-run", action="store_true", dest="dry_run")
-    room_generate_parser.add_argument("--invocation-id")
-    room_generate_parser.add_argument(
-        "--failure-node", dest="failure_node", help="inject one dry-run node failure"
-    )
 
     oblique_survival_parser = commands.add_parser(
         "oblique-survival",

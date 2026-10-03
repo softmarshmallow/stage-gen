@@ -11,7 +11,7 @@ about whether a portrait is drawn, which way round the speaker and the listener
 are, or whether the line is on the panel or off the bottom of it.
 
 Six named moments are photographed by `tools/dialogue_capture.gd` against
-`out/the-grain-scene-a`, and each check below is one defect this port could ship
+`out/the-grain-scene-gnode`, and each check below is one defect this port could ship
 without the state proof noticing. Thresholds carry the reading that motivated
 them.
 
@@ -36,7 +36,7 @@ from shot_png import (
     mean_difference,
 )
 
-#: The rectangles below are `DialogueLayout` resolved for `out/the-grain-scene-a`:
+#: The rectangles below are `DialogueLayout` resolved for `out/the-grain-scene-gnode`:
 #: a 1672x941 frame and a `panel_frame` with 96px insets at `draw_scale` 2, so a
 #: panel of 218 interior is 314 tall and opens at y 597.
 PANEL = (36, 597, 1600, 314)

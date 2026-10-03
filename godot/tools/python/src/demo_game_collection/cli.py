@@ -115,10 +115,6 @@ async def _dispatch_async(args: argparse.Namespace, *, stdout: TextIO) -> int:
         from demo_game_collection.commands.dialogue import _dispatch_dialogue_scene
 
         return await _dispatch_dialogue_scene(args, config=config, stdout=stdout)
-    if args.command == "pointclick-room":
-        from demo_game_collection.commands.room import _dispatch_pointclick_room
-
-        return await _dispatch_pointclick_room(args, config=config, stdout=stdout)
     if args.command == "oblique-survival":
         from demo_game_collection.commands.survival import _dispatch_oblique_survival
 

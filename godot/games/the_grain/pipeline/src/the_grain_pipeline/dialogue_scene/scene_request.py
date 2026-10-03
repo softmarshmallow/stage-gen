@@ -64,6 +64,7 @@ from the_grain_pipeline.dialogue_scene.models import (
     RightsStatus,
     ScenarioBinding,
     SceneReference,
+    art_request_document,
 )
 from the_grain_pipeline.dialogue_scene.policy import (
     POLICY_DIGEST,
@@ -445,30 +446,11 @@ def _read_reference(root: Path, reference: SceneReference) -> ResolvedSceneRefer
 
 
 def art_request_sha256(request: DialogueRequest) -> str:
-    """Digest exactly the authored fields a generated image depends on.
+    """Digest the art request: the authored fields every plate and plan is a function of."""
 
-    An allowlist rather than "the whole document minus the narrative", because
-    the point is to name what the art is a function of. Every plate depends on
-    the look, the profile, the backdrop direction, the framing, and the
-    transparency mode; none depends on what anybody says, on the schema version,
-    or on any field a future revision adds for a consumer's benefit. Digesting
-    the whole document here would re-bill five provider images on every contract
-    bump and on every reworded line, which is a cost with nothing to show for it.
-    """
-
-    document = request.model_dump(mode="json")
     return sha256(
         canonical_json_bytes(
-            {
-                "domain": "stage-gen/dialogue-scene/art-identity/v1",
-                "game_id": document["game_id"],
-                "scene_brief": document["scene_brief"],
-                "presentation": document["presentation"],
-                "transparency_mode": document["transparency_mode"],
-                "cast": document["cast"],
-                "style_reference_id": document["style_reference_id"],
-                "references": document["references"],
-            }
+            {"domain": "stage-gen/dialogue-scene/art-identity/v1", **art_request_document(request)}
         )
     ).hexdigest()
 

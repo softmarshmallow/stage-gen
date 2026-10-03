@@ -15,7 +15,7 @@ and governs future changes to shared support, packages and game frameworks.
 | [Bellweather](bellweather/README.md) | Side-view platformer | `inputs/default/`, `inputs/waves/`; gnode `pipeline/workflow.py:build` |
 | [Iron Petal Unit](iron_petal_unit/README.md) | Side-view runner | `inputs/`; gnode `pipeline/workflow.py:build` |
 | [Ember Hollow](ember_hollow/README.md) | Ground-plane survival | `inputs/`; `pipeline/prepare.py` |
-| [The Grain](the_grain/README.md) | Investigation combining rooms and dialogue | `inputs/`; `pipeline/prepare.py` |
+| [The Grain](the_grain/README.md) | Investigation combining rooms and dialogue | `inputs/`; gnode `pipeline/workflow.py:room` and `:scene`; `pipeline/prepare.py` for the case |
 
 [Launch commands](../README.md#play-a-game) live in the Godot workspace guide.
 Existing generated runs remain outside these project roots and are selected with

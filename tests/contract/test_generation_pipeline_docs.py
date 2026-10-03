@@ -5,6 +5,9 @@ import re
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
+
+import pytest
 
 from scripts.graph_contracts import document_contract, render
 
@@ -73,6 +76,38 @@ def test_runner_pipeline_contract_declares_its_identity_and_fixture() -> None:
 def test_runner_pipeline_contract_block_is_rendered_canonically() -> None:
     source = RUNNER_PIPELINE_DOCUMENT.read_text(encoding="utf-8")
     assert render(document_contract(RUNNER_PIPELINE_DOCUMENT)) in source
+
+
+ROOM_DOCUMENT = REPOSITORY_ROOT / "godot/games/the_grain/docs/pointclick-room.md"
+SCENE_DOCUMENT = REPOSITORY_ROOT / "godot/games/the_grain/docs/dialogue-scene-assets.md"
+GRAIN_CONTRACTS = (
+    pytest.param(
+        ROOM_DOCUMENT,
+        _writer.ROOM_CONTRACT_KIND,
+        "godot/games/the_grain/inputs/rooms/window",
+        _writer.build_room_graph_contract,
+        id="room",
+    ),
+    pytest.param(
+        SCENE_DOCUMENT,
+        _writer.SCENE_CONTRACT_KIND,
+        "godot/games/the_grain/inputs",
+        _writer.build_scene_graph_contract,
+        id="scene",
+    ),
+)
+
+
+@pytest.mark.parametrize(("document", "kind", "fixture_ref", "build"), GRAIN_CONTRACTS)
+def test_the_grain_documents_track_their_builders_plans(
+    document: Path, kind: str, fixture_ref: str, build: Any
+) -> None:
+    contract = document_contract(document)
+    assert contract == build(REPOSITORY_ROOT)
+    assert contract["kind"] == kind
+    assert contract["fixture_ref"] == fixture_ref
+    assert (REPOSITORY_ROOT / fixture_ref).is_dir()
+    assert render(contract) in document.read_text(encoding="utf-8")
 
 
 def test_survival_document_tracks_the_executable_stage_graph() -> None:

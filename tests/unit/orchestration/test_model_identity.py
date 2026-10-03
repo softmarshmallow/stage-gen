@@ -19,8 +19,6 @@ from stage_gen.model_routes import (
     configured_image_route_catalog,
 )
 from stage_gen.orchestration.services import RunServices
-from the_grain_pipeline.dialogue_scene.scene_graph import dialogue_graph_profile
-from the_grain_pipeline.pointclick_room.room_graph import room_graph_profile
 
 CONFIG = StageGenConfig(
     openai_api_key="openai",
@@ -41,8 +39,6 @@ SERVICE_FOR_OPERATION: dict[str, Callable[[RunServices], object]] = {
 }
 
 PROFILES: tuple[tuple[str, Callable[[StageGenConfig], BindingTable]], ...] = (
-    ("pointclick-room", room_graph_profile),
-    ("dialogue-scene", dialogue_graph_profile),
     ("oblique-survival", oblique_survival_graph_profile),
 )
 

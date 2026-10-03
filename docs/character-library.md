@@ -97,29 +97,25 @@ prints only the lowercase authored-source SHA-256 used as `source_sha256`.
 
 ## Runnable game inputs
 
-The game's graph takes a package directory, and the package names its own members:
+The game's scene build takes a package directory, and the package names its own members.
+From `godot/games/the_grain`:
 
 ```sh
-uv run --group games demo-games dialogue-scene generate \
-  --input godot/games/the_grain/inputs \
-  --output out/the-grain-scene-dry-run \
-  --dry-run
+uv run gnode plan pipeline/workflow.py:scene --arg package=inputs
 ```
 
-The optional game tool owns this preparation command. The viewer only inspects
-its outputs. Remove `--dry-run` only for explicitly authorized provider
-execution.
+The game owns this build. Planning is offline; add `gnode run ... --live` only for
+explicitly authorized provider execution.
 
 A prepared game binds its cast in `game.toml` rather than in a request document,
-so the `sideview-platformer` game graph reads authored profiles through the package it
-is given. The dialogue run persists `character-profile.json` with provenance and
-publishes `dialogue-scene-bundle-v8` from the graph document whose `recipe` literal is
-`dialogue-scene-v8`. These
+so Bellweather's build reads authored profiles through the package it is given. The
+scene build publishes each canonical profile at `characters/<actor>.json` inside a
+`dialogue-scene-bundle-v9` whose `recipe_version` is `dialogue-scene-v8`. These
 artifacts carry identity and lineage; they do not authorize publication.
 
 The scene document resolves only package-relative TOML members, rejects symlink
-or digest tampering before provider work, and persists canonical
-`character-profile.json` plus portable provenance in the ignored run directory.
+or digest tampering while planning, before provider work, and the bundle binds each
+canonical profile by digest; the gnode run records how each file was made.
 This integration does not define pose, expression, shot, provider conditioning,
 generated observation, runtime placement, or publication approval.
 

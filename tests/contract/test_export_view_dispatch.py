@@ -6,7 +6,7 @@ run's own plan declares. The dispatch is a list of string literals, so bumping a
 graph contract without touching it does not fail: `export-view` simply refuses every run of
 that recipe from then on, and the recipe quietly disappears from the run list.
 
-That is exactly what happened to `dialogue-scene`. Its graph went to v5 while the dispatch
+That is exactly what happened to the dialogue scene. Its graph went to v5 while the dispatch
 still named v3, and no scene run could be exported or listed until it was noticed by hand.
 The failure is invisible because nothing calls export-view on the way to a green gate.
 
@@ -25,8 +25,6 @@ from typing import Protocol, cast
 import pytest
 
 from ember_hollow_pipeline.survival_graph import ObliqueSurvivalGraph
-from the_grain_pipeline.dialogue_scene.scene_graph import DialogueSceneGraph
-from the_grain_pipeline.pointclick_room.room_graph import PointClickRoomGraph
 
 CLI_SOURCE = (
     Path(__file__).resolve().parents[2]
@@ -42,11 +40,7 @@ class GraphDocumentModel(Protocol):
 
 GRAPH_MODELS = cast(
     tuple[type[GraphDocumentModel], ...],
-    (
-        DialogueSceneGraph,
-        ObliqueSurvivalGraph,
-        PointClickRoomGraph,
-    ),
+    (ObliqueSurvivalGraph,),
 )
 #: Every graph document whose runs the viewer reads.
 VIEW_MODELS = GRAPH_MODELS

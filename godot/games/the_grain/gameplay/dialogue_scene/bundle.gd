@@ -13,8 +13,8 @@ extends RefCounted
 ## The document is `lower_snake_case` on the wire and stays that way there; this
 ## is the adapter, and the names it hands on are the ones the view reads.
 
-const BUNDLE_KIND := "dialogue-scene-bundle-v8"
-const BUNDLE_SCHEMA_VERSION := 8
+const BUNDLE_KIND := "dialogue-scene-bundle-v9"
+const BUNDLE_SCHEMA_VERSION := 9
 
 ## The state a plate is looked up under when a line names none.
 const DEFAULT_EXPRESSION := "neutral"
@@ -29,8 +29,8 @@ static func parse(document: Variant, scenario_id: String = "") -> Variant:
 		return KernelRefusal.of(
 			"dialogue/bundle-kind",
 			(
-				"unsupported dialogue scene; regenerate this scene with a current stage-gen "
-				+ "(stage-gen dialogue-scene generate)"
+				"unsupported dialogue scene; build this scene again with its gnode builder "
+				+ "(cd godot/games/the_grain && gnode run pipeline/workflow.py:scene --arg package=inputs)"
 			),
 			"kind"
 		)
@@ -38,8 +38,8 @@ static func parse(document: Variant, scenario_id: String = "") -> Variant:
 		return KernelRefusal.of(
 			"dialogue/bundle-kind",
 			(
-				"unsupported dialogue scene; regenerate this scene with a current stage-gen "
-				+ "(stage-gen dialogue-scene generate)"
+				"unsupported dialogue scene; build this scene again with its gnode builder "
+				+ "(cd godot/games/the_grain && gnode run pipeline/workflow.py:scene --arg package=inputs)"
 			),
 			"schema_version"
 		)

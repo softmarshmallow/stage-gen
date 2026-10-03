@@ -75,26 +75,31 @@ def test_games_gate_exercises_local_defaults_variants_and_explicit_sources() -> 
         for command in commands
         if command[0] == "python" and command[1].endswith("/pipeline/prepare.py")
     ]
-    plans = [command for command in game_scripts if "--plan" in command]
-    assert len(plans) == 4
-    assert {command[1].split("/")[2] for command in plans} == {"ember_hollow", "the_grain"}
-    # Iron Petal Unit and Bellweather are built with gnode: each lock and each package's plan
-    # are checked.
-    assert commands.count(("gnode", "lock", "--check")) == 2
-    for package in ("inputs", "inputs/default", "inputs/waves"):
+    assert ("python", "godot/games/ember_hollow/pipeline/prepare.py", "--plan") in commands
+    # The Grain's script proves its case; its rooms and scene are built with gnode.
+    assert ("python", "godot/games/the_grain/pipeline/prepare.py") in commands
+    # Iron Petal Unit, Bellweather and The Grain are built with gnode: each lock and each
+    # package's plan are checked.
+    assert commands.count(("gnode", "lock", "--check")) == 3
+    for builder, package in (
+        ("build", "inputs"),
+        ("build", "inputs/default"),
+        ("build", "inputs/waves"),
+        ("room", "inputs/rooms/window"),
+        ("room", "inputs/rooms/motor_court"),
+        ("scene", "inputs"),
+    ):
         assert (
             "gnode",
             "plan",
-            "pipeline/workflow.py:build",
+            f"pipeline/workflow.py:{builder}",
             "--arg",
             f"package={package}",
             "--check",
         ) in commands
-    grain_modes = {command[-1] for command in plans if command[1].split("/")[2] == "the_grain"}
-    assert grain_modes == {"case", "room", "dialogue"}
     dry_runs = [command for command in game_scripts if "--dry-run" in command]
-    assert len(dry_runs) == 3
-    assert {command[1].split("/")[2] for command in dry_runs} == {"the_grain", "ember_hollow"}
+    assert len(dry_runs) == 1
+    assert {command[1].split("/")[2] for command in dry_runs} == {"ember_hollow"}
     assert all("--output" in command and "--cache-dir" in command for command in dry_runs)
     assert all("--live" not in command for command in commands)
     validators = [

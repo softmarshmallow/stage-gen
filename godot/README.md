@@ -94,13 +94,16 @@ uv run --group games python godot/games/the_grain/pipeline/prepare.py
 ```
 
 These defaults plan or validate inputs offline. Run `--help` on the selected
-script for generation, deterministic rehearsal and output options. Iron Petal Unit and
-Bellweather are built with gnode from their own folders instead; Bellweather's `default`
-and `waves` inputs are variants of the same game:
+script for generation, deterministic rehearsal and output options; The Grain's script
+proves and publishes its case. Iron Petal Unit, Bellweather and The Grain's rooms and
+scene are built with gnode from their own folders instead; Bellweather's `default` and
+`waves` inputs are variants of the same game:
 
 ```sh
 cd godot/games/iron_petal_unit && uv run gnode plan pipeline/workflow.py:build --arg package=inputs
 cd godot/games/bellweather && uv run gnode plan pipeline/workflow.py:build --arg package=inputs/default
+cd godot/games/the_grain && uv run gnode plan pipeline/workflow.py:room --arg package=inputs/rooms/window
+cd godot/games/the_grain && uv run gnode plan pipeline/workflow.py:scene --arg package=inputs
 ```
 
 The collection CLI, `uv run --group games demo-games --help`, maintains existing format

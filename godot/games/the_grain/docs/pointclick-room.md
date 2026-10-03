@@ -3,7 +3,7 @@
 > **Scope: game consumers.** This document describes the formats used by these Godot games.
 > The public asset SDK and new games do not require this authoring format.
 
-> **Checked by:** `tests/contract/test_current_game_docs.py`.
+> **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_generation_pipeline_docs.py`, `tests/unit/games/pointclick_room/test_workflow.py`.
 
 > **Contract maturity: exact-current for the authored contract, the pipeline,
 > and the runtime manifest.** Executable authority:
@@ -61,23 +61,68 @@ unknown fields rejected):
 exact reachable state space (flags × inventory × reveals × fired one-shots)
 and refuses a room that cannot reach its win condition, names interactions
 that can never fire, and rejects hidden hotspots nothing reveals or items
-nothing grants. The proof, with one shortest solution as evidence, is
-persisted into the run as `puzzle.validation.json`
-(`pointclick-solvability-v1`).
+nothing grants. The proof, with one shortest solution as evidence, is a
+`pointclick-solvability-v1` record. The builder resolves the room first, so a room
+the proof refuses is refused while planning and nothing is paid for; the delivered
+room carries no copy of the proof, because the host plays the manifest and the
+build re-proves the room every time it plans.
 
-## Pipeline — `pointclick-room-execution-graph-v2`
+## Building the room
 
-`demo-games pointclick-room generate --input godot/games/the_grain/inputs
---output out/<tag>` (add `--dry-run` for the free rehearsal). The graph for
-the shipped room is 23 nodes: `room.resolve` → `style_anchor.select` → the
-backdrop, one generate+validate pair per sprite hotspot
-(`hotspot-pipeline@v1` template instances) and per item icon
-(`item-icon-pipeline@v1`), one `narration.compile` structured call covering
-every authored narration gap under a closed-id strict schema (omitted
-entirely when the author wrote every line), the shared UI sheet
-triplet for each of the three interface roles (two nine-slice sheets and
-the preview icon grid), the local `puzzle.validate`
-proof, and the terminal `room.bundle`.
+The game's folder is a gnode project; `pipeline/workflow.py:room` reads one room
+package with the room's own reader and writes one step per asset. From
+`godot/games/the_grain`:
+
+```bash
+gnode plan pipeline/workflow.py:room --arg package=inputs/rooms/window
+gnode run pipeline/workflow.py:room --arg package=inputs/rooms/window --live --max-usd 25 \
+  --deliver package=../../../out/<tag>/{key}
+```
+
+A model picks one approved style mode for the room (`style.select`, judged so it
+treats every asset kind drawn); the backdrop, one cut-out per sprite hotspot and
+one icon per item are each painted against the cover and judged — the exact
+canvas, and for a cut-out native alpha around one isolated subject — and drawn
+again when they fail. One structured call writes every narration line the
+author left open, judged to cover exactly those ids (it is absent when the
+author wrote every line). The shared UI sheet family draws each interface role.
+The last step reads the room again from its own files and writes
+`manifest.json` over everything it publishes.
+
+<!-- pipeline-graph-contract:start -->
+```json
+{
+  "kind": "pointclick-room-gnode-plan-contract-v1",
+  "fixture_ref": "godot/games/the_grain/inputs/rooms/window",
+  "builder": "pipeline/workflow.py:room",
+  "workflow_id": "the-grain-room",
+  "topology_sha256": "eb7f4667e7c596bdba7063f86e5dec8ebbb6b4bb09ec716a134222191e187949",
+  "node_count": 99,
+  "step_count": 29,
+  "first_take_operation_counts": {
+    "image.edit": 6,
+    "local": 19,
+    "structured.generate": 4
+  },
+  "outputs": [
+    "package"
+  ],
+  "type_ids": [
+    "./pipeline/nodes/interface.py#admit_ui_sheet",
+    "./pipeline/nodes/interface.py#publish_ui_sheet",
+    "./pipeline/nodes/interface.py#ui_review_schema",
+    "./pipeline/nodes/interface.py#ui_template",
+    "./pipeline/nodes/room.py#admit_room_image",
+    "./pipeline/nodes/room.py#room_package",
+    "./pipeline/nodes/style.py#admit_style",
+    "./pipeline/nodes/style.py#selection_schema",
+    "./pipeline/nodes/style.py#style_record",
+    "gnode/image.edit@1",
+    "gnode/structured.generate@1"
+  ]
+}
+```
+<!-- pipeline-graph-contract:end -->
 
 **The interface is generated, and the nodes that generate it are not this
 recipe's.** Panels and buttons are the one thing every genre draws the same
@@ -98,11 +143,10 @@ draws: a flat-graphic room came back with a flat backdrop and glossy gradient
 icons from the identical style clause. So the reference is pixels, and it is
 an authored package member rather than something the pipeline paints for
 itself first — the look is chosen once, by a person, and every draw is held to
-it. Its digest rides each image node's cache identity, so replacing the file
-re-bills the room deliberately rather than leaving assets drawn against a
-reference that no longer exists. The terminal bundle republishes it into the
-run, carrying the authored rights decision across, because the manifest names
-it and a run must carry the bytes it names.
+it. It is attached to every image call, so replacing the file is a different
+request and re-bills the room deliberately rather than leaving assets drawn
+against a reference that no longer exists. The package step republishes it,
+because the manifest names it and a package must carry the bytes it names.
 
 **A hit area is not art direction, and correcting one is free.** Hotspot
 rectangles are authored before the plate exists, so they are a guess at a
@@ -114,42 +158,27 @@ before the split: 3 corrected rectangles in the motor court redrew the plate and
 the composition drifted ~27px; 12 in the window room re-imagined it and 7 of 14
 rectangles were lost, leaving a gating exit on blank stone. So the two jobs are
 two fields. `art_region` is the composition an image is told about — it is the
-only rectangle any prompt reads, and it rides the backdrop's cache identity, so
-editing it is a request for a different picture and re-bills as it must.
-`region` is the hit area; **no image node reads it**, it is carried to the
-player in the runtime manifest, and moving it re-keys only the local nodes that
-republish it — the bundle included, so the corrected rectangles do reach the
-runtime. The two start equal, and the second one diverges as the room is fitted
+only rectangle any prompt reads, so editing it is a request for a different
+picture and re-bills as it must. `region` is the hit area; **no image step reads
+it**, it is carried to the player in the runtime manifest, and moving it re-runs
+only the package step, so the corrected rectangles reach the runtime and nothing
+is drawn again. The two start equal, and the second one diverges as the room is fitted
 to the art that actually arrived. The solvability proof reads neither.
 
-This narrows what an image node's identity *legitimately* depends on; it does
-not weaken what reuse must prove. A cache record is still honoured only when the
-key matches, the recorded lineage still matches what the dependencies produced
-this run, and every restored byte hashes to what was recorded.
-
-Every generation node's **complete static prompt rides its card in the plan**
-— the handler sends the card text verbatim with the style anchor appended
-once, so `execution-plan.json` states exactly what each node will be told
-before a cent is spent, and the run viewer renders it. Each image card also
-names the cover as an `authored_inputs` entry — label, package path, digest —
-so the file that will be attached to the call is legible in the plan and in
-the viewer rather than hiding inside a cache key, the way a derived input is
-legible through its upstream port.
+Every image prompt is stated in the plan: the room's static brief ends with the
+style anchor's clause, which a template fills from the anchor once it is picked.
 
 ### Image routing
 
-The recipe states image intent without naming a provider. Its backdrop is an opaque reference edit
-at the authored exact frame; hotspot sprites, item icons, and shared UI sheets require transparent
-reference edits at their declared canvases. Planning resolves each workload to GPT Image 2.5
-Sunburst at maximum quality, checks the exact-size envelope, and seals the route in the graph. The
-current defaults use OpenAI. `STAGE_GEN_IMAGE_PROVIDER=fal` replans all image nodes onto fal. A
-full room cannot be planned with the OpenRouter override because its image surface does not provide
-native transparency or real masks. Missing credentials and provider failures never trigger a
-fallback route.
+The game's `gnode.yaml` names the routes: images on GPT Image 2.5 Sunburst over OpenAI, structured
+calls on OpenRouter. The backdrop is an opaque reference edit at the authored exact frame; hotspot
+sprites, item icons and the UI sheets are transparent reference edits, and declare
+`transparent_background`, so a route that cannot paint alpha is refused while planning. Missing
+credentials and provider failures never trigger a fallback route.
 
 ## Runtime manifest — `pointclick-room-runtime-v3`
 
-The terminal bundle writes `manifest.json` into the run directory: the cover
+The package step writes `manifest.json` beside what it publishes: the cover
 ref, scene frame and backdrop ref, hotspots (region, hidden, sprite ref or scenery), items with
 icon refs, interactions with narration **resolved** (authored line or the
 generated one), the win condition, the three interface roles with the geometry

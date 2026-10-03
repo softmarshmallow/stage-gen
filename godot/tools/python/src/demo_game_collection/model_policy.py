@@ -27,8 +27,6 @@ def build_repository_model_policy_projection(
     from stage_gen.config import StageGenConfig
     from stage_gen.image_product import ImageProvider
     from stage_gen.model_routes import IMAGE_ROUTE_CATALOG, image_workload_policies
-    from the_grain_pipeline.dialogue_scene.scene_executor import DialogueSceneExecutor
-    from the_grain_pipeline.pointclick_room.room_executor import PointClickRoomExecutor
 
     root = repository_root.resolve()
     if not (root / "pyproject.toml").is_file():
@@ -36,9 +34,7 @@ def build_repository_model_policy_projection(
     provider = ImageProvider(image_provider)
     config = StageGenConfig(image_provider_override=provider)
     fixture_by_recipe = {
-        "dialogue_scene": "godot/games/the_grain/inputs",
         "oblique_survival": "godot/games/ember_hollow/inputs",
-        "pointclick_room": "godot/games/the_grain/inputs/rooms/window",
     }
     available = tuple(sorted(fixture_by_recipe))
     if recipe_id is not None and recipe_id not in fixture_by_recipe:
@@ -47,19 +43,11 @@ def build_repository_model_policy_projection(
         )
     selected = set(available if recipe_id is None else (recipe_id,))
     graphs: dict[str, Graph] = {}
-    if "dialogue_scene" in selected:
-        graphs["dialogue_scene"] = (
-            DialogueSceneExecutor(config).plan(root / fixture_by_recipe["dialogue_scene"]).graph
-        )
     if "oblique_survival" in selected:
         graphs["oblique_survival"] = (
             ObliqueSurvivalExecutor(config)
             .plan(root / fixture_by_recipe["oblique_survival"], "full")
             .graph
-        )
-    if "pointclick_room" in selected:
-        graphs["pointclick_room"] = (
-            PointClickRoomExecutor(config).plan(root / fixture_by_recipe["pointclick_room"]).graph
         )
     policy_selections = {
         "default": image_workload_policies(),

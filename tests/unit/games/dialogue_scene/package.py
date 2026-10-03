@@ -9,6 +9,7 @@ field and assert the refusal.
 from __future__ import annotations
 
 import hashlib
+import re
 import tomllib
 from io import BytesIO
 from pathlib import Path
@@ -443,6 +444,40 @@ def scene_value(
         )
     value.update(overrides)
     return value
+
+
+def repoint_digests(package: Path) -> None:
+    """Re-pin an edited script, the way `stage-gen scenario check --write-digest` does.
+
+    Editing prose invalidates two recorded hashes: the scenario's binding of its
+    script, and the scene's binding of the scenario. A test that edits a line has
+    to move both, or it proves a digest mismatch rather than what it meant to.
+    """
+
+    scenario = package / "scenarios/after_seminar.toml"
+    script = package / "scenarios/after_seminar.scenario"
+    scenario.write_text(
+        re.sub(
+            r'script_sha256 = "[0-9a-f]{64}"',
+            f'script_sha256 = "{hashlib.sha256(script.read_bytes()).hexdigest()}"',
+            scenario.read_text(encoding="utf-8"),
+            count=1,
+        ),
+        encoding="utf-8",
+    )
+    scene = package / "scene.toml"
+    scenario_digest = hashlib.sha256(scenario.read_bytes()).hexdigest()
+    scene.write_text(
+        re.sub(
+            r'(\[\[scenarios\]\][^\[]*?ref = "scenarios/after_seminar\.toml"\n'
+            r'source_sha256 = )"[0-9a-f]{64}"',
+            lambda match: f'{match.group(1)}"{scenario_digest}"',
+            scene.read_text(encoding="utf-8"),
+            count=1,
+            flags=re.DOTALL,
+        ),
+        encoding="utf-8",
+    )
 
 
 def read_scene_value(root: Path) -> dict[str, Any]:

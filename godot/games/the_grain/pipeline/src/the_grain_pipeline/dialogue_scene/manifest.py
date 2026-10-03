@@ -1,4 +1,10 @@
-"""Portable dialogue-scene bundle assembler."""
+"""The portable dialogue-scene bundle, assembled from one laid-out scene.
+
+Every member is read back from the folder the package step laid out and re-proved before
+it is bound: the request must be canonical, the plate the author's exact bytes, every
+scenario admitted by its own proof, every profile canonical and every plan bound to it.
+Files are bound by path and digest; which call made each one is the build's run record.
+"""
 
 from __future__ import annotations
 
@@ -18,26 +24,14 @@ from demo_game_tools.scenario import (
     StageDeclaration,
     TrackDeclaration,
 )
-from gnode import (
-    ArtifactProvenance,
-    ArtifactRights,
-    BinaryArtifact,
-    ProvenanceInput,
-    SoftwareIdentity,
-    resolve_relative_path_within_root,
-    write_artifact_with_provenance_async,
-)
-from stage_gen.identity import STAGE_GEN_TOOL
+from gnode import resolve_relative_path_within_root
 from stage_gen.image_style import CanonicalStyleAnchor, canonical_style_anchor_digest
 from stage_gen.media import inspect_image, probe_audio
 from the_grain_pipeline.dialogue_scene.identity import (
-    canonical_json_bytes,
     canonical_sha256,
     content_sha256,
 )
 from the_grain_pipeline.dialogue_scene.models import (
-    AttemptLedger,
-    AttemptLedgerBinding,
     AudioFacts,
     BundleActor,
     BundleArtifact,
@@ -63,15 +57,11 @@ from the_grain_pipeline.dialogue_scene.scene_request import (
     scenario_id_from_ref,
 )
 
-_COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="6")
 
-
-async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
-    """Assemble the portable bundle from one completed run directory."""
+async def dialogue_bundle(run_dir: Path, *, tag: str, ffprobe: str = "ffprobe") -> DialogueBundle:
+    """The portable bundle of one laid-out scene, every member re-proved and bound."""
 
     request_bytes = _read(run_dir, "request.json")
-    request_provenance = _read(run_dir, "request.json.meta.json")
-    _validate_provenance(request_provenance, request_bytes, "request")
     request = DialogueSceneDocument.model_validate_json(request_bytes)
     # The published file must be the canonical document, not merely parse to it,
     # so a consumer holding the bundle and the file can compare the two digests.
@@ -81,7 +71,6 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
     # the republished bytes are compared to the author's digest, not its path.
     authored_reference = request.style_reference()
     style_bytes = _read(run_dir, "assets/style-plate.png")
-    style_provenance = _read(run_dir, "assets/style-plate.png.meta.json")
     style_sha256 = content_sha256(style_bytes)
     if style_sha256 != authored_reference.source_sha256:
         raise ValueError("published style plate does not match the authored reference digest")
@@ -93,12 +82,7 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
     for entry in scenarios:
         if entry.program.game_id != request.game_id:
             raise ValueError("published scenario game_id does not match the request")
-    ledger_bytes = _read(run_dir, "attempts.json")
-    ledger = AttemptLedger.model_validate_json(ledger_bytes)
-    style_anchor_bytes = _read(run_dir, "style-anchor.json")
-    style_anchor_provenance = _read(run_dir, "style-anchor.json.meta.json")
-    _validate_provenance(style_anchor_provenance, style_anchor_bytes, "style anchor")
-    style_anchor = CanonicalStyleAnchor.model_validate_json(style_anchor_bytes)
+    style_anchor = CanonicalStyleAnchor.model_validate_json(_read(run_dir, "style-anchor.json"))
     style_binding = _style_binding(style_anchor)
     # One profile and one plan per drawable actor, each held to the same rules the
     # single-character run always applied - the fan-out widened the count, not the
@@ -157,11 +141,10 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         publish_provenance=lambda _path: None,
     )
     assets = [
-        _asset(run_dir, ledger, "style-plate", "style", "assets/style-plate.png", None, None),
+        _asset(run_dir, "style-plate", "style", "assets/style-plate.png", None, None),
         *[
             _asset(
                 run_dir,
-                ledger,
                 _slug(stage.stage_id),
                 "background",
                 f"assets/stage-{_slug(stage.stage_id)}.png",
@@ -175,7 +158,6 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         *[
             _asset(
                 run_dir,
-                ledger,
                 f"{actor.slug}-{_slug(expression.expression_id)}",
                 "expression",
                 f"assets/{actor.slug}-{_slug(expression.expression_id)}.png",
@@ -186,41 +168,28 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
             for expression in actor.profile.expressions
         ],
         *[
-            await _track_asset(run_dir, ledger, track_id)
+            await _track_asset(run_dir, track_id, ffprobe)
             for track_id in _union_tracks(entry.program for entry in scenarios)
         ],
         *[
-            _asset(run_dir, ledger, _ui_asset_id(role), "ui", f"ui/{role}.png", None, None)
+            _asset(run_dir, _ui_asset_id(role), "ui", f"ui/{role}.png", None, None)
             for role in ui_roles
         ],
     ]
-    bundle = DialogueBundle(
-        schema_version=8,
-        kind="dialogue-scene-bundle-v8",
+    return DialogueBundle(
+        schema_version=9,
+        kind="dialogue-scene-bundle-v9",
         recipe="dialogue-scene",
         recipe_version="dialogue-scene-v8",
         tag=tag,
         game_id=request.game_id,
         run_identity_sha256=identity_sha,
-        request=BundleFile(
-            path="request.json",
-            sha256=content_sha256(request_bytes),
-            provenance_path="request.json.meta.json",
-            provenance_sha256=content_sha256(request_provenance),
-        ),
+        request=BundleFile(path="request.json", sha256=content_sha256(request_bytes)),
         actors=[actor.binding for actor in resolved_actors],
         scenarios=[entry.binding_record for entry in scenarios],
-        style_reference=BundleFile(
-            path="assets/style-plate.png",
-            sha256=style_sha256,
-            provenance_path="assets/style-plate.png.meta.json",
-            provenance_sha256=content_sha256(style_provenance),
-        ),
+        style_reference=BundleFile(path="assets/style-plate.png", sha256=style_sha256),
         style_reference_source=authored_reference.source,
         assets=assets,
-        attempt_ledger=AttemptLedgerBinding(
-            path="attempts.json", sha256=content_sha256(ledger_bytes)
-        ),
         scene_data=_scene_data(
             request,
             resolved_actors,
@@ -231,56 +200,6 @@ async def write_dialogue_bundle(run_dir: Path, *, tag: str) -> tuple[str, ...]:
         review=ReviewState(status="pending", path=None, sha256=None),
         rights=RightsState(aggregate="unreviewed", publication_authorized=False),
     )
-    data = canonical_json_bytes(bundle) + b"\n"
-    provenance = await write_artifact_with_provenance_async(
-        run_dir / "bundle.json",
-        BinaryArtifact(data=data, media_type="application/json"),
-        ProvenanceInput(
-            schema_version=2,
-            provider="local",
-            model="deterministic-dialogue-bundle-v6",
-            prompt="Assemble the authored scene package's assets into the portable bundle.",
-            refs=[
-                "request.json",
-                "plan.json",
-                "character-profile.json",
-                "character-profile.json.meta.json",
-                "attempts.json",
-                "style-anchor.json",
-                "style-anchor.json.meta.json",
-            ],
-            params={
-                "run_identity_sha256": identity_sha,
-                "selected_assets": len(assets),
-                "style_reference_source": authored_reference.source,
-                "style_reference_sha256": style_sha256,
-                "cast": [actor.actor_id for actor in resolved_actors],
-                "scenarios": [entry.program.scenario_id for entry in scenarios],
-                "style_anchor_path": "style-anchor.json",
-                "style_anchor_artifact_sha256": content_sha256(style_anchor_bytes),
-                "style_anchor_provenance_path": "style-anchor.json.meta.json",
-                "style_anchor_provenance_sha256": content_sha256(style_anchor_provenance),
-                **style_binding,
-            },
-            validation={
-                "strict_schema": True,
-                "portable_paths": True,
-                "profile_source_digest_verified": True,
-                "profile_canonical_digest_verified": True,
-                "identity_reference_digest_verified": True,
-            },
-            component=_COMPONENT,
-            tool=STAGE_GEN_TOOL,
-            attempts=1,
-            rights=ArtifactRights(
-                status="unreviewed",
-                attribution=[],
-                basis=[],
-                reviewed_at=None,
-            ),
-        ),
-    )
-    return ("bundle.json", provenance.relative_to(run_dir).as_posix())
 
 
 @dataclass(frozen=True, slots=True)
@@ -308,14 +227,10 @@ def _read_scenario(
     program_path = f"scenarios/{slug}.json"
     proof_path = f"scenarios/{slug}.validation.json"
     program_bytes = _read(run_dir, program_path)
-    program_provenance = _read(run_dir, f"{program_path}.meta.json")
-    _validate_provenance(program_provenance, program_bytes, f"{scenario_id} scenario")
     program = ScenarioProgram.model_validate_json(program_bytes)
     if program.scenario_id != scenario_id:
         raise ValueError(f"published scenario at {program_path} is not {scenario_id}")
     proof_bytes = _read(run_dir, proof_path)
-    proof_provenance = _read(run_dir, f"{proof_path}.meta.json")
-    _validate_provenance(proof_provenance, proof_bytes, f"{scenario_id} scenario proof")
     proof = ScenarioAdmissionReport.model_validate_json(proof_bytes)
     if not proof.admitted:
         raise ValueError(
@@ -332,18 +247,8 @@ def _read_scenario(
         binding_record=BundleScenario(
             scenario_id=scenario_id,
             binding=binding,
-            program=BundleFile(
-                path=program_path,
-                sha256=content_sha256(program_bytes),
-                provenance_path=f"{program_path}.meta.json",
-                provenance_sha256=content_sha256(program_provenance),
-            ),
-            validation=BundleFile(
-                path=proof_path,
-                sha256=content_sha256(proof_bytes),
-                provenance_path=f"{proof_path}.meta.json",
-                provenance_sha256=content_sha256(proof_provenance),
-            ),
+            program=BundleFile(path=program_path, sha256=content_sha256(program_bytes)),
+            validation=BundleFile(path=proof_path, sha256=content_sha256(proof_bytes)),
             program_sha256=content_sha256(program_bytes),
         ),
     )
@@ -451,8 +356,6 @@ def _read_actor(
     slug = _slug(member.actor_id)
     profile_path = f"characters/{slug}.json"
     profile_bytes = _read(run_dir, profile_path)
-    profile_provenance = _read(run_dir, f"{profile_path}.meta.json")
-    _validate_provenance(profile_provenance, profile_bytes, f"{member.actor_id} profile")
     profile = CharacterProfile.model_validate_json(profile_bytes)
     profile_sha256 = character_profile_sha256(profile)
     if profile_sha256 != content_sha256(profile_bytes):
@@ -460,8 +363,6 @@ def _read_actor(
 
     plan_path = f"plans/{slug}.json"
     plan_bytes = _read(run_dir, plan_path)
-    plan_provenance = _read(run_dir, f"{plan_path}.meta.json")
-    _validate_provenance(plan_provenance, plan_bytes, f"{member.actor_id} plan")
     plan = DialogueScenePlan.model_validate_json(plan_bytes)
     if plan.art_request_sha256 != art_request_sha256(request):
         raise ValueError(f"{member.actor_id} plan art-request digest does not match the request")
@@ -485,20 +386,10 @@ def _read_actor(
         profile_sha256=profile_sha256,
         binding=BundleActor(
             actor_id=member.actor_id,
-            character_profile=BundleFile(
-                path=profile_path,
-                sha256=content_sha256(profile_bytes),
-                provenance_path=f"{profile_path}.meta.json",
-                provenance_sha256=content_sha256(profile_provenance),
-            ),
+            character_profile=BundleFile(path=profile_path, sha256=content_sha256(profile_bytes)),
             character_profile_binding=binding.character_profile,
             character_profile_sha256=profile_sha256,
-            plan=BundleFile(
-                path=plan_path,
-                sha256=content_sha256(plan_bytes),
-                provenance_path=f"{plan_path}.meta.json",
-                provenance_sha256=content_sha256(plan_provenance),
-            ),
+            plan=BundleFile(path=plan_path, sha256=content_sha256(plan_bytes)),
         ),
     )
 
@@ -631,25 +522,13 @@ def _scene_data(
     )
 
 
-async def _track_asset(
-    run_dir: Path,
-    ledger: AttemptLedger,
-    track_id: str,
-) -> BundleArtifact:
+async def _track_asset(run_dir: Path, track_id: str, ffprobe: str) -> BundleArtifact:
     """One generated track, with its duration probed from the decoded stream."""
 
     asset_id = f"track-{_slug(track_id)}"
     path = f"assets/{asset_id}.mp3"
     data = _read(run_dir, path)
-    provenance_path = f"{path}.meta.json"
-    provenance = _read(run_dir, provenance_path)
-    _validate_provenance(provenance, data, f"asset {asset_id}")
-    probe = await probe_audio(run_dir / path, timeout_seconds=120)
-    selected = [
-        attempt
-        for attempt in ledger.attempts
-        if attempt.outcome == "selected" and attempt.artifact == path
-    ]
+    probe = await probe_audio(run_dir / path, ffprobe=ffprobe, timeout_seconds=120)
     return BundleArtifact(
         id=asset_id,
         role="track",
@@ -658,15 +537,11 @@ async def _track_asset(
         sha256=content_sha256(data),
         bytes=len(data),
         media=AudioFacts(mime_type="audio/mpeg", duration_seconds=round(probe.duration_seconds, 3)),
-        provenance_path=provenance_path,
-        provenance_sha256=content_sha256(provenance),
-        selected_attempt=selected[-1].attempt if selected else 0,
     )
 
 
 def _asset(
     run_dir: Path,
-    ledger: AttemptLedger,
     asset_id: str,
     role: str,
     path: str,
@@ -674,16 +549,7 @@ def _asset(
     actor_id: str | None,
 ) -> BundleArtifact:
     data = _read(run_dir, path)
-    provenance_path = f"{path}.meta.json"
-    provenance = _read(run_dir, provenance_path)
-    _validate_provenance(provenance, data, f"asset {asset_id}")
     facts = inspect_image(data, expected_media_type="image/png")
-    selected = [
-        attempt
-        for attempt in ledger.attempts
-        if attempt.outcome == "selected" and attempt.artifact == path
-    ]
-    selected_attempt = selected[-1].attempt if selected else 0
     return BundleArtifact(
         id=asset_id,
         role=cast(Literal["style", "background", "expression"], role),
@@ -698,9 +564,6 @@ def _asset(
             height=facts.height,
             alpha=facts.has_alpha,
         ),
-        provenance_path=provenance_path,
-        provenance_sha256=content_sha256(provenance),
-        selected_attempt=selected_attempt,
     )
 
 
@@ -713,14 +576,6 @@ def _style_binding(anchor: CanonicalStyleAnchor) -> dict[str, object]:
         "style_skill_sha256": anchor.skill_sha256,
         "style_vocabulary_sha256": anchor.vocabulary_sha256,
     }
-
-
-def _validate_provenance(data: bytes, artifact: bytes, label: str) -> None:
-    record = ArtifactProvenance.model_validate_json(data)
-    if record.schema_version != 2:
-        raise ValueError(f"{label} provenance must use schema_version 2")
-    if record.artifact is None or record.artifact.sha256 != content_sha256(artifact):
-        raise ValueError(f"{label} provenance artifact digest mismatch")
 
 
 def _read(run_dir: Path, relative: str) -> bytes:

@@ -49,11 +49,7 @@ def test_models_routes_is_credential_network_and_adapter_free(
         "openai",
         "openrouter",
     }
-    assert {recipe["recipe_id"] for recipe in report["recipes"]} == {
-        "dialogue_scene",
-        "oblique_survival",
-        "pointclick_room",
-    }
+    assert {recipe["recipe_id"] for recipe in report["recipes"]} == {"oblique_survival"}
 
 
 def test_models_diff_reads_a_local_base_and_honors_recipe_filter(tmp_path: Path) -> None:
@@ -72,7 +68,7 @@ def test_models_diff_reads_a_local_base_and_honors_recipe_filter(tmp_path: Path)
                 "--base",
                 str(base),
                 "--recipe",
-                "pointclick_room",
+                "oblique_survival",
             ],
             stdout=output,
         )
@@ -81,7 +77,7 @@ def test_models_diff_reads_a_local_base_and_honors_recipe_filter(tmp_path: Path)
 
     report = json.loads(output.getvalue())
     assert report["kind"] == "stage-gen-model-policy-diff-v1"
-    assert report["recipe_filter"] == "pointclick_room"
+    assert report["recipe_filter"] == "oblique_survival"
     assert report["route_deltas"] == []
     assert report["policy_deltas"] == []
     assert report["recipe_deltas"] == []
@@ -112,7 +108,7 @@ def test_models_diff_projects_provider_policy_through_canonical_graphs_offline(
                 "--image-provider",
                 "fal",
                 "--recipe",
-                "pointclick_room",
+                "oblique_survival",
             ],
             stdout=output,
         )
@@ -121,7 +117,7 @@ def test_models_diff_projects_provider_policy_through_canonical_graphs_offline(
 
     report = json.loads(output.getvalue())
     [delta] = report["recipe_deltas"]
-    assert delta["recipe_id"] == "pointclick_room"
+    assert delta["recipe_id"] == "oblique_survival"
     assert delta["direct_nodes"]
     assert delta["downstream_cache_rekeys"]
     assert report["consumer_source_changes"]["catalog_or_policy_only"] is True
@@ -161,11 +157,7 @@ def test_models_diff_reports_all_openrouter_capability_gaps_without_planning_abo
     gaps = report["capability_gaps"]
     assert len(gaps) > 1
     assert len({(gap["recipe_id"], gap["node_id"]) for gap in gaps}) == len(gaps)
-    assert {gap["recipe_id"] for gap in gaps} >= {
-        "dialogue_scene",
-        "oblique_survival",
-        "pointclick_room",
-    }
+    assert {gap["recipe_id"] for gap in gaps} == {"oblique_survival"}
     assert all("openrouter" in gap["route_id"] for gap in gaps)
     assert any("missing features: transparent_background" in gap["reasons"] for gap in gaps)
     assert any(any(reason.startswith("size ") for reason in gap["reasons"]) for gap in gaps)

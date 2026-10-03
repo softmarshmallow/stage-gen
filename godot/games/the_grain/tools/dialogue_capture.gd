@@ -11,7 +11,7 @@ const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
 ## This sheet captures settled story moments rather than transition midpoints:
 ## the opening, a two-hander, the same two-hander with the other one speaking,
 ## a line nobody says, a choice, and the end card. The steps below are written
-## against `out/the-grain-scene-a`, which is the run the case points at.
+## against `out/the-grain-scene-gnode`, which is the run the case points at.
 ##
 ## Two of the six come from a different scenario of the same bundle, because
 ## `e1_way_in` has no choice in it. A sheet that only photographed one scenario

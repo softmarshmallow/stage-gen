@@ -10,16 +10,15 @@ from PIL import Image
 
 from demo_game_tools.kits.character_profile import canonical_character_profile_json
 from demo_game_tools.kits.ui_art.nodes import UI_SHEET_ROLES, sheet_family
-from gnode import BinaryArtifact, ProvenanceInput, SoftwareIdentity, write_artifact_with_provenance
 from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
 from stage_gen.image_style import StyleModeSelection
 from tests.unit._ui_atlas_fixture import ui_sheet
 from the_grain_pipeline.dialogue_scene.identity import (
+    canonical_json_bytes,
     canonical_sha256,
     content_sha256,
 )
-from the_grain_pipeline.dialogue_scene.manifest import _fit, write_dialogue_bundle
-from the_grain_pipeline.dialogue_scene.models import DialogueBundle
+from the_grain_pipeline.dialogue_scene.manifest import _fit, dialogue_bundle
 from the_grain_pipeline.dialogue_scene.prompts import TEMPLATE_DIGEST
 from the_grain_pipeline.dialogue_scene.scene_request import (
     ResolvedDialogueScene,
@@ -123,10 +122,6 @@ def _write_inputs(root: Path) -> str:
         root / "style-anchor.json",
         json.dumps(anchor.model_dump(mode="json"), sort_keys=True).encode(),
     )
-    (root / "attempts.json").write_text(
-        '{"schema_version":2,"kind":"dialogue-attempt-ledger-v2","attempts":[]}\n',
-        encoding="utf-8",
-    )
     # The interface sheets and the records the gate wrote beside them, exactly as a real run
     # leaves them: the bundle reads the measured geometry rather than the declared template.
     ui = root / "ui"
@@ -165,101 +160,48 @@ def _write_inputs(root: Path) -> str:
 
 
 def _write_image(path: Path, data: bytes) -> None:
-    write_artifact_with_provenance(
-        path,
-        BinaryArtifact(data=data, media_type="image/png"),
-        ProvenanceInput(
-            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
-            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
-            schema_version=2,
-            provider="local",
-            model="fixture",
-            prompt="Create test media.",
-            attempts=1,
-        ),
-    )
+    path.write_bytes(data)
 
 
 def _write_json_pair(path: Path, data: bytes) -> None:
-    write_artifact_with_provenance(
-        path,
-        BinaryArtifact(data=data, media_type="application/json"),
-        ProvenanceInput(
-            component=SoftwareIdentity(name="@stage-gen/core", version="0.0.0"),
-            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
-            schema_version=2,
-            provider="local",
-            model="fixture",
-            prompt="Create test JSON.",
-            attempts=1,
-        ),
-    )
+    path.write_bytes(data)
 
 
 @pytest.mark.asyncio
-async def test_manifest_binds_request_and_plan_provenance_digests(
+async def test_the_bundle_binds_every_member_by_digest_and_the_anchor_into_its_identity(
     tmp_path: Path,
 ) -> None:
     tag = _write_inputs(tmp_path)
-    await write_dialogue_bundle(tmp_path, tag=tag)
-    bundle_raw = json.loads((tmp_path / "bundle.json").read_text(encoding="utf-8"))
-    assert bundle_raw["schema_version"] == 8
-    assert bundle_raw["kind"] == "dialogue-scene-bundle-v8"
-    assert "sceneData" not in bundle_raw
-    assert bundle_raw["scene_data"]["placement"]["framing_zoom"] == 70
-    bundle_sidecar = json.loads((tmp_path / "bundle.json.meta.json").read_text(encoding="utf-8"))
-    assert bundle_sidecar["schema_version"] == 2
-    first = DialogueBundle.model_validate_json((tmp_path / "bundle.json").read_bytes())
-    first_identity = canonical_sha256(first)
-    assert first.request.provenance_path == "request.json.meta.json"
-    assert first.request.provenance_sha256 == content_sha256(
-        (tmp_path / "request.json.meta.json").read_bytes()
-    )
+    first = await dialogue_bundle(tmp_path, tag=tag)
+    raw = json.loads(canonical_json_bytes(first))
+    assert (raw["schema_version"], raw["kind"]) == (9, "dialogue-scene-bundle-v9")
+    assert "sceneData" not in raw and "attempt_ledger" not in raw
+    assert raw["scene_data"]["placement"]["framing_zoom"] == 70
+    # v9 binds files by path and digest alone; which call made each is the run's record.
+    assert set(raw["request"]) == {"path", "sha256"}
+    assert first.request.sha256 == content_sha256((tmp_path / "request.json").read_bytes())
     mio = next(actor for actor in first.actors if actor.actor_id == "mio")
-    assert mio.plan.provenance_path == "plans/mio.json.meta.json"
-    assert mio.plan.provenance_sha256 == content_sha256(
-        (tmp_path / "plans/mio.json.meta.json").read_bytes()
-    )
-    anchor_raw = json.loads((tmp_path / "style-anchor.json").read_text(encoding="utf-8"))
+    assert mio.plan.sha256 == content_sha256((tmp_path / "plans/mio.json").read_bytes())
+    for asset in first.assets:
+        assert asset.sha256 == content_sha256((tmp_path / asset.path).read_bytes())
     assert first.recipe_version == "dialogue-scene-v8"
     assert first.scene_data.actors[0].appearance.art_direction == (
         "clean 2D Japanese anime illustration"
     )
-    assert bundle_sidecar["params"]["style_resource_sha256"] == anchor_raw["resource_sha256"]
-    assert bundle_sidecar["params"]["style_compiler_sha256"] == anchor_raw["compiler_sha256"]
-    assert bundle_sidecar["params"]["style_anchor_path"] == "style-anchor.json"
-    assert bundle_sidecar["params"]["style_anchor_artifact_sha256"] == content_sha256(
-        (tmp_path / "style-anchor.json").read_bytes()
-    )
-    assert bundle_sidecar["params"]["style_anchor_provenance_path"] == (
-        "style-anchor.json.meta.json"
-    )
-    assert bundle_sidecar["params"]["style_anchor_provenance_sha256"] == content_sha256(
-        (tmp_path / "style-anchor.json.meta.json").read_bytes()
-    )
 
+    anchor_raw = json.loads((tmp_path / "style-anchor.json").read_text(encoding="utf-8"))
     anchor_raw["resource_sha256"] = "9" * 64
     _write_json_pair(
-        tmp_path / "style-anchor.json",
-        json.dumps(anchor_raw, sort_keys=True).encode(),
+        tmp_path / "style-anchor.json", json.dumps(anchor_raw, sort_keys=True).encode()
     )
-    await write_dialogue_bundle(tmp_path, tag=tag)
-    style_changed = DialogueBundle.model_validate_json((tmp_path / "bundle.json").read_bytes())
+    style_changed = await dialogue_bundle(tmp_path, tag=tag)
     assert style_changed.run_identity_sha256 != first.run_identity_sha256
 
-    request_meta = json.loads((tmp_path / "request.json.meta.json").read_text(encoding="utf-8"))
-    request_meta["model"] = "fixture-mutated"
-    (tmp_path / "request.json.meta.json").write_text(json.dumps(request_meta), encoding="utf-8")
-    await write_dialogue_bundle(tmp_path, tag=tag)
-    second = DialogueBundle.model_validate_json((tmp_path / "bundle.json").read_bytes())
-    assert canonical_sha256(second) != first_identity
-
-    plan_meta = json.loads((tmp_path / "plans/mio.json.meta.json").read_text(encoding="utf-8"))
-    plan_meta["model"] = "fixture-mutated"
-    (tmp_path / "plans/mio.json.meta.json").write_text(json.dumps(plan_meta), encoding="utf-8")
-    await write_dialogue_bundle(tmp_path, tag=tag)
-    third = DialogueBundle.model_validate_json((tmp_path / "bundle.json").read_bytes())
-    assert canonical_sha256(third) not in {first_identity, canonical_sha256(second)}
+    plan = json.loads((tmp_path / "plans/mio.json").read_text(encoding="utf-8"))
+    plan["shared_locks"]["pose"] = "a different fixed conversational pose"
+    _write_json_pair(tmp_path / "plans/mio.json", json.dumps(plan).encode())
+    replanned = await dialogue_bundle(tmp_path, tag=tag)
+    assert canonical_sha256(replanned) != canonical_sha256(style_changed)
 
 
 def test_projection_copy_is_cut_on_a_word_boundary_and_never_left_untrimmed() -> None:

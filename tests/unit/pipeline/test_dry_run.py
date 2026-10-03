@@ -6,19 +6,19 @@ from pathlib import Path
 
 import pytest
 
+from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
 from stage_gen.config import StageGenConfig
 from stage_gen.pipeline.dry_run import DRY_RUN_CACHE_NAMESPACE, is_placeholder
-from the_grain_pipeline.pointclick_room.room_executor import PointClickRoomExecutor
 
-ROOM = Path(__file__).resolve().parents[3] / "godot/games/the_grain/inputs/rooms/motor_court"
+PACKAGE = Path(__file__).resolve().parents[3] / "godot/games/ember_hollow/inputs"
 
 
 @pytest.mark.asyncio
 async def test_a_second_rehearsal_restores_every_node_from_the_one_cache(tmp_path: Path) -> None:
-    executor = PointClickRoomExecutor(StageGenConfig())
+    executor = ObliqueSurvivalExecutor(StageGenConfig(), scope="minimal")
     cache_dir = tmp_path / "cache"
     first = await executor.dry_run(
-        ROOM, run_dir=tmp_path / "first", cache_dir=cache_dir, invocation_id="first"
+        PACKAGE, run_dir=tmp_path / "first", cache_dir=cache_dir, invocation_id="first"
     )
     assert first.summary.ok
     assert {trace.cache.value for trace in first.summary.nodes if trace.cache} == {"miss"}
@@ -34,7 +34,7 @@ async def test_a_second_rehearsal_restores_every_node_from_the_one_cache(tmp_pat
     assert not is_placeholder(tmp_path / "nowhere.png")
 
     second = await executor.dry_run(
-        ROOM, run_dir=tmp_path / "second", cache_dir=cache_dir, invocation_id="second"
+        PACKAGE, run_dir=tmp_path / "second", cache_dir=cache_dir, invocation_id="second"
     )
     assert second.summary.ok
     assert {trace.cache.value for trace in second.summary.nodes if trace.cache} == {"hit"}

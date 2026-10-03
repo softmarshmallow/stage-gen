@@ -9,17 +9,8 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from gnode import RouteResolutionError
-from stage_gen.config import ConfigError, StageGenConfig
-from stage_gen.image_product import ImageProvider
 from the_grain_pipeline.dialogue_scene.identity import canonical_json_bytes, canonical_sha256
 from the_grain_pipeline.dialogue_scene.models import DialogueBundle, DialogueSceneDocument
-from the_grain_pipeline.dialogue_scene.scene_executor import DialogueSceneExecutor
-from the_grain_pipeline.dialogue_scene.scene_graph import (
-    DialogueSceneGraph,
-    build_dialogue_scene_graph,
-    dialogue_graph_profile,
-)
 from the_grain_pipeline.dialogue_scene.scene_request import (
     ResolvedDialogueScene,
     parse_dialogue_request,
@@ -27,7 +18,7 @@ from the_grain_pipeline.dialogue_scene.scene_request import (
     resolve_dialogue_scene,
 )
 
-from .package import write_scene_package
+from .package import repoint_digests, write_scene_package
 
 
 def _document(root: Path) -> dict[str, object]:
@@ -38,49 +29,8 @@ def _resolved(root: Path) -> ResolvedDialogueScene:
     return resolve_dialogue_scene(_document(root), root=root)
 
 
-def _graph(root: Path) -> DialogueSceneGraph:
-    config = StageGenConfig()
-    return build_dialogue_scene_graph(
-        _resolved(root), profile=dialogue_graph_profile(config), config=config
-    )
-
-
 def _parsed(document: dict[str, object]) -> dict[str, object]:
     return parse_dialogue_request(document).model_dump(mode="json", exclude_none=True)
-
-
-def _repoint_digests(package: Path) -> None:
-    """Re-pin an edited script, the way `stage-gen scenario check --write-digest` does.
-
-    Editing prose invalidates two recorded hashes: the scenario's binding of its
-    script, and the scene's binding of the scenario. A test that edits a line has
-    to move both, or it proves a digest mismatch rather than what it meant to.
-    """
-
-    scenario = package / "scenarios/after_seminar.toml"
-    script = package / "scenarios/after_seminar.scenario"
-    scenario.write_text(
-        re.sub(
-            r'script_sha256 = "[0-9a-f]{64}"',
-            f'script_sha256 = "{hashlib.sha256(script.read_bytes()).hexdigest()}"',
-            scenario.read_text(encoding="utf-8"),
-            count=1,
-        ),
-        encoding="utf-8",
-    )
-    scene = package / "scene.toml"
-    scenario_digest = hashlib.sha256(scenario.read_bytes()).hexdigest()
-    scene.write_text(
-        re.sub(
-            r'(\[\[scenarios\]\][^\[]*?ref = "scenarios/after_seminar\.toml"\n'
-            r'source_sha256 = )"[0-9a-f]{64}"',
-            lambda match: f'{match.group(1)}"{scenario_digest}"',
-            scene.read_text(encoding="utf-8"),
-            count=1,
-            flags=re.DOTALL,
-        ),
-        encoding="utf-8",
-    )
 
 
 def test_scene_document_is_strict_canonical_and_rejects_camel_case(tmp_path: Path) -> None:
@@ -200,92 +150,6 @@ def test_a_reference_declared_but_never_used_is_refused(tmp_path: Path) -> None:
         _parsed({**document, "style_reference_id": "missing"})
 
 
-def test_recipe_declares_locked_dependency_dag(tmp_path: Path) -> None:
-    graph = _graph(write_scene_package(tmp_path / "pkg"))
-    ids = [node.node_id for node in graph.nodes]
-    assert ids[:5] == [
-        "scene-request",
-        "scenario-after-seminar",
-        "scene-style-select",
-        "scene-style-plate",
-        "stage-lounge",
-    ]
-    # One backdrop per declared stage, and a full expression fan-out per actor.
-    assert [node_id for node_id in ids if node_id.startswith("stage-")] == ["stage-lounge"]
-    for actor, states in (
-        ("mio", ("steady", "glad", "caught", "worried")),
-        ("ren", ("gruff", "amused", "apologetic", "firm")),
-    ):
-        assert f"actor-{actor}-profile" in ids
-        assert f"actor-{actor}-plan" in ids
-        for state in states:
-            assert f"actor-{actor}-{state}" in ids
-            assert f"actor-{actor}-canonicalize-{state}" in ids
-    assert graph.terminal_node_id == "scene-bundle"
-    assert graph.node("scene-bundle").depends_on == (
-        "scenario-after-seminar",
-        "stage-lounge",
-        *(
-            f"actor-{actor}-canonicalize-{state}"
-            for actor, states in (
-                ("mio", ("steady", "glad", "caught", "worried")),
-                ("ren", ("gruff", "amused", "apologetic", "firm")),
-            )
-            for state in states
-        ),
-        # The shared interface sheets are terminals like any other: the bundle cannot be
-        # written until the panel, the button and the icon set have been drawn, gated, and judged.
-        "ui-panel_frame-review",
-        "ui-button_rect-review",
-        "ui-preview_icons-review",
-    )
-
-
-def test_several_scenarios_generate_the_union_of_their_art_exactly_once(
-    tmp_path: Path,
-) -> None:
-    """The whole point of v4: six beats of one episode cost the art of one scene.
-
-    The second bound scenario shares both actors and one of its two stages with
-    the first. What it may add is its own admission node and the one backdrop
-    nobody had drawn yet - and nothing else. If a plate or a shared room appeared
-    twice, or if binding a second scenario moved a shared node's cache key, the
-    scene would be paying six times for one cast and this change would buy
-    nothing.
-    """
-
-    one = _graph(write_scene_package(tmp_path / "one"))
-    two = _graph(write_scene_package(tmp_path / "two", second_scenario=True))
-    added = {node.node_id for node in two.nodes} - {node.node_id for node in one.nodes}
-    assert added == {"scenario-late-shift", "stage-corridor"}
-    assert not {node.node_id for node in one.nodes} - {node.node_id for node in two.nodes}
-
-    # One backdrop per distinct stage, not per (scenario, stage) pair.
-    assert [node.node_id for node in two.nodes if node.node_id.startswith("stage-")] == [
-        "stage-lounge",
-        "stage-corridor",
-    ]
-    # Both scenarios show both actors; each is drawn once.
-    base_plates = [
-        node.node_id for node in two.nodes if node.type_id == "2d/frontview/vn/expression.generate"
-    ]
-    assert base_plates == ["actor-mio-steady", "actor-ren-gruff"]
-    assert len([node for node in two.nodes if node.node_id.startswith("actor-")]) == len(
-        ("mio", "ren")
-    ) * (1 + 1 + 4 + 4)
-
-    # A node's identity is what the image IS, never which scenario asked for it,
-    # so every shared plate and room stays cached when a scenario is added.
-    shared = [node.node_id for node in one.nodes if node.node_id.startswith(("stage-", "actor-"))]
-    assert shared
-    for node_id in shared:
-        assert one.node(node_id).cache_key == two.node(node_id).cache_key, node_id
-    assert two.node("scene-bundle").depends_on[:2] == (
-        "scenario-after-seminar",
-        "scenario-late-shift",
-    )
-
-
 def test_two_scenarios_that_disagree_about_one_stage_are_refused(tmp_path: Path) -> None:
     """One stage_id is one backdrop, so two briefs for it is an authoring error.
 
@@ -334,213 +198,6 @@ def _repoint_second_digest(package: Path) -> None:
         ),
         encoding="utf-8",
     )
-
-
-def test_the_authored_plate_is_published_not_generated(tmp_path: Path) -> None:
-    """Nothing in the graph paints the art direction, and the plan says whose it is.
-
-    The concept node became local when the plate stopped being generated, so the
-    scene buys one fewer image than it used to; every image node still keys on
-    the plate's bytes, so replacing the file re-bills the scene deliberately.
-    """
-
-    root = write_scene_package(tmp_path / "pkg")
-    resolved = _resolved(root)
-    graph = _graph(root)
-    plate = graph.node("scene-style-plate")
-    assert plate.operation == "local"
-    assert plate.card is not None
-    authored = {entry.label: entry for entry in plate.card.authored_inputs}
-    assert authored["cover"].ref == "references/cover.png"
-    assert authored["cover"].sha256 == resolved.style_reference.sha256
-
-    # One backdrop, four expressions for each of two actors, and the three UI sheets.
-    image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
-    assert len(image_nodes) == 12
-    for node in image_nodes:
-        assert resolved.style_reference.sha256 in node.input_sha256, node.node_id
-
-    # Every backdrop is drawn against the same plate the cast stands in.
-    background = graph.node("stage-lounge")
-    assert background.card is not None
-    assert any(
-        reference.node_id == "scene-style-plate" for reference in background.card.reference_inputs
-    )
-
-    # Only the actor that binds the plate as its own is held to its identity.
-    mio = graph.node("actor-mio-steady")
-    ren = graph.node("actor-ren-gruff")
-    assert mio.card is not None and ren.card is not None
-    assert len(mio.card.authored_inputs) == 2
-    assert len(ren.card.authored_inputs) == 1
-
-
-def test_every_image_node_seals_its_exact_capability_first_route(tmp_path: Path) -> None:
-    """The graph records what runtime sends, including references and UI geometry."""
-
-    root = write_scene_package(tmp_path / "pkg")
-    config = StageGenConfig()
-    profile = dialogue_graph_profile(config)
-    assert "image_generation" not in {str(binding.operation) for binding in profile.bindings}
-
-    graph = build_dialogue_scene_graph(_resolved(root), profile=profile, config=config)
-    images = [node for node in graph.nodes if node.operation == "image_generation"]
-    assert images
-    assert all(node.binding_ref is not None for node in images)
-    assert {node.binding_ref for node in images} == {
-        route.binding_ref for route in graph.resolved_routes
-    }
-
-    backdrop = graph.resolved_route_for("stage-lounge")
-    assert backdrop.provider == "openai"
-    assert backdrop.operation_variant == "edit"
-    assert set(backdrop.required_features) == {
-        "authored_prompt_passthrough",
-        "data_url_reference_input",
-        "exact_size",
-        "maximum_quality",
-        "opaque_background",
-        "png_output",
-        "reference_images",
-    }
-    assert backdrop.required_limits == (("reference_count_max", 1.0),)
-    assert backdrop.effective_output_options == {
-        "aspect_ratio": "auto",
-        "background": "opaque",
-        "input_fidelity": "omitted",
-        "mask_present": False,
-        "moderation": "low",
-        "moderation_goal": "low_when_supported",
-        "operation_variant": "edit",
-        "output_format": "png",
-        "prompt_policy": "authored_verbatim",
-        "quality": "max",
-        "quality_goal": "maximum_verified",
-        "reference_count": 1,
-        "reference_delivery": "data_url",
-        "size": "1680x944",
-    }
-
-    expression_routes = {
-        graph.node(node_id).binding_ref
-        for node_id in (
-            "actor-mio-steady",
-            "actor-mio-glad",
-            "actor-ren-gruff",
-            "actor-ren-amused",
-        )
-    }
-    assert len(expression_routes) == 1
-    expression = graph.resolved_route_for("actor-mio-steady")
-    assert expression.provider == "openai"
-    assert expression.operation_variant == "edit"
-    assert expression.required_limits == (("reference_count_max", 1.0),)
-    assert expression.effective_output_options["aspect_ratio"] == "2:3"
-    assert expression.effective_output_options["background"] == "opaque"
-    assert expression.effective_output_options["size"] == "1024x1536"
-    assert expression.effective_output_options["quality"] == "max"
-    assert expression.effective_output_options["reference_count"] == 1
-    assert expression.effective_output_options["reference_delivery"] == "data_url"
-    assert expression.effective_output_options["mask_present"] is False
-
-    ui_routes = {
-        graph.node(f"ui-{role}-generate").binding_ref
-        for role in ("panel_frame", "button_rect", "preview_icons")
-    }
-    assert len(ui_routes) == 1
-    ui = graph.resolved_route_for("ui-panel_frame-generate")
-    assert ui.provider == "openai"
-    assert ui.operation_variant == "edit"
-    assert ui.required_limits == (("reference_count_max", 2.0),)
-    assert set(ui.required_features) == {
-        "authored_prompt_passthrough",
-        "data_url_reference_input",
-        "exact_size",
-        "maximum_quality",
-        "png_output",
-        "reference_images",
-        "transparent_background",
-    }
-    assert ui.effective_output_options["size"] == "1024x1024"
-    assert ui.effective_output_options["background"] == "transparent"
-    assert ui.effective_output_options["quality"] == "max"
-    assert ui.effective_output_options["reference_count"] == 2
-    assert ui.effective_output_options["reference_delivery"] == "data_url"
-    assert ui.effective_output_options["mask_present"] is False
-
-
-def test_native_image_routes_pin_provider_canvas_and_alpha(tmp_path: Path) -> None:
-    root = write_scene_package(tmp_path / "pkg", transparency_mode="native")
-    graph = _graph(root)
-
-    backdrop = graph.resolved_route_for("stage-lounge")
-    assert backdrop.provider == "openai"
-    assert backdrop.effective_output_options["background"] == "opaque"
-    assert backdrop.effective_output_options["size"] == "1680x944"
-    assert "exact_size" in backdrop.required_features
-
-    for node_id in ("actor-mio-steady", "actor-mio-glad", "actor-ren-gruff"):
-        expression = graph.resolved_route_for(node_id)
-        assert expression.provider == "openai"
-        assert expression.operation_variant == "edit"
-        assert expression.effective_output_options["background"] == "transparent"
-        assert expression.effective_output_options["size"] == "1024x1536"
-        assert expression.effective_output_options["aspect_ratio"] == "2:3"
-        assert expression.effective_output_options["quality"] == "max"
-
-
-def test_executor_requires_the_selected_image_provider_credentials(tmp_path: Path) -> None:
-    root = write_scene_package(tmp_path / "pkg")
-    config = StageGenConfig(
-        open_router_api_key="structured-test-key",
-        image_provider_override=ImageProvider.FAL,
-    )
-    executor = DialogueSceneExecutor(config)
-    plan = executor.plan(root)
-
-    assert {route.provider for route in plan.graph.resolved_routes} == {"fal"}
-    with pytest.raises(ConfigError) as refusal:
-        executor.require_route_credentials(plan.graph)
-    assert refusal.value.missing == ("FAL_KEY",)
-
-
-def test_openrouter_override_refuses_the_first_unsupported_image_without_fallback(
-    tmp_path: Path,
-) -> None:
-    root = write_scene_package(tmp_path / "pkg", transparency_mode="native")
-    config = StageGenConfig(image_provider_override=ImageProvider.OPENROUTER)
-
-    with pytest.raises(RouteResolutionError, match="not an allowed exact size"):
-        build_dialogue_scene_graph(
-            _resolved(root),
-            profile=dialogue_graph_profile(config),
-            config=config,
-        )
-
-
-def test_each_derived_expression_is_its_own_node_off_the_base_plate(tmp_path: Path) -> None:
-    # The stage pipeline this replaces derived three expressions inside one stage and
-    # canonicalized four inside another, so a single bad state failed the whole batch.
-    #
-    # The base is each actor's FIRST authored expression, not a face called
-    # `neutral`: the two actors here declare different vocabularies on purpose, so
-    # anything that recovers "the base" from a hard-coded name fails this test.
-    graph = _graph(write_scene_package(tmp_path / "pkg"))
-    for actor, base, edits in (
-        ("mio", "steady", ("glad", "caught", "worried")),
-        ("ren", "gruff", ("amused", "apologetic", "firm")),
-    ):
-        assert graph.node(f"actor-{actor}-{base}").type_id == "2d/frontview/vn/expression.generate"
-        for state in edits:
-            node = graph.node(f"actor-{actor}-{state}")
-            assert node.type_id == "2d/frontview/vn/expression.derive"
-            assert node.depends_on == (f"actor-{actor}-{base}",)
-            assert graph.node(f"actor-{actor}-canonicalize-{state}").depends_on == (
-                f"actor-{actor}-{state}",
-            )
-        assert graph.node(f"actor-{actor}-canonicalize-{base}").depends_on == (
-            f"actor-{actor}-{base}",
-        )
 
 
 def _ui_role_value(role: str, cell_count: int) -> dict[str, Any]:
@@ -630,12 +287,7 @@ def _bundle_value(root: Path) -> dict[str, Any]:
     actors = list(resolved.actors)
 
     def bundle_file(path: str) -> dict[str, object]:
-        return {
-            "path": path,
-            "sha256": "a" * 64,
-            "provenance_path": f"{path}.meta.json",
-            "provenance_sha256": "b" * 64,
-        }
+        return {"path": path, "sha256": "a" * 64}
 
     media = {
         "style": {"width": 1024, "height": 1536, "alpha": False},
@@ -656,14 +308,11 @@ def _bundle_value(root: Path) -> dict[str, Any]:
             "sha256": "c" * 64,
             "bytes": 1,
             "media": {"mime_type": "image/png", **media[role]},
-            "provenance_path": f"{path}.meta.json",
-            "provenance_sha256": "d" * 64,
-            "selected_attempt": 1,
         }
 
     return {
-        "schema_version": 8,
-        "kind": "dialogue-scene-bundle-v8",
+        "schema_version": 9,
+        "kind": "dialogue-scene-bundle-v9",
         "recipe": "dialogue-scene",
         "recipe_version": "dialogue-scene-v8",
         "tag": "seminar-hall",
@@ -730,7 +379,6 @@ def _bundle_value(root: Path) -> dict[str, Any]:
                 for role in ("panel_frame", "button_rect", "preview_icons")
             ],
         ],
-        "attempt_ledger": {"path": "attempts.json", "sha256": "1" * 64},
         "scene_data": {
             "scene_id": "seminar-hall-scene",
             "title": "After the Seminar",
@@ -795,9 +443,14 @@ def test_bundle_paths_rights_and_review_are_strict(tmp_path: Path) -> None:
     raw = _bundle_value(write_scene_package(tmp_path / "pkg"))
     assert DialogueBundle.model_validate(raw).rights.publication_authorized is False
 
-    legacy = {**raw, "schema_version": 5, "kind": "dialogue-scene-bundle-v5"}
+    for version in (5, 8):
+        legacy = {**raw, "schema_version": version, "kind": f"dialogue-scene-bundle-v{version}"}
+        with pytest.raises(ValidationError):
+            DialogueBundle.model_validate(legacy)
+    # v9 binds files by path and digest alone: a v8 provenance field is refused.
+    with_provenance = {**raw, "request": {**raw["request"], "provenance_path": "x.meta.json"}}
     with pytest.raises(ValidationError):
-        DialogueBundle.model_validate(legacy)
+        DialogueBundle.model_validate(with_provenance)
 
     camel = {**raw, "runIdentitySha256": raw["run_identity_sha256"]}
     del camel["run_identity_sha256"]
@@ -847,40 +500,6 @@ def test_the_narrative_is_admitted_before_any_art_is_planned(tmp_path: Path) -> 
         script.read_text(encoding="utf-8") + "\n\nlabel orphan:\n    end went_home\n",
         encoding="utf-8",
     )
-    _repoint_digests(package)
+    repoint_digests(package)
     with pytest.raises(ValueError, match="labels no path reaches: orphan"):
         _resolved(package)
-
-
-def test_rewording_a_line_does_not_re_bill_a_single_image(tmp_path: Path) -> None:
-    """The narrative is deliberately outside every image node's cache identity.
-
-    A generated plate is a function of the look, the profile and the backdrop
-    direction; it is not a function of what anybody says. If the whole document
-    rode the image cache key, editing one line of dialogue would re-bill five
-    provider images that would come back byte-identical.
-    """
-
-    original = _graph(write_scene_package(tmp_path / "before"))
-    package = write_scene_package(tmp_path / "after")
-    script = package / "scenarios/after_seminar.scenario"
-    script.write_text(
-        script.read_text(encoding="utf-8").replace(
-            "I hoped you would stay after the seminar.",
-            "I did hope you would stay after the seminar.",
-        ),
-        encoding="utf-8",
-    )
-    _repoint_digests(package)
-    edited = _graph(package)
-
-    art_nodes = [
-        node.node_id for node in original.nodes if node.node_id.startswith(("stage-", "actor-"))
-    ]
-    assert art_nodes, "the fixture must contain generated art"
-    for node_id in art_nodes:
-        assert original.node(node_id).cache_key == edited.node(node_id).cache_key, node_id
-    # The narrative did change, and the nodes that carry it say so.
-    admit = "scenario-after-seminar"
-    assert original.node(admit).cache_key != edited.node(admit).cache_key
-    assert original.node("scene-bundle").cache_key != edited.node("scene-bundle").cache_key

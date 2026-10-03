@@ -275,6 +275,31 @@ class DialogueSceneDocument(PersistedContractModel):
 DialogueRequest = DialogueSceneDocument
 
 
+def art_request_document(request: DialogueRequest) -> dict[str, object]:
+    """Exactly the authored fields a generated image or plan depends on.
+
+    An allowlist rather than "the whole document minus the narrative", because the point
+    is to name what the art is a function of: the look, the cast, the references, the
+    framing and the transparency mode. None of it depends on what anybody says, on the
+    schema version, or on a field a future revision adds for a consumer's benefit, so a
+    reworded line or a contract bump asks for no art again.
+    """
+
+    document = request.model_dump(mode="json")
+    return {
+        key: document[key]
+        for key in (
+            "game_id",
+            "scene_brief",
+            "presentation",
+            "transparency_mode",
+            "cast",
+            "style_reference_id",
+            "references",
+        )
+    }
+
+
 class SharedLocks(PersistedContractModel):
     identity: str = Field(min_length=1, max_length=2000)
     wardrobe: str = Field(min_length=1, max_length=1000)
@@ -384,26 +409,6 @@ class DialogueScenePlan(PersistedContractModel):
 DialoguePlan = DialogueScenePlan
 
 
-class AttemptRecord(PersistedContractModel):
-    stage: str = Field(min_length=1)
-    role: str = Field(min_length=1)
-    attempt: int = Field(ge=1, le=6)
-    outcome: Literal["selected", "rejected"]
-    provider: str | None = None
-    model: str | None = None
-    artifact: str | None = None
-    artifact_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
-    prompt_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    reference_sha256: list[str] = Field(default_factory=list)
-    reason: str | None = None
-
-
-class AttemptLedger(PersistedContractModel):
-    schema_version: Literal[2] = 2
-    kind: Literal["dialogue-attempt-ledger-v2"] = "dialogue-attempt-ledger-v2"
-    attempts: list[AttemptRecord] = Field(default_factory=list)
-
-
 class MediaFacts(PersistedContractModel):
     mime_type: Literal["image/png"]
     width: int = Field(gt=0)
@@ -435,11 +440,8 @@ class BundleArtifact(PersistedContractModel):
     bytes: int = Field(ge=1)
     #: Discriminated on mime_type, so an image asset's wire shape is unchanged.
     media: MediaFacts | AudioFacts = Field(discriminator="mime_type")
-    provenance_path: str = Field(min_length=1)
-    provenance_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    selected_attempt: int = Field(ge=0, le=6)
 
-    @field_validator("path", "provenance_path")
+    @field_validator("path")
     @classmethod
     def portable_path(cls, value: str) -> str:
         if value.startswith(("/", "~")) or ".." in value.split("/"):
@@ -591,22 +593,17 @@ class RightsState(PersistedContractModel):
 
 
 class BundleFile(PersistedContractModel):
+    """One published file, bound by its digest. Where it came from is the run's record."""
+
     path: str = Field(min_length=1)
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    provenance_path: str = Field(min_length=1)
-    provenance_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
-    @field_validator("path", "provenance_path")
+    @field_validator("path")
     @classmethod
     def portable_path(cls, value: str) -> str:
         if value.startswith(("/", "~")) or ".." in value.split("/"):
             raise ValueError("bundle file paths must be portable relative paths")
         return value
-
-
-class AttemptLedgerBinding(PersistedContractModel):
-    path: Literal["attempts.json"] = "attempts.json"
-    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
 class BundleActor(PersistedContractModel):
@@ -819,8 +816,14 @@ class SceneData(PersistedContractModel):
 
 
 class DialogueBundle(PersistedContractModel):
-    schema_version: Literal[8]
-    kind: Literal["dialogue-scene-bundle-v8"]
+    """The portable scene: every published member bound by digest, and the scene to play.
+
+    v9 binds files by path and digest alone. Which call made each one, and how many takes
+    it needed, is the build's run record; the bundle is what a consumer plays.
+    """
+
+    schema_version: Literal[9]
+    kind: Literal["dialogue-scene-bundle-v9"]
     recipe: Literal["dialogue-scene"]
     recipe_version: Literal["dialogue-scene-v8"]
     tag: str = Field(min_length=1)
@@ -842,7 +845,6 @@ class DialogueBundle(PersistedContractModel):
     style_reference_source: str = Field(min_length=1)
     assets: list[BundleArtifact]
     scene_data: SceneData
-    attempt_ledger: AttemptLedgerBinding
     review: ReviewState = Field(default_factory=ReviewState)
     rights: RightsState = Field(default_factory=RightsState)
 

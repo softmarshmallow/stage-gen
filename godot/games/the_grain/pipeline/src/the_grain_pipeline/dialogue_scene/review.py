@@ -15,7 +15,6 @@ from demo_game_tools.kits.character_profile import (
     canonical_character_profile_json,
 )
 from gnode import (
-    ArtifactProvenance,
     ArtifactRights,
     BinaryArtifact,
     InputProvenance,
@@ -261,22 +260,17 @@ def _validate_profile_artifacts(root: Path, bundle: DialogueBundle) -> None:
 
 
 def _validate_profile_artifact(root: Path, actor: BundleActor) -> None:
+    """The profile the bundle binds is there, canonical, and the bytes the plan was bound to."""
+
     binding = actor.character_profile
     path = resolve_relative_path_within_root(root, binding.path, "character profile path")
-    provenance = resolve_relative_path_within_root(
-        root, binding.provenance_path, "character profile provenance path"
-    )
-    for candidate, label in ((path, "character profile"), (provenance, "profile provenance")):
-        if candidate.is_symlink() or not candidate.is_file():
-            raise ValueError(f"{label} is missing or unsafe")
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("character profile is missing or unsafe")
     profile_bytes = path.read_bytes()
-    provenance_bytes = provenance.read_bytes()
     if content_sha256(profile_bytes) != binding.sha256:
         raise ValueError("character profile artifact digest mismatch")
     if binding.sha256 != actor.character_profile_sha256:
         raise ValueError("character profile canonical digest mismatch")
-    if content_sha256(provenance_bytes) != binding.provenance_sha256:
-        raise ValueError("character profile provenance digest mismatch")
     try:
         profile = CharacterProfile.model_validate_json(profile_bytes)
     except ValidationError as error:
@@ -289,69 +283,6 @@ def _validate_profile_artifact(root: Path, actor: BundleActor) -> None:
     ref_parts = ref.split("/")
     if not ref.endswith(".toml") or any(part in {"", ".", ".."} for part in ref_parts):
         raise ValueError("character profile artifact binding ref is invalid")
-    try:
-        record = ArtifactProvenance.model_validate_json(provenance_bytes)
-    except ValidationError as error:
-        raise ValueError(f"invalid character profile provenance: {error}") from None
-    if record.schema_version != 2:
-        raise ValueError("character profile provenance must use schema version 2")
-    if record.artifact is None or (
-        record.artifact.sha256,
-        record.artifact.bytes,
-        record.artifact.media_type,
-    ) != (binding.sha256, len(profile_bytes), "application/json"):
-        raise ValueError("character profile provenance artifact binding mismatch")
-    if (
-        record.provider,
-        record.model,
-        record.component.name,
-        record.component.version,
-        record.refs,
-    ) != (
-        "local",
-        "deterministic-dialogue-scene-v8",
-        "@stage-gen/dialogue-scene",
-        "5",
-        [actor.character_profile_binding.ref],
-    ):
-        raise ValueError("character profile provenance producer lineage mismatch")
-    expected_source_input = InputProvenance(
-        ref=actor.character_profile_binding.ref,
-        sha256=actor.character_profile_binding.source_sha256,
-        source="content",
-        bytes=None,
-        media_type="application/toml",
-    )
-    if (
-        len(record.inputs) != 1
-        or (
-            record.inputs[0].ref,
-            record.inputs[0].sha256,
-            record.inputs[0].source,
-            record.inputs[0].media_type,
-        )
-        != (
-            expected_source_input.ref,
-            expected_source_input.sha256,
-            expected_source_input.source,
-            expected_source_input.media_type,
-        )
-        or record.inputs[0].bytes is None
-    ):
-        raise ValueError("character profile provenance source input binding mismatch")
-    expected_params = {
-        "character_profile_ref": actor.character_profile_binding.ref,
-        "character_profile_source_sha256": actor.character_profile_binding.source_sha256,
-        "character_profile_sha256": actor.character_profile_sha256,
-        "profile_id": profile.profile_id,
-        "revision": profile.revision,
-    }
-    if record.params != expected_params:
-        raise ValueError("character profile provenance params mismatch")
-    if record.rights is None or record.rights.model_dump(mode="json") != (
-        profile.rights.model_dump(mode="json")
-    ):
-        raise ValueError("character profile provenance rights mismatch")
 
 
 def _regular_input(path: Path, label: str) -> Path:

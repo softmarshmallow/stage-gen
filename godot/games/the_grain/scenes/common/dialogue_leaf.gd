@@ -131,8 +131,8 @@ static func of(
 		return KernelRefusal.of(
 			"dialogue/ui",
 			(
-				"this scene publishes no panel or button art; regenerate it with a current "
-				+ "stage-gen (stage-gen dialogue-scene generate)"
+				"this scene publishes no panel or button art; build it again with its gnode "
+				+ "builder (cd godot/games/the_grain && gnode run pipeline/workflow.py:scene)"
 			),
 			"scene_data.ui"
 		)

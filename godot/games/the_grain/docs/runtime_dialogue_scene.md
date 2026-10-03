@@ -31,17 +31,18 @@ Godot --path godot/games/the_grain res://scenes/dialogue_scene/main.tscn -- \
 | `--run` | absolute path | the run directory holding `bundle.json` (required) |
 | `--scenario` | a `scenario_id` | which of the run's scenarios to play |
 
-**`--scenario` is not optional in practice.** A `dialogue-scene-bundle-v8` run
-publishes the union of every scenario its game holds — `out/the-grain-scene-a`
+**`--scenario` is not optional in practice.** A `dialogue-scene-bundle-v9` run
+publishes the union of every scenario its game holds — `out/the-grain-scene-gnode`
 carries six — and a bundle with more than one is refused by name rather than
 opened on whichever came first. The earlier browser route was retired; the web
 application is now an asset viewer.
 
-**Which runs open.** The contract is `dialogue-scene-bundle-v8` at
-`schema_version` 8: `out/the-grain-scene-a`, `out/the-grain-scene-4` and
-`out/the-grain-scene-5`. The Grain is the retained game consumer of this host.
-Older bundle schemas remain unsupported; changing only their version field does
-not supply the required scenario array or UI bindings.
+**Which runs open.** The contract is `dialogue-scene-bundle-v9` at
+`schema_version` 9: `out/the-grain-scene-gnode`, delivered by the gnode scene build.
+The Grain is the retained game consumer of this host. Older bundles, the v8 runs
+included, are refused with a notice naming the build that makes the current one;
+v9 dropped v8's per-file provenance and attempt ledger, which the gnode run now
+records.
 
 ## The controls
 

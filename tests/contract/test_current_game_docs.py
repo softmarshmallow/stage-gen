@@ -70,7 +70,6 @@ REQUIRED_FAMILIES = {
     ),
     "godot/games/the_grain/docs/pointclick-room.md": (
         "pointclick-room",
-        "pointclick-room-execution-graph",
         "pointclick-room-runtime",
         "pointclick-solvability",
     ),

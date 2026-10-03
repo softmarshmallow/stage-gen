@@ -30,10 +30,12 @@ Godot --path godot/games/the_grain res://main.tscn -- \
 | `--run` | absolute path | the run directory holding `case.json` (required) |
 | `--runs` | absolute path | where the runs its beats name live; defaults to `--run`'s own parent |
 
-**The run.** `out/the-grain-episode-one` is the only case published: eight beats,
-six of them scenarios of `out/the-grain-scene-a` and two of them rooms
-(`out/the-grain-motor-court-a4`, `out/the-grain-window-a4`). Its `case.json` is
-`case-runtime-v1` at `schema_version` 1.
+**The run.** `out/the-grain-episode-one-gnode` is the case published over the gnode
+builds: eight beats, six of them scenarios of `out/the-grain-scene-gnode` and two of
+them rooms (`out/the-grain-motor-court-gnode`, `out/the-grain-window-gnode`). Its
+`case.json` is `case-runtime-v1` at `schema_version` 1. The earlier
+`out/the-grain-episode-one` names a v8 scene bundle, which the dialogue leaf now
+refuses.
 
 ## What it draws
 

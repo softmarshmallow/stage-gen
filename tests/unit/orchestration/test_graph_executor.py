@@ -70,9 +70,9 @@ def test_configured_services_compose_from_the_config_alone() -> None:
 
 
 def test_image_capability_credentials_require_an_exact_resolved_route() -> None:
-    from the_grain_pipeline.pointclick_room.room_executor import PointClickRoomExecutor
+    from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
 
-    executor = PointClickRoomExecutor(StageGenConfig(open_router_api_key="openrouter"))
+    executor = ObliqueSurvivalExecutor(StageGenConfig(open_router_api_key="openrouter"))
     with pytest.raises(ValueError, match="exact resolved route"):
         executor.require(
             CapabilityName.NATIVE_IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION
@@ -80,16 +80,16 @@ def test_image_capability_credentials_require_an_exact_resolved_route() -> None:
 
 
 def test_route_credentials_are_scoped_to_the_selected_target_closure() -> None:
+    from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
     from stage_gen.image_product import ImageProvider
-    from the_grain_pipeline.pointclick_room.room_executor import PointClickRoomExecutor
 
-    executor = PointClickRoomExecutor(
+    executor = ObliqueSurvivalExecutor(
         StageGenConfig(
             open_router_api_key="openrouter",
             image_provider_override=ImageProvider.FAL,
         )
     )
-    plan = executor.plan(Path("godot/games/the_grain/inputs/rooms/window"))
+    plan = executor.plan(Path("godot/games/ember_hollow/inputs"))
     by_id = {node.node_id: node for node in plan.graph.nodes}
 
     def local_closure(node_id: str) -> bool:

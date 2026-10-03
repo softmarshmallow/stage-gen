@@ -12,7 +12,7 @@ the screen, whether the bar names it, or whether the backlog is over the game or
 under it.
 
 Six named states are photographed by `tools/case_capture.gd` against
-`out/the-grain-episode-one`, whose eight beats are six scenarios and two rooms.
+`out/the-grain-episode-one-gnode`, whose eight beats are six scenarios and two rooms.
 Each check below is one defect this container could ship without the state proof
 noticing.
 

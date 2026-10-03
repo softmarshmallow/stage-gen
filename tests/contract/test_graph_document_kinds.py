@@ -25,16 +25,6 @@ from gnode import Graph
 from stage_gen.orchestration.graph_executor import GraphExecutor
 from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_handler import CachedNodeHandler
-from the_grain_pipeline.dialogue_scene.scene_executor import DialogueSceneExecutor
-from the_grain_pipeline.dialogue_scene.scene_graph import (
-    DIALOGUE_GRAPH_SCHEMA_VERSION,
-    DialogueSceneGraph,
-)
-from the_grain_pipeline.pointclick_room.room_executor import PointClickRoomExecutor
-from the_grain_pipeline.pointclick_room.room_graph import (
-    POINTCLICK_GRAPH_SCHEMA_VERSION,
-    PointClickRoomGraph,
-)
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src" / "stage_gen"
 #: Product workflows.
@@ -43,16 +33,10 @@ WORKFLOW_ROOTS = (SOURCE_ROOT / "workflows",)
 #: Every recipe graph, the recipe word it derives its document kinds from, and the
 #: schema-version constant its module still exports beside the pinned literal.
 GRAPHS: tuple[tuple[type[GraphDocument], str, int], ...] = (
-    (PointClickRoomGraph, "pointclick-room", POINTCLICK_GRAPH_SCHEMA_VERSION),
-    (DialogueSceneGraph, "dialogue-scene", DIALOGUE_GRAPH_SCHEMA_VERSION),
     (ObliqueSurvivalGraph, "oblique-survival", OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION),
 )
 
-EXECUTORS = (
-    PointClickRoomExecutor,
-    DialogueSceneExecutor,
-    ObliqueSurvivalExecutor,
-)
+EXECUTORS = (ObliqueSurvivalExecutor,)
 
 #: Module-level helpers the substrate owns. A recipe defining one again is the drift.
 SUBSTRATE_FUNCTIONS = frozenset(

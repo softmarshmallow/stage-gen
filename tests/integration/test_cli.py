@@ -709,15 +709,17 @@ def test_a_dry_run_accepts_a_run_and_cache_root_under_a_symlinked_directory(
     real.mkdir()
     link = tmp_path / "link"
     link.symlink_to(real, target_is_directory=True)
-    room = Path(__file__).resolve().parents[2] / "godot/games/the_grain/inputs/rooms/motor_court"
+    package = Path(__file__).resolve().parents[2] / "godot/games/ember_hollow/inputs"
     stdout = StringIO()
     assert (
         main(
             [
-                "pointclick-room",
+                "oblique-survival",
                 "generate",
                 "--input",
-                str(room),
+                str(package),
+                "--scope",
+                "minimal",
                 "--dry-run",
                 "--cache-dir",
                 str(link / "cache"),

@@ -93,7 +93,7 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `runner-soundtrack-block-v1` | `block` | `iron_petal_unit_pipeline.manifest:RUNNER_MANIFEST_BLOCK_VERSIONS['soundtrack']` |
 | `case-admission-v1` | `generated` | `the_grain_pipeline.case.models:CaseAdmissionReport.kind` |
 | `case-runtime-v1` | `generated` | `the_grain_pipeline.case.models:CaseRuntime.kind` |
-| `dialogue-scene-bundle-v8` | `generated` | `the_grain_pipeline.dialogue_scene.models:DialogueBundle.kind` |
+| `dialogue-scene-bundle-v9` | `generated` | `the_grain_pipeline.dialogue_scene.models:DialogueBundle.kind` |
 | `dialogue-scene-plan-v8` | `generated` | `the_grain_pipeline.dialogue_scene.models:DialogueScenePlan.kind` |
 | `dialogue-scene-review-v6` | `generated` | `the_grain_pipeline.dialogue_scene.models:IndependentReview.kind` |
 | `game-package-validation-v6` | `generated` | `demo_game_tools.io.package_capture:GAME_PACKAGE_VALIDATION_KIND` |
@@ -103,11 +103,9 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `resolved-game-package-v6` | `generated` | `demo_game_tools.io.package_capture:RESOLVED_GAME_PACKAGE_KIND` |
 | `scenario-admission-v1` | `generated` | `demo_game_tools.scenario.models:ScenarioAdmissionReport.kind` |
 | `scenario-program-v2` | `generated` | `demo_game_tools.scenario.models:ScenarioProgram.kind` |
-| `dialogue-scene-execution-graph-v6` | `graph` | `the_grain_pipeline.dialogue_scene.scene_graph:DIALOGUE_GRAPH_KIND` |
 | `oblique-survival-execution-graph-v2` | `graph` | `ember_hollow_pipeline.survival_graph:OBLIQUE_SURVIVAL_GRAPH_KIND` |
-| `pointclick-room-execution-graph-v2` | `graph` | `the_grain_pipeline.pointclick_room.room_graph:POINTCLICK_GRAPH_KIND` |
 | `oblique-survival-manifest-v3` | `manifest` | `ember_hollow_pipeline.manifest:MANIFEST_KIND` |
-| `pointclick-room-runtime-v3` | `manifest` | `the_grain_pipeline.pointclick_room.room_types:MANIFEST_KIND` |
+| `pointclick-room-runtime-v3` | `manifest` | `the_grain_pipeline.pointclick_room.runtime:MANIFEST_KIND` |
 | `prepared-game-runtime-v12` | `manifest` | `bellweather_pipeline.prepared_manifest:PREPARED_RUNTIME_MANIFEST_KIND` |
 | `sideview-runner-runtime-v13` | `manifest` | `iron_petal_unit_pipeline.manifest:MANIFEST_KIND` |
 | `auto_run_x_v1` | `mode` | `iron_petal_unit_pipeline.track.models:RunnerCamera.mode` |
@@ -116,9 +114,7 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `portal-pair-1x2-v1` | `mode` | `bellweather_pipeline.maps.prepared:PreparedMapPortal.mode` |
 | `runner-structural-ground-v1` | `mode` | `iron_petal_unit_pipeline.track.models:RunnerStructuralGround.mode` |
 | `terrain-atlas-3x3-minimal-v1` | `mode` | `demo_game_tools.input_formats.sideview_stage.models:PreparedMapGround.mode` |
-| `dialogue-scene-nodes-v2` | `namespace` | `the_grain_pipeline.dialogue_scene.scene_graph:DIALOGUE_CACHE_NAMESPACE` |
 | `oblique-survival-nodes-v1` | `namespace` | `ember_hollow_pipeline.survival_graph:OBLIQUE_SURVIVAL_CACHE_NAMESPACE` |
-| `pointclick-room-nodes-v1` | `namespace` | `the_grain_pipeline.pointclick_room.room_graph:POINTCLICK_CACHE_NAMESPACE` |
 | `generated_clip_v1` | `realization` | `stage_gen.components.sound_effect.models:GENERATED_CLIP_REALIZATION_KIND` |
 | `oscillator_sweep_v1` | `realization` | `iron_petal_unit_pipeline.audio.models:OscillatorSweepRealization.kind` |
 | `spoken_line_v1` | `realization` | `stage_gen.components.speech.models:SPOKEN_LINE_REALIZATION_KIND` |
@@ -132,9 +128,7 @@ retired while their owning reader explicitly declares this compatibility.
 
 | Identity | Schema version | Authority |
 | --- | ---: | --- |
-| `dialogue-scene-execution-graph-v5` | `5` | `the_grain_pipeline.dialogue_scene.scene_graph:DialogueSceneGraph.LEGACY_GRAPH_IDENTITIES` |
 | `oblique-survival-execution-graph-v1` | `1` | `ember_hollow_pipeline.survival_graph:ObliqueSurvivalGraph.LEGACY_GRAPH_IDENTITIES` |
-| `pointclick-room-execution-graph-v1` | `1` | `the_grain_pipeline.pointclick_room.room_graph:PointClickRoomGraph.LEGACY_GRAPH_IDENTITIES` |
 
 ## Retired identities
 
@@ -164,6 +158,10 @@ These families have no current member; the whole family is retired:
 | `sideview-platformer-execution-graph` | the platformer builds through gnode; its plan is a `gnode-graph` |
 | `sideview-platformer-world` | retired with the platformer's execution graph |
 | `sideview-platformer-content` | retired with the platformer's execution graph |
+| `pointclick-room-execution-graph` | the room builds through gnode; its plan is a `gnode-graph` |
+| `pointclick-room-nodes` | retired with the room's execution graph |
+| `dialogue-scene-execution-graph` | the scene builds through gnode; its plan is a `gnode-graph` |
+| `dialogue-scene-nodes` | retired with the scene's execution graph |
 
 And these strings, which are not version-shaped:
 

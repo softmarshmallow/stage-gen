@@ -4,10 +4,10 @@
 The fixture census is demo-owned and packaged with ``demo-game-collection``.  It records
 the checked-in image route catalog and policy table together with compact plans
 for every canonical recipe fixture still built by an executor. A game built with gnode
-(Iron Petal Unit, Bellweather) declares its routes in its ``gnode.yaml`` and pins its plan
-through ``godot/tools/write_game_graph_contract.py`` instead.  Checking and writing only parse local
-files and build offline graphs; neither path loads credentials or constructs a
-provider adapter.
+(Iron Petal Unit, Bellweather, The Grain) declares its routes in its ``gnode.yaml`` and
+pins its plan through ``godot/tools/write_game_graph_contract.py`` instead. Checking and
+writing only parse local files and build offline graphs; neither path loads credentials
+or constructs a provider adapter.
 
     uv run python godot/tools/write_game_model_policy_snapshot.py
     uv run python godot/tools/write_game_model_policy_snapshot.py --write
@@ -39,16 +39,12 @@ from stage_gen.model_policy_maintenance import (
     render_model_policy_snapshot,
 )
 from stage_gen.model_routes import IMAGE_ROUTE_CATALOG, image_workload_policies
-from the_grain_pipeline.dialogue_scene.scene_executor import DialogueSceneExecutor
-from the_grain_pipeline.pointclick_room.room_executor import PointClickRoomExecutor
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SNAPSHOT_PATH = (
     REPOSITORY_ROOT / "godot/tools/python/src/demo_game_collection" / ACTIVE_MODEL_POLICY_SNAPSHOT
 )
 
-DIALOGUE_FIXTURE = "godot/games/the_grain/inputs"
-POINTCLICK_FIXTURE = "godot/games/the_grain/inputs/rooms/window"
 SURVIVAL_FIXTURE = "godot/games/ember_hollow/inputs"
 
 SURVIVAL_DOCUMENT = "godot/games/ember_hollow/docs/generation-v1.md"
@@ -137,8 +133,6 @@ def _planned_graphs() -> tuple[dict[str, Graph], dict[str, dict[str, str]]]:
     """Build canonical graphs without reading env or constructing run services."""
 
     config = StageGenConfig()
-    dialogue = DialogueSceneExecutor(config).plan(REPOSITORY_ROOT / DIALOGUE_FIXTURE).graph
-    pointclick = PointClickRoomExecutor(config).plan(REPOSITORY_ROOT / POINTCLICK_FIXTURE).graph
 
     survival_executor = ObliqueSurvivalExecutor(config)
     survival_graphs = {
@@ -146,11 +140,7 @@ def _planned_graphs() -> tuple[dict[str, Graph], dict[str, dict[str, str]]]:
         for scope in SURVIVAL_SCOPES
     }
 
-    graphs: dict[str, Graph] = {
-        "dialogue_scene": dialogue,
-        "oblique_survival": survival_graphs["full"],
-        "pointclick_room": pointclick,
-    }
+    graphs: dict[str, Graph] = {"oblique_survival": survival_graphs["full"]}
     survival_cache_keys = {
         scope: {node.node_id: node.cache_key for node in graph.nodes}
         for scope, graph in survival_graphs.items()
@@ -211,11 +201,7 @@ def build_snapshot() -> ModelPolicySnapshotV1:
     recipes = tuple(
         (
             recipe_id,
-            {
-                "dialogue_scene": DIALOGUE_FIXTURE,
-                "oblique_survival": SURVIVAL_FIXTURE,
-                "pointclick_room": POINTCLICK_FIXTURE,
-            }[recipe_id],
+            {"oblique_survival": SURVIVAL_FIXTURE}[recipe_id],
             graph,
         )
         for recipe_id, graph in graphs.items()

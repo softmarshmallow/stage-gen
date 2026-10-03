@@ -75,6 +75,7 @@ jobs:
         run: |
           uv run --all-groups mypy --strict godot/games/iron_petal_unit/pipeline/workflow.py godot/games/iron_petal_unit/pipeline/nodes
           uv run --all-groups mypy --strict godot/games/bellweather/pipeline/workflow.py godot/games/bellweather/pipeline/nodes
+          uv run --all-groups mypy --strict godot/games/the_grain/pipeline/workflow.py godot/games/the_grain/pipeline/nodes
 
   godot:
     runs-on: ubuntu-latest

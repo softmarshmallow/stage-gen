@@ -23,8 +23,8 @@ static func parse(manifest: Variant) -> Variant:
 		return KernelRefusal.of(
 			"room/manifest-kind",
 			(
-				"unsupported point-and-click room; regenerate this room with a current "
-				+ "stage-gen (stage-gen pointclick-room generate)"
+				"unsupported point-and-click room; build this room again with its gnode "
+				+ "builder (cd godot/games/the_grain && gnode run pipeline/workflow.py:room)"
 			),
 			"kind"
 		)
@@ -32,8 +32,8 @@ static func parse(manifest: Variant) -> Variant:
 		return KernelRefusal.of(
 			"room/manifest-kind",
 			(
-				"unsupported point-and-click room; regenerate this room with a current "
-				+ "stage-gen (stage-gen pointclick-room generate)"
+				"unsupported point-and-click room; build this room again with its gnode "
+				+ "builder (cd godot/games/the_grain && gnode run pipeline/workflow.py:room)"
 			),
 			"schema_version"
 		)
