@@ -8,7 +8,12 @@ import httpx
 import pytest
 
 from gnode import NonRetryableError, VideoGenerationRequest, VideoReference
-from gnode.providers.fal import FAL_ENDPOINT_VIDEO_MODEL, FalEndpointVideoBackend, FalVideoBackend
+from gnode.providers.fal import (
+    FAL_ENDPOINT_VIDEO_MODEL,
+    FalEndpointVideoBackend,
+    FalVideoBackend,
+    FalVideoJobFailed,
+)
 
 MP4 = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 64
 PLATE = "data:image/png;base64,aGVsbG8="
@@ -176,3 +181,115 @@ async def test_permanent_refusal_retains_safe_status_and_request_identity() -> N
     assert caught.value.request_id == "request-123"
     assert caught.value.retryable is False
     assert "private" not in str(caught.value)
+
+
+QUEUE = "https://queue.fal.test"
+HANDLE = {
+    "request_id": "req-1",
+    "status_url": f"{QUEUE}/google/gemini-omni-flash/requests/req-1/status",
+    "response_url": f"{QUEUE}/google/gemini-omni-flash/requests/req-1",
+}
+
+
+async def _no_wait(seconds: float) -> None:
+    del seconds
+
+
+def _endpoint_request() -> VideoGenerationRequest:
+    frame = VideoReference(url=PLATE, provenance_ref="plate.png")
+    return _request(references=(), start_frame=frame, end_frame=frame, duration_seconds=3.0)
+
+
+def _queue(client: httpx.AsyncClient) -> FalEndpointVideoBackend:
+    return FalEndpointVideoBackend(
+        api_key="fal-secret", queue_url=QUEUE, client=client, poll_seconds=1, sleep=_no_wait
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_queued_job_is_submitted_once_and_collected_through_a_dropped_poll() -> None:
+    seen: list[str] = []
+    polls = iter(["drop", "IN_QUEUE", "IN_PROGRESS", "COMPLETED"])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(f"{request.method} {request.url}")
+        if request.method == "POST":
+            assert str(request.url) == f"{QUEUE}/{FAL_ENDPOINT_VIDEO_MODEL}"
+            body = json.loads(request.content)
+            assert body["image_url"] == body["end_image_url"] == PLATE
+            return httpx.Response(200, json={**HANDLE, "cancel_url": "x"})
+        if str(request.url) == HANDLE["status_url"]:
+            state = next(polls)
+            if state == "drop":
+                raise httpx.ConnectError("reset", request=request)
+            return httpx.Response(200, json={"status": state})
+        if str(request.url) == HANDLE["response_url"]:
+            assert request.headers["authorization"] == "Key fal-secret"
+            return httpx.Response(
+                200,
+                json={"video": {"url": "https://cdn.fal.test/o.mp4", "content_type": "video/mp4"}},
+            )
+        assert "authorization" not in request.headers
+        return httpx.Response(200, content=MP4, headers={"content-type": "video/mp4"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        backend = _queue(client)
+        handle = await backend.submit(_endpoint_request())
+        video = await backend.collect(handle, deadline_seconds=60)
+
+    assert handle == HANDLE
+    assert video.data == MP4
+    assert [entry for entry in seen if entry.startswith("POST")] == [
+        f"POST {QUEUE}/{FAL_ENDPOINT_VIDEO_MODEL}"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_submission_without_an_answer_is_uncertain_not_retried() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("no answer", request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(NonRetryableError) as raised:
+            await _queue(client).submit(_endpoint_request())
+    assert raised.value.code == "video_submission_uncertain"
+
+
+@pytest.mark.asyncio
+async def test_a_job_fal_failed_is_reported_and_one_still_running_is_left_to_collect() -> None:
+    def failed(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"status": "COMPLETED", "error": "content policy"})
+
+    def running(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"status": "IN_PROGRESS"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(failed)) as client:
+        with pytest.raises(FalVideoJobFailed, match="content policy"):
+            await _queue(client).collect(HANDLE, deadline_seconds=60)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(running)) as client:
+        with pytest.raises(NonRetryableError) as raised:
+            await _queue(client).collect(HANDLE, deadline_seconds=0.5)
+    assert raised.value.code == "video_job_outstanding"
+
+
+@pytest.mark.asyncio
+async def test_a_saved_handle_pointing_elsewhere_never_gets_the_key() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("nothing may be requested")
+
+    foreign = {**HANDLE, "status_url": "https://elsewhere.test/requests/req-1/status"}
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(NonRetryableError) as raised:
+            await _queue(client).collect(foreign, deadline_seconds=60)
+    assert raised.value.code == "video_handle_foreign"
+
+
+@pytest.mark.asyncio
+async def test_a_taken_job_whose_answer_cannot_be_read_is_uncertain() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"<html>queued</html>")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(NonRetryableError) as raised:
+            await _queue(client).submit(_endpoint_request())
+    assert raised.value.code == "video_submission_uncertain"

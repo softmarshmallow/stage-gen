@@ -1,4 +1,4 @@
-"""Stage Gen's gnode plugin: the first-party image routes, and the adapters that call them.
+"""Stage Gen's gnode plugin: the first-party routes, and the adapters that call them.
 
 gnode composes its command line from ``gnode.plugins`` entry points. This one contributes
 the image routes Stage Gen has verified (``image.generate`` and ``image.edit`` on OpenAI,
@@ -6,6 +6,10 @@ fal and OpenRouter), priced and featured from the same catalog the asset pipelin
 against, and, when a run is live, the capability handlers that call them through the
 routed image service: the one retry owner, the credential admission and the exact-route
 check that every Stage Gen image call already goes through.
+
+It also contributes ``video.generate`` on fal's first-and-last-frame route, as a long
+job: one submission to fal's queue, whose handle gnode keeps, so a run that stops while
+the clip renders collects it next time instead of paying for it again.
 """
 
 from __future__ import annotations
@@ -26,14 +30,26 @@ from gnode import (
     ImageGenerationRequest,
     ImageReference,
     ImageRouteRequirementsV1,
+    JobLog,
+    LongJob,
+    NonRetryableError,
     Plugin,
     Route,
     RoutePrice,
     RouteTable,
     Store,
+    VideoGenerationRequest,
+    VideoReference,
+    retry_with_backoff,
+)
+from gnode.providers.fal import (
+    FAL_ENDPOINT_VIDEO_MODEL,
+    FalEndpointVideoBackend,
+    FalVideoJobFailed,
 )
 from stage_gen.config import StageGenConfig, load_config
 from stage_gen.image_product import ImageProvider
+from stage_gen.media.video import probe_video, scratch_clip
 from stage_gen.model_routes import (
     configured_image_route_catalog,
     image_policy_id_for,
@@ -192,6 +208,184 @@ def image_capabilities(
     }
 
 
+# ----------------------------------------------------------------------------- video
+
+#: fal's published price per second of clip, by resolution, read on 2026-09-15 from
+#: https://fal.ai/models/google/gemini-omni-flash/v1.1/image-to-video; the worst case
+#: carries a quarter more, for what a published price does not promise.
+_VIDEO_PRICE_PER_SECOND = {"360p": 0.03, "720p": 0.10, "1080p": 0.15, "4k": 0.30}
+_VIDEO_MARGIN = 1.25
+#: Whole seconds the route draws, and the longest prompt it takes.
+_VIDEO_SECONDS = range(3, 11)
+_VIDEO_PROMPT_CHARS = 20_000
+_VIDEO_ASPECTS = {"9:16", "16:9"}
+_VIDEO_SHORT_SIDE = {"360p": 360, "720p": 720, "1080p": 1080, "4k": 2160}
+#: How long one run waits for a submitted clip before leaving it to the next run.
+_VIDEO_COLLECT_SECONDS = 1_500
+
+VideoQueueFactory = Callable[[StageGenConfig], FalEndpointVideoBackend]
+
+
+def video_routes() -> list[Route]:
+    """The first-and-last-frame clip route, priced per second by resolution."""
+
+    tiers = {
+        name: (price, round(price * _VIDEO_MARGIN, 6))
+        for name, price in _VIDEO_PRICE_PER_SECOND.items()
+    }
+    return [
+        Route(
+            capability="video.generate",
+            model=FAL_ENDPOINT_VIDEO_MODEL,
+            provider="fal",
+            price=RoutePrice(
+                min(low for low, _ in tiers.values()),
+                max(high for _, high in tiers.values()),
+                unit="second",
+                max_units=max(_VIDEO_SECONDS),
+                by="resolution",
+                tiers=tiers,
+            ),
+            features=frozenset({"first_last_frame"}),
+            concurrency=1,
+            contract={"adapter": "fal-queue", "adapter_behavior": 1},
+        )
+    ]
+
+
+def _video_queue(config: StageGenConfig) -> FalEndpointVideoBackend:
+    if not config.fal_key:
+        raise _NotSent("FAL_KEY is not set")
+    return FalEndpointVideoBackend(
+        api_key=config.fal_key, base_url=config.fal_base_url or "https://fal.run"
+    )
+
+
+def _video_request(request: Mapping[str, Any]) -> VideoGenerationRequest:
+    """The clip asked for, or ``_NotSent`` naming what this route cannot draw."""
+
+    prompt = request.get("prompt")
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise _NotSent("a clip needs its prompt as text")
+    if len(prompt) > _VIDEO_PROMPT_CHARS:
+        raise _NotSent(f"the prompt is longer than {_VIDEO_PROMPT_CHARS} characters")
+    first, last = request.get("first_frame"), request.get("last_frame")
+    if not isinstance(first, FileValue):
+        raise _NotSent("this route draws from a first frame")
+    seconds = request.get("duration")
+    if not isinstance(seconds, int | float) or seconds not in _VIDEO_SECONDS:
+        raise _NotSent(f"this route draws whole seconds from 3 to 10, not {seconds}")
+    resolution, aspect = request.get("resolution", "720p"), request.get("aspect_ratio", "9:16")
+    if resolution not in _VIDEO_PRICE_PER_SECOND or aspect not in _VIDEO_ASPECTS:
+        raise _NotSent(f"this route draws no {resolution} clip at {aspect}")
+    start = VideoReference(_data_url(first), "first_frame")
+    end = VideoReference(_data_url(last), "last_frame") if isinstance(last, FileValue) else None
+    return VideoGenerationRequest(
+        prompt=prompt,
+        artifact_path="video.mp4",
+        start_frame=start,
+        end_frame=end,
+        duration_seconds=float(seconds),
+        resolution=resolution,
+        aspect_ratio=str(aspect),
+    )
+
+
+async def _checked_clip(data: bytes, request: VideoGenerationRequest) -> dict[str, Any]:
+    """The clip's size and length, refused unless they are what was asked for."""
+
+    async with scratch_clip(data) as path:
+        probe = await probe_video(path)
+    short = _VIDEO_SHORT_SIDE[str(request.resolution)]
+    size = (short, short * 16 // 9) if request.aspect_ratio == "9:16" else (short * 16 // 9, short)
+    if (probe.width, probe.height) != size:
+        raise ValueError(f"the clip is {probe.width}x{probe.height}, not {size[0]}x{size[1]}")
+    seconds = float(request.duration_seconds or 0)
+    if abs(probe.duration_seconds - seconds) > 1 / probe.frames_per_second + 0.01:
+        raise ValueError(f"the clip runs {probe.duration_seconds:.3f} s, not {seconds:g} s")
+    return {
+        "width": probe.width,
+        "height": probe.height,
+        "duration_seconds": round(probe.duration_seconds, 6),
+        "fps": round(probe.frames_per_second, 6),
+    }
+
+
+def video_job(
+    config: StageGenConfig, store: Store, *, factory: VideoQueueFactory = _video_queue
+) -> LongJob:
+    """``video.generate`` on fal's queue: submitted once, collected, then checked.
+
+    The submission alone is retried, and only when fal answered that it took nothing.
+    A job fal failed, or a clip of the wrong size or length, fails the step: drawing
+    again is a new paid job, which the next run makes only because someone ran it.
+    """
+
+    async def start(route: Route, request: Mapping[str, Any], take: int, log: JobLog) -> CallRecord:
+        del route, take
+        try:
+            clip = _video_request(request)
+            backend = factory(config)
+        except _NotSent as error:
+            raise CallRefused(str(error)) from error
+
+        async def submit(_: object) -> dict[str, str]:
+            log.submitting()
+            try:
+                return await backend.submit(clip)
+            except NonRetryableError as error:
+                if error.code != "video_submission_uncertain":
+                    log.settled()
+                raise
+            except Exception:
+                log.settled()  # fal answered, and took nothing
+                raise
+
+        try:
+            handle = await retry_with_backoff(submit, label="fal video submission")
+            log.submitted(handle)
+            return await _collect(backend, clip, handle, log)
+        finally:
+            await backend.aclose()
+
+    async def collect(
+        route: Route,
+        request: Mapping[str, Any],
+        take: int,
+        handle: Mapping[str, Any],
+        log: JobLog,
+    ) -> CallRecord:
+        del route, take
+        backend = factory(config)
+        try:
+            return await _collect(backend, _video_request(request), handle, log)
+        finally:
+            await backend.aclose()
+
+    async def _collect(
+        backend: FalEndpointVideoBackend,
+        clip: VideoGenerationRequest,
+        handle: Mapping[str, Any],
+        log: JobLog,
+    ) -> CallRecord:
+        try:
+            video = await backend.collect(handle, deadline_seconds=_VIDEO_COLLECT_SECONDS)
+            facts = await _checked_clip(video.data, clip)
+        except (FalVideoJobFailed, ValueError) as error:
+            if not isinstance(error, NonRetryableError):
+                log.settled()  # the job is over: nothing is left to collect
+            raise
+        file = store.put_bytes(video.data, kind="video/mp4", name="video")
+        cost = (video.response_metadata.usage or {}).get("cost")
+        reported = (
+            float(cost) if isinstance(cost, int | float) and not isinstance(cost, bool) else None
+        )
+        data = {"request_id": handle.get("request_id"), "facts": facts}
+        return CallRecord({"video": file}, data, reported)
+
+    return LongJob(start, collect)
+
+
 def published_workflows() -> dict[str, Path]:
     """Every first-party workflow written as a workflow file, by id."""
 
@@ -209,10 +403,20 @@ def plugin() -> Plugin:
     config = load_config()
     return Plugin(
         name="stage_gen",
-        routes=image_routes(config),
-        capabilities=lambda store: image_capabilities(config, store),
+        routes=image_routes(config).merged(RouteTable(video_routes())),
+        capabilities=lambda store: {
+            **image_capabilities(config, store),
+            "video.generate": video_job(config, store),
+        },
         workflows=published_workflows(),
     )
 
 
-__all__ = ["image_capabilities", "image_routes", "plugin", "published_workflows"]
+__all__ = [
+    "image_capabilities",
+    "image_routes",
+    "plugin",
+    "published_workflows",
+    "video_job",
+    "video_routes",
+]

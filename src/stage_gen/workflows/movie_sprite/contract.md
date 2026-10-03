@@ -2,125 +2,107 @@
 
 > **Checked by:** `tests/contract/test_workflow_contract_docs.py`.
 
-The `movie-sprite` workflow produces a transparent looping body video, a first-frame
-canonical, previews and processing metadata. It composes the
-[movie sprite component](../../components/movie_sprite/README.md) through the
-[pipeline SDK](../../../../docs/sdk/guide.md). The [workflow page](page.mdx) covers motion
-authoring and the CLI.
+Turn one character picture into a transparent looping body video, its exact first frame, a preview and their records. The face is held still, so the portrait-motion workflow can add blinks and mouth shapes to the finished `canonical.png` separately; that workflow is not a step of this one.
 
-The public factory is `create_pipeline(finish_ref=..., authoring_ref=...,
-settings=GenerationSettings(...), routes=..., generator=...)`. Alternatively, provide
-`supplied_video_ref` and optional `supplied_provenance_ref` instead of `authoring_ref`. Every
-reference is relative to the explicit `input_root`. Optional `rights` records caller-owned
-rights without granting review or publication. The CLI builds its definition in one place,
-`cli.build_definition`, from the parsed `stage-gen plan|run movie-sprite` flags.
+The workflow is a gnode workflow file, [`workflow.yaml`](workflow.yaml), over its own node types in [`nodes/`](nodes/) and gnode's standard `video.generate`; `gnode plan|run movie-sprite` plans and runs it, from this checkout or an installed wheel. `gnode schema movie-sprite` prints its inputs as JSON Schema:
 
-## Graph and operations
+- `character`, a picture on a transparent background, **or** `footage`, a clip made elsewhere (MP4, or Matroska with alpha). The plan refuses both, and neither.
+- `direction`, `requested_motion` and `constraints`: the author's words for the motion, each optional.
+- `seconds` (3 to 10), `resolution` (`360p`, `720p`, `1080p`, `4k`) and `aspect_ratio` (`9:16`, `16:9`) of the take.
+- `finish`: a JSON file of finishing settings, validated by the [movie sprite component](../../components/movie_sprite/README.md) before anything runs.
+
+## Graph and calls
 
 ```mermaid
 flowchart LR
-  A[Authoring JSON and canonical image] --> P[prepare: local endpoint and combined prompt]
-  P --> G[generate: one video operation]
-  G --> F[finish: local video processing]
-  S[Supplied footage and optional provenance] --> D[adopt: local source record]
-  D --> F
-  C[Finishing JSON] --> F
-  F --> O[RGBA video, canonical PNG, preview, manifest and report]
+  C[character] --> P[plate: fit onto a green plate]
+  A[direction, motion, constraints, seconds] --> B[brief: write the motion brief]
+  P --> T[take: gnode/video.generate, one call]
+  B --> T
+  T --> F[finish: key, loop and verify]
+  S[footage] --> F
+  J[finish settings] --> F
+  F --> O[loop, canonical, preview, contact sheet, manifest, report, frames]
 ```
 
-The factory chooses either `prepare → generate → finish` or `adopt → finish`. It does not
-combine the two source branches. Public targets select the dependency closure of `prepare`,
-`generate` or `finish`, or `adopt`/`finish` for supplied input. Generation consumes identical
-explicit start/end images. There are no middle-frame or extra-reference ports. The
-portrait-motion workflow is a separate workflow downstream of `body/canonical.png`; it is not a
-node in this graph.
+With a `character`, the plan has four steps: `plate`, `brief`, `take` and `finish`. With `footage`, it has `finish` alone, and makes no call.
 
-Preparation, adoption and finishing make zero provider calls. Generation is one logical
-operation with the injected service's single retry owner and at most six dispatches. The factory
-does not select a model, read credentials or own a budget. The application host supplies these.
-Planning validates inputs, controls and route features without opening that host. Actual output
-dimensions, duration and complete decodability are validated inside the service's retry loop.
+- **plate** crops the character's visible silhouette, scales it uniformly into a 720×1280 (or 1280×720) frame with a margin, and composites it onto flat green, never repainting the art. The plate is both ends of the take, so its pixels are part of the paid request.
+- **brief** writes the take's prompt: the standing-idle template, [`prompts/idle.md`](prompts/idle.md), then the author's direction, requested motion and constraints, each as its own section. With none at all, a quiet listening idle is asked for.
+- **take** is one `video.generate` call on the route the workflow's [`gnode.yaml`](gnode.yaml) names by default: fal's Gemini Omni Flash image-to-video route, with the plate as the first and the last frame. The route needs `first_last_frame`, which the plan checks before any spend; the plan prices it per second at the take's resolution. A run makes it only with `--live` (`live=True` in Python) and a fal key.
+- **finish** is the component's finishing: green chroma extraction with despill, optional held regions and local repairs, an optical-flow loop closure, and playback retiming. It is local and free, and verifies every decoded output frame.
 
-The generate path, planned offline by `workflow.py` from a flat sample picture through the real
-video route binding, has this shape. `scripts/write_workflow_contracts.py --write` regenerates
-the block, and the check above fails when it drifts:
+```python
+import gnode
+
+result = gnode.run("movie-sprite", input_files=["take.yaml"], live=True, max_usd=2)
+result.deliver({"loop": "sprites/idle.mkv", "canonical": "sprites/idle.png"})
+```
+
+The take is a long provider job. gnode records the job before it is submitted and once fal takes it, so a run that stops while the clip renders collects it next time instead of paying for it again; a submission whose answer never arrived stops the take for a person (`gnode jobs`). The adapter retries a submission only when fal answered that it took nothing. A job fal failed, or a clip whose size or length is not what was asked for, fails the step: drawing again is a new paid take, made with `gnode reroll`, never a silent retry.
+
+## Cache and identity
+
+Each step's identity is its node type's locked version ([`gnode.lock`](gnode.lock); the node modules' sources and Stage Gen's movie sprite component count as their source) and what it reads. The take's call is kept in gnode's call cache by its capability, route, request (the prompt, the plate's digest, length, resolution and aspect ratio) and take number, so changing only the finishing settings reruns `finish` alone and bills nothing, and a reroll is a new take. Changing the template, the plate's fit or the brief's wording changes the request, and with it the bill.
+
+A take answered by a provider earlier, under the same request, is reused from the cache whatever run made it; the earlier pipeline's takes were carried over that way, by request, with `scripts/rekey_v1_runs.py`.
+
+## Outputs
+
+Under the run folder's `outputs/`:
+
+- `loop.mkv`: lossless FFV1 Matroska with straight RGBA and no audio, encoded bit-exact, so the same frames are the same file.
+- `canonical.png`: the loop's exact first frame; the face workflow starts from it.
+- `preview.mp4`: a silent H.264 preview over a dark background, without transparency.
+- `contact_sheet.png`: sampled frames on light, dark and checkerboard grounds.
+- `manifest.json` (`movie_sprite_body`): size, frame count, playback seconds and rate, alpha mode, and digests.
+- `report.json` (`movie_sprite_body_processing`): the settings used, the source facts, and a hash of every frame.
+- `frames.zip`: every frame as a numbered PNG, when the finishing settings set `export_frames`.
+
+The finish step's view plays the preview and shows the contact sheet with the report's checks; the take's view plays the take.
+
+## Graph
+
+gnode plans the committed sample's take path offline; this is the shape of that plan. `scripts/write_workflow_contracts.py --write` regenerates the block, and the check above fails when it drifts:
 
 <!-- pipeline-graph-contract:start -->
 ```json
 {
-  "topology_sha256": "b9d2bbe8ac1293c5ca50cc2454caa47cadc0937837e6ccf9420721f1d979d2af",
-  "node_count": 3,
-  "terminal_node_id": "finish",
+  "graph_kind": "gnode-graph-v2",
+  "topology_sha256": "8fe00c409807766aa7300acb2df7d49bcc77dbdd697eb58fa0ebb569405c5ef9",
+  "node_count": 4,
   "operation_counts": {
-    "local": 2,
-    "video_generation": 1
+    "local": 3,
+    "video_generate": 1
   },
-  "resources": [
-    {
-      "resource_id": "local",
-      "max_in_flight": null,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "movie_sprite_video",
-      "max_in_flight": 1,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    }
+  "outputs": [
+    "outputs/canonical.png",
+    "outputs/contact_sheet.png",
+    "outputs/frames.zip",
+    "outputs/loop.mkv",
+    "outputs/manifest.json",
+    "outputs/preview.mp4",
+    "outputs/report.json"
   ],
   "type_ids": [
-    "movie_sprite.finish",
-    "movie_sprite.generate",
-    "movie_sprite.prepare"
+    "movie_sprite/brief",
+    "movie_sprite/finish",
+    "movie_sprite/plate",
+    "movie_sprite/take"
   ]
 }
 ```
 <!-- pipeline-graph-contract:end -->
 
-## Cache and lineage
-
-The graph uses the SDK's atomic artifact/sidecar publication, cache admission, trace, run
-manifest and read-only inspection. Source input digests, rights, compiler identity, generation
-settings, candidate identity and resolved route bind the relevant stages. Finishing controls and
-component implementation bind finishing. Changing only retiming, masks or export settings can
-reuse the selected generated source. Changing the candidate deliberately invalidates generation.
-
-The generated source must retain the exact admitted prompt, route, parameters and both endpoint
-role/digest records. Supplied video retains its original source record and rights; it is not
-rewritten as a current-template generation. Unknown origin is recorded as local adoption, not
-inferred. Imported records with private paths, signed references or credentials are rejected.
-
-Cache reuse validates bytes and lineage. Finishing additionally verifies manifest, canonical and
-per-frame report consistency. A replay with a missing generation cache fails without
-dispatching a provider. Use a fresh output directory for each run; output and cache roots use
-the SDK's confinement rules.
-
-## Persisted identity
-
-The SDK pipeline id is `movie_sprite_body_idle`; `movie_sprite/body/idle` names the capability.
-Persisted request template identity is `movie-sprite-idle-v2`. Both are frozen: the bytes of
-`pipeline.py` and `authoring.py`, and of every file of the component, are digested into the paid
-generate and finish keys, and `tests/contract/test_workflow_identity.py` pins them.
-Historical takes retain their original prompt and template; promotion does not relabel them or
-promise identical new generations.
-
 ## Runnable offline example
 
-The sample input authors an original geometric transparent sprite and a lossless clip. It
-requires FFmpeg and makes no provider calls:
+`inputs/supplied_clip/make_inputs.py <directory>` draws an original geometric actor as a still and as a twelve-frame lossless clip, without a provider, and writes `take.yaml` (the still, for planning a take) and `clip.yaml` (the clip, finished as footage):
 
 ```sh
 uv run python src/stage_gen/workflows/movie_sprite/inputs/supplied_clip/make_inputs.py /tmp/movie-inputs
-uv run stage-gen run movie-sprite --input /tmp/movie-inputs --source actor.mkv --finish finish.json --output /tmp/movie-run --cache-dir /tmp/movie-cache
-uv run stage-gen inspect /tmp/movie-run
+uv run gnode plan movie-sprite --inputs /tmp/movie-inputs/take.yaml
+uv run gnode run movie-sprite --inputs /tmp/movie-inputs/clip.yaml
+uv run gnode inspect movie-sprite --verify
 ```
 
-The same [definition](inputs/supplied_clip/pipeline.py) works with `stage-gen plan|run file`.
-Python callers import `create_pipeline` and use `stage_gen.pipeline.plan` and `run`; no
-checkout-relative runtime paths are needed.
-
-Tests exercise all RGBA pixels, playback rate, exact canonical, frame archive, cache hits and
-corruption, source lineage, route admission, injected generation validation and costs. The
-installed-wheel probe runs outside the checkout. The component separately tests the native
-finishing algorithms; live provider canaries and human motion review remain distinct evidence.
+Tests run the take path offline with a stand-in for the video call, the footage path for real, and the importer that makes an example from a run. The installed-wheel probe runs outside the checkout. Live provider canaries and human motion review remain separate evidence.

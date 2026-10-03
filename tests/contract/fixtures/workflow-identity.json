@@ -7,10 +7,12 @@
    "layer['near_trees'].loop#1": "652082c049a237a740eda9b7ac15c2212259833cf553392910b14cfeeac176a1",
    "layer['near_trees'].mirror#1": "272bc729c2e93956b2504d9fb3ed2925d8633afc39a6f3217b24cf0fd7e9da25"
   },
-  "movie-sprite-generate": {
-   "finish": "3f12dd2e87f4ca2f1cfd029b52c938f38c5695b831483b1ca5be535ed01dc85e",
-   "generate": "dcaf6f773bcf43df1d4a32679798c969f3ce31e18fdad5221c669e6e94e06489",
-   "prepare": "2230dba600a1d91d3ae0c7c7d68beaa38778d8fde3fb55e1d9e5b4243e35069e"
+  "movie-sprite-take": {
+   "brief#1": "acb1775f74f465dc382cd2659059a5a2739e35a022294ea21712c467f2bd1597",
+   "finish#1": "2127685fe08b138605f5e76971f3ac8a75091579fea14aa92f372bfc36add7fa",
+   "plate#1": "4ee9262beaf65beea65000215519ee69d6a7fedfaaa48e219e1f6e0b3d80d975",
+   "take#1": "edbf6e6ef1124ccfc12314198b98cd255d03d7adfa4defc1002e00fcdf948430",
+   "take#1 video.generate": "fbab6c2740b1e6534744709ed4f863817a5bacebcabc4563633c7bf810833cb5"
   },
   "universe-semantic": {
    "gallery-plan": "6f3915cf66bbc32923f47ff41c397f662a09eeef8c015b05177da2db0fe556b2",
@@ -240,24 +242,24 @@
     "nodes/seams.py#seam_check@1"
    ],
    [
-    "movie_sprite.adopt",
-    "movie_sprite.adopt",
-    "movie-sprite-adopt-v1"
+    "movie_sprite/brief",
+    "movie_sprite/brief",
+    "nodes/take.py#idle_brief@1"
    ],
    [
-    "movie_sprite.finish",
-    "movie_sprite.finish",
-    "movie-sprite-finish-v1"
+    "movie_sprite/finish",
+    "movie_sprite/finish",
+    "nodes/finish.py#finish@1"
    ],
    [
-    "movie_sprite.generate",
-    "movie_sprite.generate",
-    "movie-sprite-generation-v1"
+    "movie_sprite/plate",
+    "movie_sprite/plate",
+    "nodes/take.py#green_plate@1"
    ],
    [
-    "movie_sprite.prepare",
-    "movie_sprite.prepare",
-    "movie-sprite-prepare-v1"
+    "movie_sprite/take",
+    "movie_sprite/take",
+    "gnode/video.generate@1.1"
    ],
    [
     "universe/concept.image",
@@ -325,12 +327,6 @@
     "universe-review-v1"
    ]
   ],
-  "pipelines": {
-   "movie_sprite_body_idle": {
-    "namespace": "pipeline-b04e83bc297b820056e5b70a",
-    "record_kind": "pipeline-node-cache-v1"
-   }
-  },
   "sdk_graph": {
    "kind": "pipeline-execution-graph-v1",
    "projection_kind": "pipeline-execution-projection-v1",
@@ -350,19 +346,5 @@
    "stage-gen": "0.0.0"
   },
   "view_schema_version": 3
- },
- "movie_sprite_sources": {
-  "authoring.py": "f8862f7ec5989cd2c4fa2af90cc9b978dfab76fd8ed30bd1cd5b628b5d2bb7b8",
-  "authoring_identity": "f8862f7ec5989cd2c4fa2af90cc9b978dfab76fd8ed30bd1cd5b628b5d2bb7b8",
-  "components": {
-   "__init__.py": "f7248ed873f7f40e8f15bf26e0580ade3b731f571681c6dc9fc92b4e6bf289b9",
-   "frame_store.py": "0ec23506dfda57d9c595892b3f1dce9eb1c716f862e93429c4d7ccde02785a35",
-   "geometry.py": "14f1f182aa134b9be1423e24319cd8633cbad2ba51621936ddb94fc8638d6db7",
-   "models.py": "35710670540ad720b58c2459d821419ef70f60bb1fb5bcc078fb7f8e5676399e",
-   "processing.py": "ac1d623a3484a6063060d69176bf52a399efd5f9744d5172643c45a32ac5aded"
-  },
-  "pipeline.py": "6f04a6e008eb79dafa22a4049fd09d57d456aac4174ac32b3f5fee8022de33e5",
-  "processing_identity": "f8dc99cc463327f70b67ff460f4eca20eb4badf8f46c340bdb4bffb784b49ba9",
-  "recipe_identity": "6f04a6e008eb79dafa22a4049fd09d57d456aac4174ac32b3f5fee8022de33e5"
  }
 }

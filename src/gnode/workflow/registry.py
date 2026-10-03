@@ -341,6 +341,8 @@ _KINDS = {
     ".ogg": "audio/ogg",
     ".mp4": "video/mp4",
     ".webm": "video/webm",
+    ".mkv": "video/x-matroska",
+    ".zip": "file/zip",
     ".glb": "model/gltf-binary",
     ".gltf": "model/gltf+json",
     ".html": "text/html",

@@ -1,0 +1,6 @@
+# The movie-sprite workflow's home. Its node modules import Stage Gen's movie sprite
+# component, so that counts as its source: gnode.lock notices when it changes under a version.
+gnode: project/v1
+sources: [stage_gen]
+routes:
+  video.generate: google/gemini-omni-flash/v1.1/image-to-video@fal

@@ -10,10 +10,8 @@ import pytest
 from PIL import Image
 
 from stage_gen.examples import (
-    Delivered,
     ExamplePin,
     FiguresLedger,
-    ImportRequest,
     MadeBy,
     Media,
     RecordingReader,
@@ -21,7 +19,6 @@ from stage_gen.examples import (
     currency,
     display_names,
     document_bytes,
-    import_pipeline_run,
     index,
     node,
     pin_of,
@@ -164,62 +161,3 @@ def test_display_names_cover_recorded_ids_and_their_names() -> None:
     assert names.provider("openrouter") == "OpenRouter"
     assert names.knows_model("GPT-6 Astra") and names.knows_model("openai/gpt-6-astra")
     assert not names.knows_model("unlisted/model")
-
-
-def _view_run(root: Path, name: str, node_id: str, data: bytes, depends_on: list[str]) -> Path:
-    """A hand-authored SDK run folder with one succeeded node and one artifact."""
-    run = root / name
-    (run / "out").mkdir(parents=True)
-    (run / "out" / f"{node_id}.txt").write_bytes(data)
-    artifact = {
-        "artifact_ref": f"out/{node_id}.txt",
-        "sha256": sha256(run / "out" / f"{node_id}.txt"),
-        "media_type": "text/plain",
-        "present": True,
-    }
-    item = {
-        "node_id": node_id,
-        "type_id": f"demo.{node_id}",
-        "operation": "local",
-        "state": "succeeded",
-        "cache": "miss",
-        "duration_ms": 1000,
-        "provider_operations": 0,
-        "depends_on": depends_on,
-        "artifacts": [artifact],
-    }
-    (run / "execution-view.json").write_text(
-        json.dumps({"graph_sha256": "1" * 64, "nodes": [item]})
-    )
-    (run / "execution-plan.json").write_text(json.dumps({"kind": "pipeline-execution-graph-v1"}))
-    (run / "pipeline.json").write_text(json.dumps({"inputs": {}}))
-    return run
-
-
-def _chain(tmp_path: Path, *runs: Path) -> WorkflowExample:
-    request = ImportRequest(
-        example_id="chain",
-        made_by=MadeBy(kind="workflow", id="demo-workflow"),
-        base=tmp_path,
-        runs=runs,
-        out=tmp_path / "store",
-    )
-    return import_pipeline_run(
-        request, output_node="b", deliver=lambda _: Delivered(inputs={}, outputs={}, metrics={})
-    )
-
-
-def test_a_later_run_links_to_the_earlier_node_whose_bytes_it_consumed(tmp_path: Path) -> None:
-    first = _view_run(tmp_path, "first", "a", b"take", [])
-    second = _view_run(tmp_path, "second", "b", b"take", [])
-    example = _chain(tmp_path, first, second)
-    assert example.nodes["b"].depends_on == ["a"]
-    assert example.delivered_run == "second"
-    assert [run.path for run in example.source_runs] == ["first", "second"]
-
-
-def test_runs_that_share_no_bytes_are_refused(tmp_path: Path) -> None:
-    first = _view_run(tmp_path, "first", "a", b"take", [])
-    second = _view_run(tmp_path, "second", "b", b"another take", [])
-    with pytest.raises(ValueError, match="consumes nothing an earlier run produced"):
-        _chain(tmp_path, first, second)

@@ -141,10 +141,11 @@ src/stage_gen/workflows/
 │   ├── workflow.py, workflow.toml     # Registry hook; what the workflow file cannot say
 │   ├── page.mdx, contract.md          # The reader's page; the exact contract
 │   └── inputs/supplied_layers/        # Original layers and the inputs.yaml that places them
-├── movie_sprite/                      # Endpoint video generation and local loop finishing
-│   ├── workflow.py, workflow.toml     # Code facts; what code cannot know
-│   ├── cli.py, example.py, pipeline.py  # plan/run flags; example importer; implementation
-│   └── inputs/supplied_clip/          # Original procedural clip; no provider calls
+├── movie_sprite/                      # A workflow file: plate, brief, take, finish
+│   ├── workflow.yaml, gnode.yaml, gnode.lock
+│   ├── nodes/, prompts/, views/       # Plate, brief and finish; the idle template; the loop view
+│   ├── workflow.py, example.py        # Registry hook; the example importer
+│   └── inputs/supplied_clip/          # Original geometric actor: a still and a lossless clip
 ├── portrait_motion/                   # Generation, qualification, budgets and recovery
 │   └── inputs/                        # The four-card and face-crop specifications
 ├── universe/                          # No example.py; executor modules, not pipeline.py
@@ -159,8 +160,8 @@ docs/sdk/pipelines/
 └── portrait_processing.py             # Component composition and preserved-pixel proof
 ```
 
-A workflow written as a workflow file has the shape `looping_parallax/` shows; one still on
-the SDK, the shape `movie_sprite/` shows, less the files it does not need. The tree lists
+A workflow written as a workflow file has the shape `looping_parallax/` and `movie_sprite/`
+show. The tree lists
 only what differs. Sample inputs and their scripts live in a
 workflow's `inputs/`; cross-component
 SDK samples live in `docs/sdk/pipelines`. A future component example should likewise live

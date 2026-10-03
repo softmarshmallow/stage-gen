@@ -379,6 +379,11 @@ def _encode(
             "-an",
             "-map_metadata",
             "-1",
+            # No random container identity or encoder stamp: the same frames are the same file.
+            "-fflags",
+            "+bitexact",
+            "-flags:v",
+            "+bitexact",
             *codec,
             "-fs",
             str(maximum_bytes),

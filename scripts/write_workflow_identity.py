@@ -5,15 +5,14 @@ tests/contract/fixtures/workflow-identity.json holds values only - digests, stri
 versions and cache keys - never a module path, so moving code changes this script's
 imports and never the fixture. Each section prices what a change to it would cost:
 
-  movie_sprite_sources     the digested movie-sprite sources and the three identities
-                           create_pipeline derives from them (paid generate/finish keys)
   character_frozen_set     every character_3d member and the package-map aliases (a change
                            needs a paid qualification cohort, not a carry-over)
-  identities               pipeline ids and their observed cache namespaces, graph-document
-                           kinds, cache constants, the run-view version, provenance names
-                           and the product node-type inventory
-  cache_keys               node_id -> cache_key for offline plans over committed files or
-                           the constant bytes in workflow-identity-inputs.json
+  identities               graph-document kinds, cache constants, the run-view version,
+                           provenance names and the product node-type inventory
+  cache_keys               node_id -> cache_key for offline plans and free runs over
+                           committed files or the constant bytes in
+                           workflow-identity-inputs.json, and the key of each paid call a
+                           free run made through a stand-in that answers with constant bytes
 
 The input bytes are constants captured once. Nothing here regenerates them with Pillow or
 FFmpeg, runs a provider or reads a credential; configuration is an explicit empty
@@ -41,48 +40,35 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import stage_gen
-import stage_gen.components.movie_sprite as movie_sprite_component
 import stage_gen.identity as provenance_identities
-import stage_gen.workflows.movie_sprite.pipeline as movie_sprite_pipeline
 import stage_gen.workflows.universe.universe_types as universe_types
 from gnode import (
-    BindingTable,
+    CallRecord,
     Graph,
-    GraphBuilder,
-    Node,
-    NodeExecutionResult,
+    HostServices,
+    JobLog,
+    LongJob,
     NodeType,
+    Route,
     RunView,
     SoftwareIdentity,
-    ViewArchetype,
+    WorkflowRun,
     atomic_write_text,
+    plan_async,
     project_run,
-    seal_graph,
 )
 from gnode import run as gnode_run
 from stage_gen.components.portrait_motion.face_location import locator_node_type
 from stage_gen.components.portrait_motion.nodes import portrait_motion_node_types
 from stage_gen.config import load_config
-from stage_gen.interfaces.cli import parse
 from stage_gen.pipeline import (
-    InputFiles,
-    NodeBinding,
-    PipelineContext,
     PipelineGraph,
-    define,
-    object_digest,
-    plan,
-    record_port,
-    run,
 )
 from stage_gen.pipeline.dry_run import DRY_RUN_CACHE_NAMESPACE, DRY_RUN_CACHE_RECORD_KIND
 from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_cache import NODE_CACHE_SCHEMA_VERSION
 from stage_gen.workflows._gnode import GnodeWorkflow
 from stage_gen.workflows._registry import discover
-from stage_gen.workflows.movie_sprite import create_pipeline as create_movie_sprite_pipeline
-from stage_gen.workflows.movie_sprite.authoring import digest as movie_sprite_digest
-from stage_gen.workflows.movie_sprite.cli import build_definition
 from stage_gen.workflows.universe.universe_executor import UniverseExecutor
 from stage_gen.workflows.universe.universe_graph import (
     UNIVERSE_CACHE_NAMESPACE,
@@ -100,34 +86,13 @@ UNIVERSE_INPUT = Path(universe_types.__file__).parent / "inputs/lantern_ferry"
 #: Every package that holds character_3d members; their paths and bytes are frozen.
 CHARACTER_OWNERS = ("recipes", "orchestration", "components", "providers", "resources")
 #: Modules whose NodeType constants are product node types.
-NODE_TYPE_MODULES: tuple[ModuleType, ...] = (
-    movie_sprite_pipeline,
-    universe_types,
-)
+NODE_TYPE_MODULES: tuple[ModuleType, ...] = (universe_types,)
 
 type Section = dict[str, Any]
 
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def movie_sprite_sources(scratch: Path) -> Section:
-    """The digested sources, and the identities computed exactly as create_pipeline does."""
-    del scratch
-    pipeline_path = Path(movie_sprite_pipeline.__file__)
-    authoring_path = pipeline_path.parent / "authoring.py"
-    component_files = sorted(Path(movie_sprite_component.__file__).parent.glob("*.py"))
-    return {
-        "authoring.py": _sha256(authoring_path),
-        "pipeline.py": _sha256(pipeline_path),
-        "components": {item.name: _sha256(item) for item in component_files},
-        "authoring_identity": movie_sprite_digest(authoring_path.read_bytes()),
-        "recipe_identity": movie_sprite_digest(pipeline_path.read_bytes()),
-        "processing_identity": object_digest(
-            {item.name: movie_sprite_digest(item.read_bytes()) for item in component_files}
-        ),
-    }
 
 
 def character_frozen_set(scratch: Path) -> Section:
@@ -145,55 +110,6 @@ def character_frozen_set(scratch: Path) -> Section:
         (PACKAGE_ROOT / "resources/character_3d/package-map.json").read_text(encoding="utf-8")
     )
     return {"files": files, "package_map_aliases": package_map["aliases"]}
-
-
-PROBE = NodeType(
-    "identity/namespace.probe", "Namespace probe", ViewArchetype.TRANSFORM, "local", "1"
-)
-
-
-def _observed_sdk_cache(pipeline_id: str, scratch: Path) -> tuple[str, str]:
-    """Run one constant local node under ``pipeline_id`` and read what the cache wrote.
-
-    The namespace and record kind are observed on disk rather than recomputed, so a change
-    to how the SDK derives them fails here even though no constant names them.
-    """
-
-    def build(inputs: InputFiles) -> Graph:
-        del inputs
-        builder = GraphBuilder(profile=BindingTable(()))
-        builder.add(
-            PROBE,
-            "probe",
-            domain="identity",
-            description="Publish one constant record",
-            ports=(record_port("record", "probe.json", "identity-probe-v1"),),
-        )
-        return seal_graph(
-            Graph,
-            schema_version=1,
-            kind="identity-probe-graph-v1",
-            resources=builder.resources(),
-            nodes=builder.nodes,
-            terminal_node_id="probe",
-        )
-
-    async def publish(node: Node, context: PipelineContext) -> NodeExecutionResult:
-        return await context.publish(node, {"record": b"{}"})
-
-    definition = define(
-        pipeline_id, title="Identity probe", build=build, bindings=[NodeBinding(PROBE, publish)]
-    )
-    root = scratch / "probe" / pipeline_id
-    (root / "inputs").mkdir(parents=True)
-    planned = plan(definition, input_root=root / "inputs")
-    result = asyncio.run(run(planned, output_root=root / "run", cache_root=root / "cache"))
-    if not result.summary.ok:
-        raise RuntimeError(f"the namespace probe failed for {pipeline_id}")
-    (namespace,) = (root / "cache").iterdir()
-    (record_path,) = namespace.rglob("record.json")
-    record = json.loads(record_path.read_text(encoding="utf-8"))
-    return namespace.name, str(record["kind"])
 
 
 def _graph_document(document: type[GraphDocument]) -> Section:
@@ -223,13 +139,7 @@ def _node_types() -> Iterable[NodeType]:
 
 
 def identities(scratch: Path) -> Section:
-    movie_sprite = create_movie_sprite_pipeline(
-        finish_ref="finish.json", authoring_ref="authoring.json"
-    )
-    pipelines: dict[str, dict[str, str]] = {}
-    for definition in (movie_sprite,):
-        namespace, record_kind = _observed_sdk_cache(definition.pipeline_id, scratch)
-        pipelines[definition.pipeline_id] = {"namespace": namespace, "record_kind": record_kind}
+    del scratch
     graph_documents = {section["recipe"]: section for section in (_graph_document(UniverseGraph),)}
     inventory = {
         (node_type.type_id, node_type.cache_identity, node_type.contract_version)
@@ -241,7 +151,6 @@ def identities(scratch: Path) -> Section:
         if isinstance(value, SoftwareIdentity)
     }
     return {
-        "pipelines": pipelines,
         "graph_documents": graph_documents,
         "sdk_graph": {
             "kind": PipelineGraph.model_fields["kind"].default,
@@ -301,25 +210,65 @@ def run_looping_parallax(scratch: Path) -> RunView:
     return project_run(completed.run_dir)
 
 
-def plan_movie_sprite_generate(scratch: Path) -> Graph:
-    """The paid generate path, from argv through `stage-gen plan movie-sprite`, built by the
-    one function that builds a movie-sprite definition from argv."""
-    input_root = materialize_inputs("movie-sprite-generate", scratch)
-    args = parse(
-        [
-            "plan",
-            "movie-sprite",
-            "--input",
-            str(input_root),
-            "--authoring",
-            "authoring.json",
-            "--finish",
-            "finish.json",
-            "--output",
-            str(scratch / "movie-sprite-plan"),
-        ]
+class _ConstantClip:
+    """``video.generate`` answered with the constant clip, as a long job: never a provider."""
+
+    def __init__(self, store: Any, clip: bytes) -> None:
+        self.store, self.clip = store, clip
+
+    def job(self) -> LongJob:
+        async def start(route: Route, request: Any, take: int, log: JobLog) -> CallRecord:
+            del route, request, take, log
+            return CallRecord(
+                {"video": self.store.put_bytes(self.clip, kind="video/mp4", name="video")},
+                None,
+                0.0,
+            )
+
+        async def collect(
+            route: Route, request: Any, take: int, handle: Any, log: JobLog
+        ) -> CallRecord:
+            raise AssertionError("nothing was left to collect")
+
+        return LongJob(start, collect)
+
+
+def run_movie_sprite_take(scratch: Path) -> dict[str, str]:
+    """The take path run offline, free: the paid take answered with a constant clip, so
+    every step identity and the take's call key are pinned, finishing included."""
+    root = materialize_inputs("movie-sprite-take", scratch)
+    inputs = root / "take.yaml"
+    inputs.write_text(
+        json.dumps(
+            {
+                "character": "character.png",
+                "seconds": 3,
+                "resolution": "360p",
+                "finish": "finish.json",
+            }
+        ),
+        encoding="utf-8",
     )
-    return plan(build_definition(args), input_root=args.input_root, targets=[args.target]).graph
+    project = scratch / "project"
+    project.mkdir()
+    (project / "gnode.yaml").write_text("gnode: project/v1\n", encoding="utf-8")
+    planned = asyncio.run(plan_async("movie-sprite", input_files=[inputs], cwd=project))
+    if not planned.ok:
+        raise RuntimeError(f"the movie-sprite take does not plan: {planned.problems}")
+    clip = _ConstantClip(planned.planner.store, (root / "take.mp4").read_bytes())
+    services = HostServices(
+        store=planned.planner.store, capabilities={"video.generate": clip.job()}, live=True
+    )
+    run_dir = project / "runs/take"
+    outcome = asyncio.run(WorkflowRun(planned, run_dir=run_dir, services=services).run())
+    if not outcome.ok:
+        raise RuntimeError(f"the movie-sprite take failed: {outcome.failed}")
+    keys = cache_key_map(project_run(run_dir))
+    for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines():
+        event = json.loads(line)
+        if event.get("event") == "call":
+            keys[f"{event['id']} {event['capability']}"] = event["call"]
+    return dict(sorted(keys.items()))
 
 
 def plan_universe_semantic(scratch: Path) -> Graph:
@@ -329,14 +278,16 @@ def plan_universe_semantic(scratch: Path) -> Graph:
 
 
 #: Each pinned plan; the gallery phase is absent because it plans only from a semantic run.
-CACHE_KEY_PLANS: dict[str, Callable[[Path], Graph | RunView]] = {
+CACHE_KEY_PLANS: dict[str, Callable[[Path], Graph | RunView | dict[str, str]]] = {
     "looping-parallax": run_looping_parallax,
-    "movie-sprite-generate": plan_movie_sprite_generate,
+    "movie-sprite-take": run_movie_sprite_take,
     "universe-semantic": plan_universe_semantic,
 }
 
 
-def cache_key_map(graph: Graph | RunView) -> dict[str, str]:
+def cache_key_map(graph: Graph | RunView | dict[str, str]) -> dict[str, str]:
+    if isinstance(graph, dict):
+        return graph
     keys = {node.node_id: node.cache_key for node in graph.nodes}
     return dict(sorted(keys.items()))
 
@@ -346,7 +297,6 @@ def cache_keys(scratch: Path) -> Section:
 
 
 SECTIONS: dict[str, Callable[[Path], Section]] = {
-    "movie_sprite_sources": movie_sprite_sources,
     "character_frozen_set": character_frozen_set,
     "identities": identities,
     "cache_keys": cache_keys,

@@ -296,6 +296,8 @@ from gnode.workflow.host import (
     CapabilityHandler,
     Ctx,
     HostServices,
+    JobLog,
+    LongJob,
     NodeFailure,
     Spending,
     register_reader,
@@ -317,7 +319,7 @@ from gnode.workflow.runview import (
 )
 from gnode.workflow.schemas import all_schemas as document_schemas
 from gnode.workflow.spec import NodeSpec, PortSpec, node, param_schema
-from gnode.workflow.store import CallRecord, Store
+from gnode.workflow.store import CallRecord, JobRecord, Store
 from gnode.workflow.values import FileValue
 
 __all__ = [
@@ -602,6 +604,9 @@ __all__ = [
     "StepDescription",
     "RunFolderError",
     "CallRefused",
+    "JobLog",
+    "JobRecord",
+    "LongJob",
     "describe",
     "is_workflow_run",
     "project_run",

@@ -32,23 +32,35 @@ class RoutePrice:
     unit: PriceUnit = "call"
     #: For a length-priced route, the most units one call can carry (its worst case).
     max_units: float | None = None
+    #: The setting whose value picks the price, such as a video's ``resolution``. Each tier
+    #: is a ``(low_usd, high_usd)`` range in the price's unit; ``low_usd`` and ``high_usd``
+    #: span them all, and price a call whose setting the plan does not know yet.
+    by: str | None = None
+    tiers: Mapping[str, tuple[float, float]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.low_usd < 0 or self.high_usd < self.low_usd:
             raise RouteError("a price is a non-negative range, low to high")
         if self.unit != "call" and (self.max_units is None or self.max_units <= 0):
             raise RouteError("a length-priced route declares the most units one call carries")
+        if (self.by is None) != (not self.tiers):
+            raise RouteError("a tiered price names the setting it is priced by, and its tiers")
+        for name, (low, high) in self.tiers.items():
+            if not self.low_usd <= low <= high <= self.high_usd:
+                raise RouteError(f"price tier {name} lies outside the route's range")
 
-    def per_call(self, units: float | None) -> tuple[float, float]:
-        """The range for one call; ``units`` is the call's length when the plan knows it."""
+    def per_call(self, units: float | None, tier: str | None = None) -> tuple[float, float]:
+        """The range for one call; ``units`` is the call's length and ``tier`` the value of
+        the setting it is priced by, each when the plan knows it."""
 
+        low_unit, high_unit = self.tiers.get(tier or "", (self.low_usd, self.high_usd))
         if self.unit == "call":
-            return self.low_usd, self.high_usd
+            return low_unit, high_unit
         assert self.max_units is not None
         known = units if units is not None else self.max_units
         divisor = 1_000.0 if self.unit == "1k_chars" else 1.0
-        high = self.high_usd * min(known, self.max_units) / divisor
-        low = self.low_usd * (known / divisor if units is not None else 0.0)
+        high = high_unit * min(known, self.max_units) / divisor
+        low = low_unit * (known / divisor if units is not None else 0.0)
         return round(low, 6), round(high, 6)
 
 
@@ -75,6 +87,12 @@ class Route:
         """The model behind any provider: ``vendor/name`` and ``name`` are the same model."""
 
         return self.model.rsplit("/", 1)[-1].lower()
+
+    def cost(self, request: Mapping[str, Any]) -> tuple[float, float]:
+        """What one call with these settings may cost, low to high."""
+
+        tier = request.get(self.price.by) if self.price.by is not None else None
+        return self.price.per_call(units_of(self, request), tier if isinstance(tier, str) else None)
 
     @property
     def fingerprint(self) -> str:
@@ -163,6 +181,11 @@ def route_table_from_document(document: Mapping[str, Any]) -> RouteTable:
                     high_usd=float(price.get("high_usd", price.get("usd", 0.0))),
                     unit=price.get("unit", "call"),
                     max_units=price.get("max_units"),
+                    by=price.get("by"),
+                    tiers={
+                        str(name): (float(tier["low_usd"]), float(tier["high_usd"]))
+                        for name, tier in price.get("tiers", {}).items()
+                    },
                 ),
                 features=frozenset(entry.get("features", ())),
                 concurrency=entry.get("concurrency"),

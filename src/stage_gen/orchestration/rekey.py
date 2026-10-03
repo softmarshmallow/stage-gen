@@ -3,8 +3,9 @@
 Porting a workflow to a workflow file changes every identity it has, so its paid calls
 would be made again. This replays the ported workflow offline with handlers that answer
 each paid call from the provider results of old v1 runs, but only from the result that was
-made from exactly this request: the same provider and model, the same route, prompt, input
-pictures, size and background, as the old result's provenance sidecar records them, and
+made from exactly this request: the same provider and model, the same route, prompt and
+input pictures, and the same size and background for a picture, or length, resolution
+and aspect ratio for a clip, as the old result's provenance sidecar records them, and
 bytes that still match the sidecar. The answer is written to gnode's call cache as the same
 bytes, noting the artifact it was rekeyed from. A call no old result answers is refused,
 never made, and the report prices it: that is what a live run would bill.
@@ -43,13 +44,14 @@ class OldResult:
     """One provider result of a v1 run, and the request its sidecar says made it."""
 
     artifact: Path
+    media_type: str
     provider: str
     model: str
     route_id: str | None
     prompt_sha256: str
     inputs: frozenset[str]
-    size: str | None
-    background: str | None
+    #: The request's settings, as the sidecar recorded them.
+    params: Mapping[str, Any]
 
 
 def _old_result(sidecar: Path) -> OldResult | None:
@@ -60,7 +62,8 @@ def _old_result(sidecar: Path) -> OldResult | None:
     if not isinstance(record, dict) or record.get("provider") in {None, "local"}:
         return None
     artifact = sidecar.with_name(sidecar.name.removesuffix(SIDECAR_SUFFIX))
-    digest = (record.get("artifact") or {}).get("sha256")
+    recorded = record.get("artifact") or {}
+    digest = recorded.get("sha256")
     if not artifact.is_file() or not isinstance(digest, str):
         return None
     if hashlib.sha256(artifact.read_bytes()).hexdigest() != digest:
@@ -69,13 +72,13 @@ def _old_result(sidecar: Path) -> OldResult | None:
     binding = params.get("route_binding") or {}
     return OldResult(
         artifact=artifact,
+        media_type=str(recorded.get("media_type") or "image/png"),
         provider=str(record["provider"]),
         model=str(record.get("model")),
         route_id=binding.get("route_id"),
         prompt_sha256=str(record.get("prompt_sha256")),
         inputs=frozenset(str(item["sha256"]) for item in record.get("inputs") or []),
-        size=params.get("size"),
-        background=params.get("background"),
+        params=params,
     )
 
 
@@ -134,7 +137,21 @@ def _files(request: Mapping[str, Any]) -> frozenset[str]:
     return frozenset(digests)
 
 
-def _matches(old: OldResult, route: Route, request: Mapping[str, Any]) -> bool:
+def _same_settings(old: OldResult, capability: str, request: Mapping[str, Any]) -> bool:
+    params = old.params
+    if capability == "video.generate":
+        return (
+            params.get("duration_seconds") == request.get("duration")
+            and params.get("resolution") == request.get("resolution")
+            and params.get("aspect_ratio") == request.get("aspect_ratio")
+        )
+    return params.get("size") == request.get("size") and params.get("background") in {
+        None,
+        request.get("background"),
+    }
+
+
+def _matches(old: OldResult, capability: str, route: Route, request: Mapping[str, Any]) -> bool:
     prompt = request.get("prompt")
     if not isinstance(prompt, str):
         return False
@@ -143,8 +160,7 @@ def _matches(old: OldResult, route: Route, request: Mapping[str, Any]) -> bool:
         and old.route_id in {None, route.contract.get("route_id")}
         and old.prompt_sha256 == hashlib.sha256(prompt.encode("utf-8")).hexdigest()
         and old.inputs == _files(request)
-        and old.size == request.get("size")
-        and old.background in {None, request.get("background")}
+        and _same_settings(old, capability, request)
     )
 
 
@@ -155,10 +171,12 @@ def rekey_handlers(
 
     def handler(capability: str) -> CapabilityHandler:
         async def answer(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
-            high = route.price.per_call(None)[1]
+            high = route.cost(request)[1]
             # A later take is a new draw: no old result was made for it.
             found = (
-                next((o for o in old if _matches(o, route, request)), None) if take == 1 else None
+                next((o for o in old if _matches(o, capability, route, request)), None)
+                if take == 1
+                else None
             )
             report.answers.append(
                 Answer(
@@ -174,9 +192,10 @@ def rekey_handlers(
                     f"no v1 result answers this {capability} call on {route.route_id} "
                     f"(take {take}); a live run would bill up to ${high:.2f}"
                 )
-            image = store.put_file(found.artifact, kind="image/png", name="image")
+            name = found.media_type.split("/", 1)[0]
+            answer = store.put_file(found.artifact, kind=found.media_type, name=name)
             return CallRecord(
-                {"image": image}, {"rekeyed_from": found.artifact.as_posix(), "attempts": 0}, 0.0
+                {name: answer}, {"rekeyed_from": found.artifact.as_posix(), "attempts": 0}, 0.0
             )
 
         return answer

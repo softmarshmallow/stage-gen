@@ -83,7 +83,12 @@ STANDARD_TYPES: tuple[tuple[int, NodeSpec], ...] = (
             "video.generate",
             1,
             inputs=_ports(first_frame="image?", last_frame="image?"),
-            params={"prompt": TEMPLATE, "duration": _p(float, optional=True)},
+            params={
+                "prompt": TEMPLATE,
+                "duration": _p(float, optional=True),
+                "resolution": _p(str, optional=True),
+                "aspect_ratio": _p(str, optional=True),
+            },
             outputs=_ports(video="video/mp4"),
             capability="video.generate",
         ),

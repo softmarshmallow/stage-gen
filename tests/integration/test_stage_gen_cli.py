@@ -36,7 +36,7 @@ WORKFLOWS = {
     "universe",
 }
 #: Workflows written as workflow files are planned and run with gnode, not stage-gen.
-WORKFLOW_FILES = {"looping-parallax"}
+WORKFLOW_FILES = {"looping-parallax", "movie-sprite"}
 
 
 @pytest.fixture(autouse=True)

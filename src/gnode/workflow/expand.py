@@ -39,7 +39,7 @@ from gnode.workflow.document import (
 from gnode.workflow.expr import ExpressionError, Pending, Scope
 from gnode.workflow.inputs import InputError, bind_given, compile_inputs
 from gnode.workflow.registry import RegistryError, Resolver, TypeRef, WorkflowRef
-from gnode.workflow.routes import Route, RouteError, RouteTable, units_of
+from gnode.workflow.routes import Route, RouteError, RouteTable
 from gnode.workflow.spec import NodeSpec, PortSpec
 from gnode.workflow.values import (
     MISSING,
@@ -1133,7 +1133,7 @@ class Expander:
                         f"{route.route_id} does not support {', '.join(missing)}",
                     )
                 )
-            low, high = route.price.per_call(units_of(route, with_values))
+            low, high = route.cost(with_values)
             routes[capability] = route
             prices.append(
                 CallPrice(
@@ -1401,7 +1401,9 @@ class _NodeView:
             return MISSING
         if chosen.native:
             return _AnyPort(result.outputs.get("value", MISSING))
-        return dict(result.outputs)
+        # An optional output the step did not make reads as missing, like a skipped step.
+        absent = {name: MISSING for name, port in chosen.spec.outputs.items() if port.optional}
+        return {**absent, **result.outputs}
 
     def expression_member(self, name: str) -> Any:
         if name in {"outputs", "facts"}:

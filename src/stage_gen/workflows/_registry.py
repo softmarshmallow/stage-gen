@@ -41,18 +41,10 @@ CONTRACT_FILE = "contract.md"
 EXAMPLE_PAGES = "examples"
 WORKFLOW_ID_PATTERN = r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
-#: The record kind the SDK node cache writes; its namespace is derived from the pipeline id.
-SDK_CACHE_RECORD_KIND = "pipeline-node-cache-v1"
 
 
 def folder_of(workflow_id: str) -> str:
     return workflow_id.replace("-", "_")
-
-
-def sdk_cache_namespace(pipeline_id: str) -> str:
-    """The node-cache namespace the SDK derives for a pipeline id; the identity golden pins
-    the namespace it actually writes, so a change on either side fails the drift check."""
-    return f"pipeline-{sha256(pipeline_id.encode()).hexdigest()[:24]}"
 
 
 # ---------------------------------------------------------------- code facts
@@ -423,7 +415,6 @@ __all__ = [
     "EXAMPLE_PAGES",
     "MANIFEST_FILE",
     "PAGE_FILE",
-    "SDK_CACHE_RECORD_KIND",
     "WORKFLOWS_PACKAGE",
     "DiscoveredWorkflow",
     "ExampleEntry",
@@ -447,5 +438,4 @@ __all__ = [
     "read_manifest",
     "repository_root",
     "sample_artifact_refs",
-    "sdk_cache_namespace",
 ]

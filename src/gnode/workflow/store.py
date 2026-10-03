@@ -8,6 +8,10 @@
 - ``calls/``: one record per paid capability call, keyed by capability, route
   fingerprint, canonical request and take. A retried, resumed or re-run step that makes
   an identical request is answered here and billed nothing.
+- ``jobs/``: one record per long provider job (a video, a rig) that was submitted and
+  not yet collected, under the key of the call it answers. A later run collects it
+  instead of submitting it again, and stops when it cannot tell whether a submission
+  reached the provider.
 
 Records are written atomically, files before the records that name them, so a crash
 never leaves a record whose bytes are missing.
@@ -22,12 +26,13 @@ import tempfile
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from gnode.workflow.values import Collection, FactsReader, FileValue, canonical_json, digest_of
 
 RESULT_KIND = "gnode-result-v1"
 CALL_KIND = "gnode-call-v1"
+JOB_KIND = "gnode-job-v1"
 
 
 class StoreError(ValueError):
@@ -251,6 +256,71 @@ class Store:
         }
         _atomic_write(self._call_path(key), canonical_json(document))
 
+    # ------------------------------------------------------------------- jobs
+
+    def _job_path(self, key: str) -> Path:
+        return self.root / "jobs" / f"{key}.json"
+
+    def load_job(self, key: str) -> JobRecord | None:
+        path = self._job_path(key)
+        if not path.is_file():
+            return None
+        try:
+            record = json.loads(path.read_bytes())
+            if record.get("kind") != JOB_KIND or record.get("state") not in JOB_STATES:
+                raise StoreError("not a job record")
+            return JobRecord(
+                key=key,
+                capability=str(record["capability"]),
+                route=str(record["route"]),
+                take=int(record["take"]),
+                state=record["state"],
+                handle=record.get("handle"),
+            )
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            # A job record nobody can read may still stand for a paid submission.
+            raise StoreError(f"the job record {path} is unreadable: {error}") from error
+
+    def save_job(self, job: JobRecord) -> None:
+        document = {
+            "kind": JOB_KIND,
+            "key": job.key,
+            "capability": job.capability,
+            "route": job.route,
+            "take": job.take,
+            "state": job.state,
+            "handle": None if job.handle is None else dict(job.handle),
+        }
+        _atomic_write(self._job_path(job.key), canonical_json(document))
+
+    def clear_job(self, key: str) -> None:
+        self._job_path(key).unlink(missing_ok=True)
+
+    def jobs(self) -> Iterator[JobRecord]:
+        """Every long job this cache submitted, or began to submit, and has not collected."""
+
+        folder = self.root / "jobs"
+        for path in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+            job = self.load_job(path.stem)
+            if job is not None:
+                yield job
+
+
+#: ``submitting``: a request may be on its way; ``submitted``: the provider took it.
+JOB_STATES = ("submitting", "submitted")
+
+
+@dataclass(frozen=True, slots=True)
+class JobRecord:
+    """A long provider job of one call: being submitted, or submitted under ``handle``."""
+
+    key: str
+    capability: str
+    route: str
+    take: int
+    state: Literal["submitting", "submitted"]
+    handle: Mapping[str, Any] | None = None
+
 
 def _files_in(value: Any) -> list[FileValue]:
     if isinstance(value, FileValue):
@@ -270,4 +340,4 @@ def files_in(value: Any) -> list[FileValue]:
     return _files_in(value)
 
 
-__all__ = ["CallRecord", "Store", "StoreError", "files_in"]
+__all__ = ["CallRecord", "JobRecord", "Store", "StoreError", "files_in"]

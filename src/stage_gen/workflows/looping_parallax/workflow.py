@@ -7,8 +7,5 @@ from stage_gen.workflows._gnode import gnode_workflow
 CODE = gnode_workflow(
     "stage_gen.workflows.looping_parallax",
     make_inputs="inputs/supplied_layers/make_inputs.py",
-    no_importer=(
-        "no example is pinned; examples are imported from gnode runs once the run importer "
-        "lands with movie-sprite's port"
-    ),
+    no_importer="no example is pinned yet; one would be imported from a gnode run",
 )

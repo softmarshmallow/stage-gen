@@ -15,7 +15,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from gnode.workflow.host import CapabilityHandler
+from gnode.workflow.host import CapabilityHandler, LongJob
 from gnode.workflow.registry import BuiltinType
 from gnode.workflow.routes import RouteTable
 from gnode.workflow.store import Store
@@ -31,7 +31,7 @@ class Plugin:
     facts_reader: FactsReader | None = None
     routes: RouteTable = field(default_factory=RouteTable)
     #: Built when a run is live, given the run's store for the files calls return.
-    capabilities: Callable[[Store], Mapping[str, CapabilityHandler]] | None = None
+    capabilities: Callable[[Store], Mapping[str, CapabilityHandler | LongJob]] | None = None
     #: Workflows it publishes, by id: each file's own ``gnode.yaml`` folder is its home.
     workflows: Mapping[str, Path] = field(default_factory=dict)
     #: Generic view templates by file kind (``image``, ``json``), for ``view: true`` on a
@@ -80,8 +80,8 @@ class Composition:
             merged.update(plugin.views)
         return merged
 
-    def capabilities(self, store: Store) -> dict[str, CapabilityHandler]:
-        handlers: dict[str, CapabilityHandler] = {}
+    def capabilities(self, store: Store) -> dict[str, CapabilityHandler | LongJob]:
+        handlers: dict[str, CapabilityHandler | LongJob] = {}
         for plugin in self.plugins:
             if plugin.capabilities is not None:
                 handlers.update(plugin.capabilities(store))

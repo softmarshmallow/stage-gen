@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Clips</title>
+<style>
+  body { margin: 0; padding: 8px; font: 12px system-ui, sans-serif; color: CanvasText; background: Canvas; }
+  figure { margin: 0 0 8px; }
+  video { display: block; max-width: 100%; max-height: 70vh; background: #000; }
+  figcaption { margin-top: 2px; opacity: 0.7; }
+</style>
+<main id="clips"></main>
+<script type="module">
+  // gnode-view-context-v1: every clip the step made, looping, with what was measured of it.
+  import { context as read } from "/_gnode/view.js";
+  const context = await read();
+  const main = document.getElementById("clips");
+  function measured(facts) {
+    const parts = [];
+    if (facts.width && facts.height) parts.push(`${facts.width}×${facts.height}`);
+    if (facts.duration) parts.push(`${facts.duration} s`);
+    if (facts.fps) parts.push(`${facts.fps} fps`);
+    if (facts.frames) parts.push(`${facts.frames} frames`);
+    return parts.join(" · ");
+  }
+  function show(label, file) {
+    if (!file || typeof file !== "object") return;
+    if (file.url && String(file.kind).startsWith("video")) {
+      const figure = document.createElement("figure");
+      const clip = Object.assign(document.createElement("video"), {
+        src: file.url, controls: true, loop: true, muted: true, autoplay: true, playsInline: true,
+      });
+      const caption = document.createElement("figcaption");
+      caption.textContent = [label, measured(file.facts || {})].filter(Boolean).join(" · ");
+      figure.append(clip, caption);
+      main.append(figure);
+      return;
+    }
+    if (!file.url) for (const [key, item] of Object.entries(file)) show(`${label} · ${key}`, item);
+  }
+  for (const [name, value] of Object.entries(context.outputs)) show(name, value);
+</script>

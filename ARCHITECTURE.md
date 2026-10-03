@@ -71,7 +71,8 @@ import rules below are what the tests enforce; this ordering is not tested.
 Provider configuration, credentials and concrete service construction belong to the
 composition root, `src/stage_gen/orchestration/`: runtime and services, the
 `GraphExecutor` that graph-document workflows run on, image routing, and the provider
-composition of the movie-sprite, portrait-motion and character-3d workflows. Application
+composition of the portrait-motion and character-3d workflows, and Stage Gen's gnode
+plugin: the image and video routes and the adapters that serve them. Application
 provider adapters that are not GNode ring-2 adapters live in `src/stage_gen/providers/`.
 Neither the SDK nor a workflow's graph builder acquires those responsibilities.
 
@@ -93,17 +94,17 @@ matched at least one file:
 Moving or renaming code must not move a cache key or a persisted identity, and
 `tests/contract/test_workflow_identity.py` pins them in one machine-independent golden:
 
-- the bytes of the movie-sprite `pipeline.py` and `authoring.py` and of every
-  `components/movie_sprite` file, which are digested into the paid generate and finish keys;
 - every member of the character-3d implementation;
-- pipeline ids and cache namespaces, graph-document literals and kinds, cache record kinds,
-  the node-type inventory, provenance names and the run-view schema version;
-- the cache keys of plans made only from committed or constant bytes.
+- graph-document literals and kinds, cache record kinds, the node-type inventory (a
+  workflow file's steps with the locked versions of the node types they use), provenance
+  names and the run-view schema version;
+- the cache keys of plans and free runs made only from committed or constant bytes, and the
+  call keys of paid calls such a run made through a stand-in.
 
 No digest may glob a workflow folder. A digest names its files, so adding `workflow.py`,
 `cli.py`, `example.py` or prose beside an implementation never changes an identity. The
 persisted strings that keep an older word (the graph-document field `recipe`, the
-`*-execution-*` kinds, the pipeline id `movie_sprite_body_idle`) are
+`*-execution-*` kinds) are
 listed in the [glossary](docs/glossary.md) so nobody renames them.
 
 The character-3d implementation stays at `stage_gen.recipes.character_3d`, a frozen path

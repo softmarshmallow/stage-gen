@@ -119,7 +119,7 @@ renderer is an application change, independent of adding a workflow.
 
 A run of a gnode workflow can keep its steps' own views. A view is an HTML template and a
 read-only context ([`view-context.ts`](../web/ui/contracts/view-context.ts)); a node type declares
-its default view, and a step's `view: true` (a generic image or JSON view when its type has none)
+its default view, and a step's `view: true` (a generic image, JSON or video view when its type has none)
 or `view: <file>` marks it as worth looking at. When such a step finishes, the run keeps the
 template under `views/<digest>.html` and every file the view shows under `views/files/`, so a
 copied run folder still shows its views. `stage-gen view` derives each context next to the run's
@@ -131,7 +131,8 @@ The node inspector shows a step's view first, in a frame
 only, so it runs in an opaque origin. The frame asks for its context when it is ready; the viewer
 answers with each file given its asset URL. A view only draws: it can open nothing in the viewer,
 reach no file it was not given, and load only from the origins the run's `gnode.yaml` lists in
-`view_origins`. Looping parallax's compose step ships one that scrolls the composed layers.
+`view_origins`. Looping parallax's compose step ships one that scrolls the composed layers, and
+movie-sprite's finish step one that plays the loop's preview beside its contact sheet and checks.
 
 ## Serving and boundaries
 

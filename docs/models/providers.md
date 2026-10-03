@@ -431,8 +431,9 @@ for that leg and the encoder it needs.
 
 ### Movie sprite start/end frames
 
-The [movie sprite workflow](../../src/stage_gen/workflows/movie_sprite/page.mdx) binds
-`google/gemini-omni-flash/v1.1/image-to-video` through `FalEndpointVideoBackend`.
+The [movie sprite workflow](../../src/stage_gen/workflows/movie_sprite/page.mdx) calls
+`video.generate` on `google/gemini-omni-flash/v1.1/image-to-video@fal`, which Stage Gen's
+gnode plugin serves through `FalEndpointVideoBackend` on fal's queue.
 Its [official API schema](https://fal.ai/models/google/gemini-omni-flash/v1.1/image-to-video/api)
 was checked on 2026-09-15: `prompt`, `image_url`, optional `end_image_url`, integer
 `duration` from 3 through 10, `resolution` in `360p`/`720p`/`1080p`/`4k`, and
@@ -441,10 +442,19 @@ Ordinary references cannot be mixed into this adapter. The recipe passes the
 same prepared PNG in both roles and records each role and input digest.
 
 The [published rates](https://fal.ai/models/google/gemini-omni-flash/v1.1/image-to-video)
-checked that day are $0.03/$0.10/$0.15/$0.30 per generated second respectively.
-The application uses a persistent budget with a 25 percent reservation margin
-per dispatch. Unknown actual charges retain their reservation and are not
-reported as known spend. Local playback slowing does not alter generation cost.
+checked that day are $0.03/$0.10/$0.15/$0.30 per generated second respectively. The
+route is priced per second by resolution, and its worst case carries 25 percent more;
+gnode holds that worst case before the call and charges it whole when fal reports no
+cost. Local playback slowing does not alter generation cost.
+
+A take is a long job on fal's queue (`https://queue.fal.run`, checked 2026-10-03:
+submit returns `request_id`, `status_url` and `response_url`; a completed status
+carries `error` when the job failed). gnode records the job before submitting and
+once fal takes it, so an interrupted run collects the clip instead of submitting
+again. Only a submission fal answered without taking (HTTP 429 or 5xx) is retried; a
+submission whose answer never arrived stops for a person (`gnode jobs`). Polls, the
+result and the download are reads, retried until the collection deadline. The key is
+sent only to the queue host, never to the hosted download.
 
 A 2026-09-15 live canary through the public CLI returned 360×640, 72 frames at
 24 fps over three seconds in one attempt. Both endpoint digests were retained.

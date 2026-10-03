@@ -39,7 +39,7 @@ from typing import Any, Literal, NotRequired, TypedDict
 from PIL import Image, ImageChops
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
-from gnode import atomic_write_bytes
+from gnode import Project, atomic_write_bytes, project_run, read_plan
 
 EXAMPLE_KIND: Literal["workflow-example-v1"] = "workflow-example-v1"
 GAME_ENTRY_KIND: Literal["game-example-entry-v1"] = "game-example-entry-v1"
@@ -50,7 +50,13 @@ ENTRY_FILE = "entry.json"
 PAGE_FILE = "page.mdx"
 MEDIA_DIR = "media"
 #: The document that identifies a run folder, in the order an importer looks for it.
-ANCHOR_DOCUMENTS = ("execution-plan.json", "graph.json", "execution.json", "manifest.json")
+ANCHOR_DOCUMENTS = (
+    "plan.json",
+    "execution-plan.json",
+    "graph.json",
+    "execution.json",
+    "manifest.json",
+)
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -1002,75 +1008,6 @@ class ImportRequest:
 
 type ExampleImporter = Callable[[ImportRequest], WorkflowExample]
 
-PIPELINE_RUN_KINDS = {
-    "video_generation": "Video model",
-    "image_generation": "Image model",
-    "structured_generation": "Vision model",
-}
-
-
-@dataclass(frozen=True, slots=True)
-class PipelineRuns:
-    """SDK runs merged into one chain, for a workflow to say what was delivered.
-
-    ``chosen`` maps each node id to the run where it executed and its view entry; ``order``
-    is the order nodes first appear in. ``last`` is the run the consumer receives.
-    """
-
-    request: ImportRequest
-    run_dirs: tuple[Path, ...]
-    chosen: Mapping[str, tuple[Path, Mapping[str, Any]]]
-    order: tuple[str, ...]
-
-    @property
-    def last(self) -> Path:
-        return self.run_dirs[-1]
-
-    def artifacts(self, node_id: str) -> list[tuple[Path, dict[str, Any]]]:
-        run_dir, item = self.chosen[node_id]
-        return pipeline_artifacts(run_dir, item)
-
-    def declared_inputs(self) -> dict[Path, str]:
-        """The first run's input files, with the digests it bound.
-
-        ``pipeline.json`` records each ref relative to the run's input root, which it does
-        not store, so the root comes from the ``input_root`` option, relative to ``base``
-        (default: ``base`` itself). Both the root and every file stay inside ``base``.
-        """
-        base = self.request.base.resolve()
-        root = (base / self.request.option("input_root", ".")).resolve()
-        if not root.is_relative_to(base):
-            raise ValueError(f"input_root {root} is outside {base}")
-        inputs = self.request.reader.json(self.run_dirs[0] / "pipeline.json")["inputs"]
-        declared: dict[Path, str] = {}
-        for ref, digest in inputs.items():
-            path = (root / str(ref)).resolve()
-            if not path.is_relative_to(root):
-                raise ValueError(f"input {ref} escapes the input root")
-            declared[path] = str(digest)
-        return declared
-
-    def declared_pictures(self) -> list[Path]:
-        """The declared ``.png`` inputs, each present and matching the digest the run bound.
-
-        A picture that is missing or changed is refused by name rather than left out, so
-        an example never silently drops its input; pass ``--option input_root=DIR`` when
-        the run was given a folder other than the checkout.
-        """
-        pictures: list[Path] = []
-        for path, digest in self.declared_inputs().items():
-            if path.suffix != ".png":
-                continue
-            if not path.is_file():
-                raise ValueError(
-                    f"input {path.name} is not at {path}; set the option input_root to the "
-                    "folder the run was given as --input"
-                )
-            if sha256(self.request.reader.path(path)) != digest:
-                raise ValueError(f"input {path} no longer matches the digest the run bound")
-            pictures.append(path)
-        return pictures
-
 
 @dataclass(frozen=True, slots=True)
 class Delivered:
@@ -1082,187 +1019,199 @@ class Delivered:
     metrics: dict[str, int | float]
 
 
-def pipeline_artifacts(run_dir: Path, item: Mapping[str, Any]) -> list[tuple[Path, dict[str, Any]]]:
-    return [
-        (run_dir / a["artifact_ref"], a)
-        for a in item["artifacts"]
-        if a["present"] and not a["artifact_ref"].endswith(".meta.json")
-    ]
+# ------------------------------------------------------------------- gnode runs
+
+#: What kind of model each paid capability is, as an example names a node's kind.
+GNODE_CAPABILITY_KINDS = {
+    "video.generate": "Video model",
+    "image.generate": "Image model",
+    "image.edit": "Image model",
+    "structured.generate": "Language model",
+    "vision.review": "Vision model",
+    "vision.annotate": "Vision model",
+}
 
 
-def import_pipeline_run(
+@dataclass(frozen=True, slots=True)
+class GnodeRun:
+    """One gnode run folder, for a workflow to say what it delivered.
+
+    The run holds its outputs under ``outputs/``, and its plan names each input by digest;
+    an input's bytes are found beside a view that showed it, or in the project's cache.
+    """
+
+    request: ImportRequest
+    run_dir: Path
+    plan: Mapping[str, Any]
+    events: tuple[Mapping[str, Any], ...]
+
+    def output(self, name: str) -> Path:
+        """The file the workflow delivered as ``name``."""
+
+        found = [
+            path
+            for path in (self.run_dir / "outputs").glob(f"{name}.*")
+            if path.stem == name and path.is_file()
+        ]
+        if len(found) != 1:
+            raise ValueError(f"{self.run_dir.name} delivered no single output {name}")
+        return found[0]
+
+    def input_file(self, name: str) -> tuple[Path, str] | None:
+        """An input file's bytes on disk and the name it was given, or None when unset."""
+
+        entry = self.plan.get("inputs", {}).get(name)
+        digest = entry.get("file") if isinstance(entry, Mapping) else None
+        if not isinstance(digest, str):
+            return None
+        return self.file(digest), self._name_of(digest) or digest
+
+    def file(self, digest: str) -> Path:
+        """A file the run read or made, by digest: beside its views, or in the cache."""
+
+        shown = sorted((self.run_dir / "views" / "files").glob(f"{digest}*"))
+        cached = Project.find(self.run_dir).cache_dir / "files" / digest[:2] / digest
+        for path in [*shown, cached]:
+            if path.is_file() and sha256(self.request.reader.path(path)) == digest:
+                return path
+        raise ValueError(f"{self.run_dir.name} read {digest[:12]}, whose bytes are gone")
+
+    def settings(self, node_id: str) -> dict[str, Any]:
+        """What a step was given, as its last start recorded it: values, and files by digest."""
+
+        started = [e for e in self.events if e.get("event") == "node_started"]
+        given: Mapping[str, Any] = next(
+            (e.get("with", {}) for e in reversed(started) if e.get("id") == node_id), {}
+        )
+        return {
+            key: item.get("value", item.get("file"))
+            for key, item in given.items()
+            if isinstance(item, Mapping)
+        }
+
+    def _name_of(self, digest: str) -> str | None:
+        for event in self.events:
+            for item in (event.get("with") or {}).values():
+                file = item.get("file") if isinstance(item, Mapping) else None
+                if isinstance(file, Mapping) and file.get("digest") == digest:
+                    return str(file.get("name"))
+        return None
+
+
+def _gnode_pictures(
+    run: GnodeRun, node_id: str, artifacts: Sequence[Mapping[str, Any]], pictured: set[str]
+) -> list[dict[str, Any]]:
+    media, reader = run.request.media, run.request.reader
+    pictures: list[dict[str, Any]] = []
+    for artifact in artifacts:
+        if not artifact["present"] or artifact["sha256"] in pictured:
+            continue
+        pictured.add(artifact["sha256"])
+        path = run.run_dir / artifact["artifact_ref"]
+        stem = f"{node_id.split('#', 1)[0]}-{path.stem}"
+        if artifact["media_type"] == "image/png":
+            with Image.open(reader.path(path)) as im:
+                alpha = im.mode in ("RGBA", "LA")
+            pictures.append(
+                media.still_alpha(f"{stem}.webp", path)
+                if alpha
+                else media.still(f"{stem}.webp", path, 640)
+            )
+        elif artifact["media_type"] == "video/mp4":
+            frames = video_frames(reader.path(path))
+            picks = sorted({round(i * (len(frames) - 1) / 3) for i in range(4)})
+            for index in picks:
+                pictures.append(
+                    media.image(f"{stem}-{index}.webp", frames[index], [path], f"frame {index}")
+                )
+    return pictures
+
+
+def import_gnode_run(
     request: ImportRequest,
     *,
-    output_node: str,
-    deliver: Callable[[PipelineRuns], Delivered],
+    type_of: Callable[[str], str],
+    deliver: Callable[[GnodeRun], Delivered],
 ) -> WorkflowExample:
-    """An example from runs that persist an SDK execution view (``execution-view.json``).
+    """An example from one gnode run folder.
 
-    A workflow may span several runs, as movie sprite does: generate a take live, then
-    finish the chosen take locally. Runs are merged by node id, preferring the run where the
-    node actually executed. A later run's entry node is linked to a node of an earlier run
-    only when they share an artifact digest; runs that do not connect are refused. The last
-    run is the folder the consumer receives, and ``deliver`` names what it holds.
-
-    Every node shows its PNG artifacts, frames of an MP4 named ``raw`` or ``source``, and,
-    on ``output_node``, its Matroska loop. The ``ledger`` option names a base-relative
-    budget ledger whose validated attempts price the provider calls.
+    A gnode run holds the whole workflow, its takes and its resumes, so an example is made
+    from exactly one. ``type_of`` names the catalog type of a step path. Every step that ran
+    shows its PNG pictures and frames of its MP4 clips; a paid step shows the prompt it was
+    given; ``deliver`` names what the run delivered.
     """
-    reader, media, names = request.reader, request.media, display_names()
-    run_dirs = tuple(run.resolve() for run in request.runs)
-    views = [(d, reader.json(d / "execution-view.json")) for d in run_dirs]
 
-    chosen: dict[str, tuple[Path, dict[str, Any]]] = {}
-    order: list[str] = []
-    for run_dir, view in views:
-        for item in view["nodes"]:
-            if item["state"] != "succeeded":
-                continue
-            previous = chosen.get(item["node_id"])
-            if previous is None or (item["cache"] == "miss" and previous[1]["cache"] != "miss"):
-                chosen[item["node_id"]] = (run_dir, item)
-            if item["node_id"] not in order:
-                order.append(item["node_id"])
-    if output_node not in chosen:
-        raise ValueError(f"no run delivered the output node {output_node}")
-
-    # Link each later run's entry nodes to the earlier node whose output they consumed.
-    produced: dict[str, str] = {}
-    depends: dict[str, list[str]] = {}
-    for nid in order:
-        run_dir, item = chosen[nid]
-        deps = [d for d in item["depends_on"] if d in chosen]
-        earlier = {sha: p for sha, p in produced.items() if chosen[p][0] != run_dir}
-        if not deps and earlier:
-            linked = sorted(
-                {
-                    earlier[a["sha256"]]
-                    for _, a in pipeline_artifacts(run_dir, item)
-                    if a["sha256"] in earlier
-                }
-            )
-            if not linked:
-                raise ValueError(
-                    f"{nid} in {run_dir.name} consumes nothing an earlier run produced"
-                )
-            deps = linked
-        depends[nid] = deps
-        for _, a in pipeline_artifacts(run_dir, item):
-            produced.setdefault(a["sha256"], nid)
+    if len(request.runs) != 1:
+        raise ValueError("a gnode run holds the whole workflow; make an example from one run")
+    reader, names = request.reader, display_names()
+    run_dir = request.runs[0].resolve()
+    plan = reader.json(run_dir / "plan.json")
+    if plan != read_plan(run_dir):
+        raise ValueError(f"{run_dir.name} changed while it was read")
+    lines = reader.bytes(run_dir / "events.jsonl").decode("utf-8").splitlines()
+    events = tuple(json.loads(line) for line in lines if line.strip())
+    run = GnodeRun(request, run_dir, plan, events)
+    view = project_run(run_dir).model_dump(mode="json")
+    steps = {item["id"]: item["step"] for item in plan["instances"]}
 
     pictured: set[str] = set()
     nodes: dict[str, dict[str, Any]] = {}
-    request_ids: list[str | None] = []
-    for nid in order:
-        run_dir, item = chosen[nid]
-        pictures: list[dict[str, Any]] = []
-        checks: list[dict[str, Any]] = []
-        prompt: str | None = None
-        thumb: dict[str, Any] | None = None
-        for path, a in pipeline_artifacts(run_dir, item):
-            if a["sha256"] in pictured:
-                continue
-            pictured.add(a["sha256"])
-            meta = path.with_name(path.name + ".meta.json")
-            sidecar = reader.json(meta) if meta.is_file() else {}
-            if sidecar.get("provider") not in (None, "local") and sidecar.get("prompt"):
-                prompt = sidecar["prompt"]
-                request_ids.append((sidecar.get("response") or {}).get("request_id"))
-            media_type = a["media_type"] or ""
-            if media_type == "image/png":
-                with Image.open(reader.path(path)) as im:
-                    alpha = im.mode in ("RGBA", "LA")
-                pictures.append(
-                    media.still_alpha(f"{nid}-{path.stem}.webp", path)
-                    if alpha
-                    else media.still(f"{nid}-{path.stem}.webp", path, 640)
-                )
-            elif media_type == "video/mp4" and path.stem in ("raw", "source"):
-                times = [0.0, 2.0, 4.0, 6.0]
-                for t, frame in zip(times, video_frames(reader.path(path), times), strict=True):
-                    pictures.append(
-                        media.image(
-                            f"{nid}-{path.stem}-{int(t)}s.webp",
-                            frame,
-                            [path],
-                            f"frame at {t:.0f} s",
-                        )
-                    )
-            elif path.suffix == ".mkv" and nid == output_node:
-                frames = video_frames(reader.path(path), alpha=True)
-                fps = reader.json(run_dir / "body" / "manifest.json")["playback_fps"]
-                thumb = media.sequence(
-                    f"{nid}-loop-small.webp",
-                    frames[::2],
-                    round(2000 / fps),
-                    [path],
-                    "every other frame of the loop",
-                    max_height=240,
-                    quality=70,
-                )
-            elif path.name == "processing-report.json":
-                report = reader.json(path)
-                checks = [
-                    {"name": k, "passed": v} for k, v in report.items() if isinstance(v, bool)
-                ]
+    for item in view["nodes"]:
+        if item["state"] != "succeeded":
+            continue
+        nid = item["node_id"]
+        pictures = _gnode_pictures(run, nid, item["artifacts"], pictured)
+        prompt = run.settings(nid).get("prompt") if item["operation"] != "local" else None
+        if isinstance(prompt, Mapping):  # a prompt another step wrote
+            prompt = reader.bytes(run.file(str(prompt["digest"]))).decode("utf-8")
         nodes[nid] = node(
             nid,
-            type_id=item["type_id"],
-            kind=PIPELINE_RUN_KINDS.get(item["operation"] or "", "Local"),
-            description=item.get("description", ""),
-            provider=names.provider(item.get("provider")),
-            model=names.model(item.get("model")),
-            retry_owner=item.get("retry_owner"),
-            max_attempts=item.get("max_attempts"),
-            depends_on=depends[nid],
+            type_id=type_of(steps[nid]),
+            kind=GNODE_CAPABILITY_KINDS.get(item["operation"] or "", "Local"),
+            description=item["description"],
+            provider=names.provider(item["provider"]),
+            model=names.model(item["model"]),
+            retry_owner=item["retry_owner"],
+            max_attempts=item["max_attempts"],
+            depends_on=list(item["depends_on"]),
             state=item["state"],
-            attempts=item.get("attempts"),
-            duration_ms=item.get("duration_ms"),
-            cost_usd=item.get("known_cost_usd") or None,
-            provider_operations=item.get("provider_operations"),
-            cache=item.get("cache"),
-            checks=checks,
-            prompt=prompt,
-            record_ref=f"{run_dir.name}/execution-view.json",
-            thumb=thumb or (pictures[0] if pictures else None),
+            attempts=item["attempts"],
+            duration_ms=item["duration_ms"],
+            cost_usd=item["known_cost_usd"] or None,
+            provider_operations=item["provider_operations"],
+            cache=item["cache"],
+            prompt=prompt if isinstance(prompt, str) else None,
+            record_ref=f"{run_dir.name}/events.jsonl",
+            thumb=pictures[0] if pictures else None,
             pictures=pictures,
         )
+    for entry in nodes.values():
+        entry["depends_on"] = [d for d in entry["depends_on"] if d in nodes]
 
-    delivered = deliver(PipelineRuns(request, run_dirs, chosen, tuple(order)))
-    ran = [chosen[nid][1] for nid in order if chosen[nid][1]["cache"] == "miss"]
+    delivered = deliver(run)
     metrics: dict[str, int | float] = {
-        "wall_seconds": sum(item["duration_ms"] or 0 for item in ran) / 1000,
-        "provider_operations": sum(item.get("provider_operations") or 0 for item in ran),
+        "wall_seconds": (view["duration_ms"] or 0) / 1000,
+        "provider_operations": sum(n["provider_operations"] or 0 for n in nodes.values()),
         **delivered.metrics,
     }
-    if ledger := request.options.get("ledger"):
-        attempts = reader.json(request.base / ledger).get("attempts", [])
-        matched = [
-            a
-            for a in attempts
-            if a.get("request_id") in request_ids and a.get("status") == "validated"
-        ]
-        if matched:
-            metrics["estimated_cost_usd"] = sum(float(a["estimated_usd"]) for a in matched)
-
-    last = run_dirs[-1]
-    plan = reader.json(last / "execution-plan.json")
+    if view["known_cost_usd"]:
+        metrics["cost_usd"] = view["known_cost_usd"]
     return WorkflowExample.model_validate(
         {
             "example_id": request.example_id,
             "made_by": request.made_by,
-            "importer": "pipeline_run",
-            "delivered_run": relative_to_base(request.base, last),
-            "source_runs": [source_run(request.base, d) for d in run_dirs],
+            "importer": "gnode_run",
+            "delivered_run": relative_to_base(request.base, run_dir),
+            "source_runs": [source_run(request.base, run_dir)],
             "source_files": reader.files,
-            "status": "succeeded",
-            "graph_kind": plan["kind"],
-            "graph_sha256": views[-1][1]["graph_sha256"],
+            "status": "succeeded" if view["run_state"] == "succeeded" else view["run_state"],
+            "graph_kind": "gnode-graph-v2",
+            "graph_sha256": view["graph_sha256"],
             "inputs": delivered.inputs,
             "outputs": delivered.outputs,
             "metrics": metrics,
             "models": models_of(nodes),
-            "tree": index(last),
+            "tree": index(run_dir),
             "nodes": nodes,
         }
     )
@@ -1288,13 +1237,14 @@ __all__ = [
     "FigureEntry",
     "FigureSource",
     "FiguresLedger",
+    "GNODE_CAPABILITY_KINDS",
     "GameExampleEntry",
+    "GnodeRun",
     "GameExampleStep",
     "ImportRequest",
     "Lineage",
     "MadeBy",
     "Media",
-    "PipelineRuns",
     "RecordingReader",
     "SourceRun",
     "TreeEntry",
@@ -1305,14 +1255,13 @@ __all__ = [
     "document_bytes",
     "figures_bytes",
     "has_alpha",
-    "import_pipeline_run",
+    "import_gnode_run",
     "index",
     "model_name",
     "models_of",
     "node",
     "outputs_of",
     "pin_of",
-    "pipeline_artifacts",
     "provider_name",
     "read_entry",
     "read_example",

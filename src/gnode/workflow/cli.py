@@ -56,7 +56,7 @@ from gnode.workflow.run import (
     instance_document,
 )
 from gnode.workflow.runview import RunFolderError, project_run, read_plan, verify_run
-from gnode.workflow.store import Store, files_in
+from gnode.workflow.store import Store, StoreError, files_in
 from gnode.workflow.values import Collection, FileValue
 
 PROG = "gnode"
@@ -144,6 +144,13 @@ def build_parser() -> argparse.ArgumentParser:
     takes_mv.add_argument("target")
     takes_mv.add_argument("old")
     takes_mv.add_argument("new")
+
+    jobs = verbs.add_parser("jobs", help="long provider jobs submitted and not collected")
+    jobs.add_argument(
+        "--forget",
+        metavar="KEY",
+        help="drop one job's record so its call is submitted again (check the provider first)",
+    )
 
     schema = verbs.add_parser("schema", help="the JSON Schema a workflow's inputs compile to")
     schema.add_argument("target")
@@ -582,6 +589,19 @@ def cmd_takes(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
     return 0
 
 
+def cmd_jobs(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
+    store = Store(Project.find(cwd).cache_dir)
+    if args.forget:
+        if store.load_job(args.forget) is None:
+            raise UsageError(f"the cache holds no job {args.forget}")
+        store.clear_job(args.forget)
+        out.write(f"forgot job {args.forget}; its call is submitted again on the next run\n")
+        return 0
+    for job in store.jobs():
+        out.write(f"{job.key}  {job.state}  {job.capability} on {job.route}, take {job.take}\n")
+    return 0
+
+
 def cmd_schema(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
     project = Project.find(cwd)
     document = load_workflow(find_workflow(args.target, project, load_plugins().workflows))
@@ -833,6 +853,8 @@ def main(
             return cmd_pick(args, here, out)
         if args.verb == "takes":
             return cmd_takes(args, here, out)
+        if args.verb == "jobs":
+            return cmd_jobs(args, here, out)
         if args.verb == "schema":
             return cmd_schema(args, here, out)
         if args.verb == "nodes":
@@ -847,7 +869,15 @@ def main(
             return cmd_project(args, here, out)
         if args.verb == "inspect":
             return cmd_inspect(args, here, out)
-    except (UsageError, PlanError, InputError, DocumentError, RunRefused, OSError) as error:
+    except (
+        UsageError,
+        PlanError,
+        InputError,
+        DocumentError,
+        RunRefused,
+        StoreError,
+        OSError,
+    ) as error:
         errors.write(f"{PROG}: {error}\n")
         return 2
     except KeyboardInterrupt:

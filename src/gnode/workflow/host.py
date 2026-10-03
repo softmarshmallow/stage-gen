@@ -16,15 +16,15 @@ import shutil
 import subprocess
 import tempfile
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
 from gnode.workflow import expr
 from gnode.workflow.expand import Instance, Result
-from gnode.workflow.routes import Route, units_of
+from gnode.workflow.routes import Route
 from gnode.workflow.spec import NodeSpec
-from gnode.workflow.store import CallRecord, Store, files_in
+from gnode.workflow.store import CallRecord, JobRecord, Store, files_in
 from gnode.workflow.values import MISSING, Collection, FileValue, plain
 
 #: Turn a staged file into a convenient object (``ctx.read.image`` returns a picture).
@@ -137,6 +137,46 @@ class CallResult:
 CapabilityHandler = Callable[[Route, Mapping[str, Any], int], Awaitable[CallRecord]]
 
 
+class JobLog:
+    """Where a long job writes down each submission: before it leaves, and once taken.
+
+    ``submitting()`` before a request may leave; ``submitted(handle)`` once the provider
+    acknowledged it, with what collecting it needs (no credentials: the record is kept in
+    the cache); ``settled()`` once nothing of the call is outstanding, such as a job the
+    provider reported failed before the handler submits a retry.
+    """
+
+    def __init__(self, store: Store, key: str, capability: str, route: str, take: int) -> None:
+        self._store = store
+        self._job = JobRecord(key, capability, route, take, "submitting")
+
+    def submitting(self) -> None:
+        self._store.save_job(self._job)
+
+    def submitted(self, handle: Mapping[str, Any]) -> None:
+        json.dumps(handle)
+        self._store.save_job(replace(self._job, state="submitted", handle=dict(handle)))
+
+    def settled(self) -> None:
+        self._store.clear_job(self._job.key)
+
+
+@dataclass(frozen=True, slots=True)
+class LongJob:
+    """A capability whose provider job outlives one request: submitted once, then collected.
+
+    ``start(route, request, take, log)`` submits and collects, telling ``log`` before each
+    request may leave and the handle the provider took it under. ``collect(route, request,
+    take, handle, log)`` collects a job an interrupted run submitted, and never submits;
+    it settles ``log`` when the job ended without a result, so the next run submits anew.
+    """
+
+    start: Callable[[Route, Mapping[str, Any], int, JobLog], Awaitable[CallRecord]]
+    collect: Callable[
+        [Route, Mapping[str, Any], int, Mapping[str, Any], JobLog], Awaitable[CallRecord]
+    ]
+
+
 @dataclass
 class Spending:
     """The run's ledger as the host sees it: hold before a call, settle the hold after.
@@ -154,7 +194,7 @@ class HostServices:
     """What bodies may reach: capabilities, tools, the store, the ledger, the clock."""
 
     store: Store
-    capabilities: Mapping[str, CapabilityHandler] = field(default_factory=dict)
+    capabilities: Mapping[str, CapabilityHandler | LongJob] = field(default_factory=dict)
     live: bool = False
     spending: Spending | None = None
     work_root: Path | None = None
@@ -566,7 +606,11 @@ async def call_capability(
     take: int,
     instance_id: str,
 ) -> CallResult:
-    """One paid call: from the call cache when an identical request was answered."""
+    """One paid call: from the call cache when an identical request was answered.
+
+    A long job an interrupted run submitted is collected, not submitted again; one whose
+    submission may or may not have reached the provider stops the call for a person.
+    """
 
     store = services.store
     key = store.call_key(
@@ -574,6 +618,7 @@ async def call_capability(
     )
     cached = store.load_call(key)
     if cached is not None:
+        store.clear_job(key)
         _record(services, instance_id, name, route, key, cached=True, cost=0.0)
         return _call_result(store, cached, cached=True)
     if not services.live:
@@ -581,12 +626,6 @@ async def call_capability(
     handler = services.capabilities.get(name)
     if handler is None:
         raise CapabilityError(f"no provider adapter serves {name} on {route.route_id}")
-    _, high = route.price.per_call(units_of(route, request))
-    hold = (
-        await services.spending.reserve(instance_id, high)
-        if services.spending is not None
-        else None
-    )
     staged = {
         key_: (
             store.put_bytes(value.data, kind=value.kind, name=key_)
@@ -595,9 +634,35 @@ async def call_capability(
         )
         for key_, value in request.items()
     }
+    job = store.load_job(key)
+    if job is not None:
+        if job.state != "submitted" or job.handle is None or not isinstance(handler, LongJob):
+            raise CapabilityError(
+                f"{name} on {route.route_id} (take {take}) was being submitted when a run "
+                "stopped, and nobody can say whether the provider took it. Check the "
+                f"provider's dashboard, then run `gnode jobs forget {key}` to submit it again"
+            )
+        # Its hold was charged by the run that submitted it; collecting bills nothing new.
+        log = JobLog(store, key, name, route.route_id, take)
+        record = await handler.collect(route, staged, take, job.handle, log)
+        store.save_call(key, record)
+        store.clear_job(key)
+        _record(services, instance_id, name, route, key, cached=False, cost=record.cost_usd)
+        return _call_result(store, record, cached=False)
+    _, high = route.cost(request)
+    hold = (
+        await services.spending.reserve(instance_id, high)
+        if services.spending is not None
+        else None
+    )
     try:
-        record = await handler(route, staged, take)
+        if isinstance(handler, LongJob):
+            log = JobLog(store, key, name, route.route_id, take)
+            record = await handler.start(route, staged, take, log)
+        else:
+            record = await handler(route, staged, take)
     except CallRefused:
+        store.clear_job(key)
         if services.spending is not None and hold is not None:
             services.spending.settle(hold, 0.0)
         raise
@@ -609,6 +674,7 @@ async def call_capability(
     if services.spending is not None and hold is not None:
         services.spending.settle(hold, record.cost_usd)
     store.save_call(key, record)
+    store.clear_job(key)
     _record(services, instance_id, name, route, key, cached=False, cost=record.cost_usd)
     return _call_result(store, record, cached=False)
 
@@ -845,6 +911,8 @@ __all__ = [
     "Ctx",
     "HostServices",
     "InputFile",
+    "JobLog",
+    "LongJob",
     "NodeFailure",
     "Output",
     "Spending",

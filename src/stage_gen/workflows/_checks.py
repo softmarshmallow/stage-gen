@@ -296,11 +296,6 @@ def identity(workflow: LoadedWorkflow, golden: Mapping[str, Any]) -> list[str]:
     pinned = golden["identities"]
     stated = workflow.identity
     prefix = f"{workflow.id}: identity"
-    pipelines = stated.get("pipelines", {})
-    if isinstance(pipelines, Mapping):
-        for pipeline_id, expected in pipelines.items():
-            if pinned["pipelines"].get(pipeline_id) != expected:
-                problems.append(f"{prefix} pipeline {pipeline_id} differs from the golden")
     document = stated.get("graph_document")
     if isinstance(document, Mapping) and pinned["graph_documents"].get(
         document.get("recipe")
@@ -327,13 +322,7 @@ def _entries(value: object) -> Iterable[tuple[str, ...]]:
 
 def frozen_files(golden: Mapping[str, Any]) -> frozenset[str]:
     """Package-relative files whose bytes the identity golden pins."""
-    movie = {f"stage_gen/workflows/movie_sprite/{name}" for name in ("pipeline.py", "authoring.py")}
-    return frozenset(
-        {
-            *movie,
-            *golden["character_frozen_set"]["files"],
-        }
-    )
+    return frozenset(golden["character_frozen_set"]["files"])
 
 
 def readme_table(workflows: Sequence[LoadedWorkflow]) -> str:

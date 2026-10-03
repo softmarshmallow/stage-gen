@@ -35,7 +35,11 @@ def plugin() -> Plugin:
         name="std",
         builtins=standard_types(),
         facts_reader=file_facts,
-        views={"image": views / "image.html", "json": views / "json.html"},
+        views={
+            "image": views / "image.html",
+            "json": views / "json.html",
+            "video": views / "video.html",
+        },
     )
 
 

@@ -75,7 +75,7 @@ engine, because every contract is a document or a protocol.
 | R7 | A workflow can be a step. Typed `inputs:` generate CLI flags, the MCP schema and validation, from a shorthand that compiles to JSON Schema. |
 | R7b | `gnode.yaml` holds project defaults and never keys. Ceilings nest: `--max-usd`, then the workflow's `budget:`, then the project's, with per-step and per-instance budgets inside. `--deliver` copies outputs out of the run; steps never write outside it. |
 | R17 | `requires:` lists the route features a step needs, checked offline against the binding table. |
-| R8 | One retry owner per operation, at most six attempts. A body's own provider call declares `retry="engine"` and the call cache prevents double billing. Long provider jobs are one call with an intent record that never resubmits silently. Every paid call reserves its worst case first. |
+| R8 | One retry owner per operation, at most six attempts. A body's own provider call declares `retry="engine"` and the call cache prevents double billing. Long provider jobs are one call with an intent record that never resubmits silently: the cache records the job before a submission may leave and once the provider takes it, a later run collects a taken job, and one that may or may not have been taken stops for a person (`gnode jobs`); movie-sprite's take settled it in M4. Every paid call reserves its worst case first. |
 | R8b | A node body is one callback over `ctx`: reads, params, outputs, facts, annotations, typed capabilities, agents, external tools, declared prompts, progress, cancellation and failure. Plumbing node types (source locks, tool probes, proxies, reducers, submit/collect pairs) disappear into the engine or the standard library. |
 | R9 | `gnode` is the media-free core, SDK, capabilities and providers; a standard library holds media node types and their views; first-party workflows sit on top. |
 | R9b | The command line becomes `gnode`; `stage-gen` is removed when the migration ends. |
@@ -105,8 +105,8 @@ node bodies.
 | M0 | Remove storefront and portrait's engine-wide fingerprint; record this ruling. |
 | M1 | One runner and run record, with v1 keys byte-identical. |
 | M2 | The documents, expander, identity v2, call cache, protocol host, CLI and a language-neutral conformance suite. |
-| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once: the ported workflow replays offline and each paid call is answered only by the old result whose provenance records the identical request (`scripts/rekey_v1_runs.py`). |
-| M8 | Port the Godot game pipelines onto the public contract. |
+| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once: the ported workflow replays offline and each paid call is answered only by the old result whose provenance records the identical request (`scripts/rekey_v1_runs.py`). A standard type gets its body only when a port uses it: movie-sprite gave `video.generate` its route, video file facts and the `video` view, while `image.key`, `image.contact_sheet` and `video.probe` stay declared, because its finishing keys, checks and samples frames in one local step. |
+| M8 | Port the Godot game pipelines onto the public contract, and retire the viewer's motion-atlas player with the game runs it plays. |
 | M9 | Delete v1 identity, the rekey tool, `GraphExecutor`, the old SDK and the `stage-gen` command; publish the user guide. |
 | M10 | The paid requalification of character-3d. |
 
@@ -130,6 +130,11 @@ said TOML; the amendment is posted on issue #3 with the owner's go.
 - **M0 itself.** Removing storefront deleted about 6,200 lines and changed no other cache key:
   the identity golden lost 185 lines and gained none. Removing portrait's fingerprint changes
   only portrait keys, which any engine edit already changed.
+- **M4 re-key.** Of the paid takes on disk, one was drawn by movie-sprite's current template
+  (the 2026-09-15 promotion canary); the ported plate and brief rebuild its request byte for
+  byte, so it paired with nothing refused, and its finished loop decodes to the v1 run's
+  frames. The cover example's take came from an earlier template, so it stays pinned as a
+  record of that version.
 - **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
   pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
   USD 5.6), about double if a cohort fails.

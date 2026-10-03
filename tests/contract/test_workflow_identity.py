@@ -26,7 +26,6 @@ GOLDEN = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
 
 #: What a change to each value-only section costs; cache_keys price themselves per node.
 COSTS = {
-    "movie_sprite_sources": "moves paid movie-sprite generate/finish keys",
     "character_frozen_set": (
         "a character_3d member changed: supported mode needs a paid qualification cohort, "
         "not a carry-over"
@@ -53,7 +52,7 @@ def test_input_bytes_are_small_constants() -> None:
     assert INPUTS_PATH.stat().st_size < 256 * 1024
     assert set(json.loads(INPUTS_PATH.read_text(encoding="utf-8"))) == {
         "looping-parallax",
-        "movie-sprite-generate",
+        "movie-sprite-take",
     }
 
 
@@ -72,8 +71,10 @@ def test_section_is_pinned(section: str, tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("name", sorted(CACHE_KEY_PLANS))
 def test_cache_keys_are_pinned(name: str, tmp_path: Path) -> None:
-    assert_cache_keys_match(
-        CACHE_KEY_PLANS[name](tmp_path),
-        GOLDEN["cache_keys"][name],
-        label=f"workflow-identity.json cache_keys.{name}",
-    )
+    built = CACHE_KEY_PLANS[name](tmp_path)
+    label = f"workflow-identity.json cache_keys.{name}"
+    if isinstance(built, dict):
+        moved = differences(GOLDEN["cache_keys"][name], built, label)
+        assert not moved, "\n".join([f"{label} moved: paid calls and results re-bill", *moved])
+        return
+    assert_cache_keys_match(built, GOLDEN["cache_keys"][name], label=label)

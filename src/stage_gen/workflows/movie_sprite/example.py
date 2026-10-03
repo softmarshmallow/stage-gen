@@ -1,43 +1,39 @@
-"""Make a movie-sprite example from a take run and the run that finished it."""
+"""Make a movie-sprite example from the gnode run that drew or adopted a clip and finished it."""
 
 from __future__ import annotations
 
 from stage_gen.examples import (
     Delivered,
+    GnodeRun,
     ImportRequest,
-    PipelineRuns,
     WorkflowExample,
-    import_pipeline_run,
+    import_gnode_run,
     sha256,
     video_frames,
 )
-
-#: The node whose Matroska loop the consumer receives.
-OUTPUT_NODE = "finish"
+from stage_gen.workflows._gnode import GnodeWorkflow
 
 
-def deliver(runs: PipelineRuns) -> Delivered:
-    """The character picture the take was drawn from, and the finished loop.
+def deliver(run: GnodeRun) -> Delivered:
+    """The character picture a take was drawn from, if any, and the finished loop.
 
-    A chain that adopted supplied footage has no character picture among its inputs.
+    A run that finished supplied footage has no character picture among its inputs.
     """
-    reader, media = runs.request.reader, runs.request.media
-    # The input picture, as bound by digest in the first run's inputs.
-    source = next(iter(runs.declared_pictures()), None)
+    reader, media = run.request.reader, run.request.media
+    character = run.input_file("character")
     inputs = (
         {}
-        if source is None
+        if character is None
         else {
             "character": {
                 "kind": "image",
-                "picture": media.still_alpha("input.webp", source, 720),
-                "file": source.name,
+                "picture": media.still_alpha("input.webp", character[0], 720),
+                "file": character[1],
             }
         }
     )
-    out_dir, _ = runs.chosen[OUTPUT_NODE]
-    loop = next(path for path, _ in runs.artifacts(OUTPUT_NODE) if path.suffix == ".mkv")
-    manifest = reader.json(out_dir / "body" / "manifest.json")
+    loop = run.output("loop")
+    manifest = reader.json(run.output("manifest"))
     poster = media.sequence(
         "output-loop.webp",
         video_frames(reader.path(loop), alpha=True),
@@ -66,4 +62,7 @@ def deliver(runs: PipelineRuns) -> Delivered:
 
 
 def import_example(request: ImportRequest) -> WorkflowExample:
-    return import_pipeline_run(request, output_node=OUTPUT_NODE, deliver=deliver)
+    workflow = GnodeWorkflow.read(__package__ or "stage_gen.workflows.movie_sprite")
+    return import_gnode_run(
+        request, type_of=lambda step: workflow.types[step].type_id, deliver=deliver
+    )

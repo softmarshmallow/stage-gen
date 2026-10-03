@@ -25,9 +25,20 @@ MOVIE_SPRITE_MODULES = {
     "stage_gen/components/movie_sprite/__init__.py",
     "stage_gen/components/movie_sprite/models.py",
     "stage_gen/workflows/movie_sprite/__init__.py",
-    "stage_gen/workflows/movie_sprite/pipeline.py",
-    "stage_gen/workflows/movie_sprite/inputs/supplied_clip/make_inputs.py",
-    "stage_gen/workflows/movie_sprite/inputs/supplied_clip/pipeline.py",
+    *(
+        f"stage_gen/workflows/movie_sprite/{name}"
+        for name in (
+            "workflow.yaml",
+            "gnode.yaml",
+            "gnode.lock",
+            "nodes/take.py",
+            "nodes/finish.py",
+            "prompts/idle.md",
+            "views/loop.html",
+            "inputs/supplied_clip/make_inputs.py",
+        )
+    ),
+    "gnode_std/views/video.html",
 }
 
 #: Each workflow's non-code facts ship with it; its prose stays in the checkout.
@@ -457,37 +468,33 @@ assert parallax_run.ok, parallax_run.outcome.failed
 assert gnode.verify_run(parallax_run.run_dir) == []
 assert set(parallax_run.outputs) == {"manifest", "preview", "layers"}
 
-from stage_gen.components.movie_sprite import FinishSettings, finish_video
-from stage_gen.workflows.movie_sprite import Authoring, GenerationSettings, create_pipeline
 from stage_gen.workflows.movie_sprite.inputs.supplied_clip import make_inputs as clip
 
 assert Path(clip.__file__).resolve().is_relative_to(Path("installed").resolve())
-clip_inputs = Path("movie-sprite-inputs")
-clip.make_inputs(clip_inputs)
-movie = create_pipeline(supplied_video_ref="actor.mkv", finish_ref="finish.json")
-movie_plan = plan(movie, input_root=clip_inputs)
-assert all(node.operation == "local" for node in movie_plan.graph.nodes)
-movie_run = asyncio.run(run(
-    movie_plan,
-    output_root=Path("movie-sprite-first"),
-    cache_root=Path("movie-sprite-cache"),
-))
-assert movie_run.summary.ok, movie_run.summary
-assert (movie_run.run_dir / "body/loop.mkv").is_file()
-assert (movie_run.run_dir / "body/canonical.png").is_file()
-assert (movie_run.run_dir / "body/frames.zip").is_file()
+clip.make_inputs(Path("movie-sprite-inputs"))
+Path("movie-sprite-project").mkdir()
+take_plan = gnode.plan(
+    "movie-sprite",
+    input_files=[Path("movie-sprite-inputs/take.yaml").resolve()],
+    cwd=Path("movie-sprite-project"),
+)
+assert take_plan.ok and take_plan.estimate()[1] > 0
+movie_runs = [
+    gnode.run(
+        "movie-sprite",
+        input_files=[Path("movie-sprite-inputs/clip.yaml").resolve()],
+        cwd=Path("movie-sprite-project"),
+    )
+    for _ in range(2)
+]
+assert all(movie.ok for movie in movie_runs), movie_runs[0].outcome.failed
+outputs = movie_runs[0].outputs
+assert {"loop", "canonical", "frames"} <= set(outputs)
 from PIL import Image
-with Image.open(movie_run.run_dir / "body/canonical.png") as canonical:
+with Image.open(outputs["canonical"].path) as canonical:
     assert canonical.convert("RGBA").tobytes() == clip.make_frame(0).tobytes()
-for record in movie_run.run_dir.rglob("*.json"):
-    assert str(Path.cwd()) not in record.read_text(encoding="utf-8")
-movie_cached = asyncio.run(run(
-    movie_plan,
-    output_root=Path("movie-sprite-second"),
-    cache_root=Path("movie-sprite-cache"),
-))
-assert movie_cached.summary.ok
-assert all(node.cache.value == "hit" for node in movie_cached.summary.nodes)
+assert gnode.verify_run(movie_runs[1].run_dir) == []
+assert [node.cache for node in gnode.project_run(movie_runs[1].run_dir).nodes] == ["hit"]
 """
     probe_environment = environment | {"PYTHONPATH": str(installed)}
     subprocess.run(

@@ -147,7 +147,12 @@ def _decode(planner: Planner, value: Any) -> Any:
 
 
 def replay(planner: Planner, events: list[dict[str, Any]]) -> dict[str, Result]:
-    """The results an earlier invocation recorded, whose files are still in the cache."""
+    """The results an earlier invocation recorded, whose files are still in the cache.
+
+    Only finished steps come back: a step that failed or was skipped is decided again,
+    so a failure that was the interruption itself (a dropped connection, a long job
+    left to collect) is not carried into the run it is resumed in.
+    """
 
     results: dict[str, Result] = {}
     for event in events:
@@ -165,12 +170,7 @@ def replay(planner: Planner, events: list[dict[str, Any]]) -> dict[str, Result]:
             if all(planner.store.has(file) for file in files_in(outputs)):
                 results[instance_id] = Result("succeeded", outputs, event.get("facts", {}))
         elif name in {"node_failed", "node_skipped"}:
-            results[instance_id] = Result(
-                "failed" if name == "node_failed" else "skipped",
-                {},
-                event.get("facts", {}),
-                event.get("reason") or event.get("error"),
-            )
+            results.pop(instance_id, None)
     return results
 
 

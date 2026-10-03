@@ -93,7 +93,7 @@ def test_build_refuses_a_plan_that_differs_between_scratch_folders() -> None:
     from gnode import Graph
 
     graphs: list[Graph] = []
-    original = next(block for block in BLOCKS if block.workflow_id == "movie-sprite")
+    original = next(block for block in BLOCKS if block.label == "semantic")
 
     def plan_once(scratch: Path, repo: Path) -> Graph:
         graph = original.plan(scratch, repo)

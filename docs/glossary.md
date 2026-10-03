@@ -10,7 +10,7 @@ keep an old word because changing them would change an identity.
 | node type | A `NodeType` of the gnode engine: its `type_id` (part of the cache identity), its `title` (the one reader label of a node, kept out of cache keys and graph digests), its archetype, operation and policy. |
 | node | One operation in a sealed graph, with its cache key. |
 | component | A package under `src/stage_gen/components/`: node types, graph fragments, contracts and services. It never runs alone and never imports a workflow. |
-| workflow | One folder under `src/stage_gen/workflows/` that makes one kind of deliverable: `workflow.py`, `workflow.toml`, `page.mdx`, `contract.md`, `cli.py`, its code and, where it has them, `example.py` (its example importer) and `inputs/`. Its kebab-case id is the CLI word (`stage-gen run movie-sprite`), the site's slug and the docs path. |
+| workflow | One folder under `src/stage_gen/workflows/` that makes one kind of deliverable: `workflow.py`, `workflow.toml`, `page.mdx`, `contract.md`, its code and, where it has them, `cli.py`, `example.py` (its example importer) and `inputs/`. A workflow file (`workflow.yaml`) is run by `gnode run <id>`; the others by `stage-gen run <id>`. Its kebab-case id is that CLI word, the site's slug and the docs path. |
 | step | A labelled group of node types with a one-line note, declared in `workflow.py`. Every node type of a workflow sits in exactly one step. |
 | input | A folder a run reads. A workflow's committed sample inputs live in its `inputs/<name>/`. |
 | run | One execution folder. A chain, such as a take and then its finish, is several runs. |
@@ -50,8 +50,6 @@ as they are:
 
 - the `GraphDocument` field `recipe` and its literals (`universe` and the game words);
 - the `<word>-execution-{graph,event,summary,projection,view}` kinds and `pipeline-execution-*`;
-- the pipeline id `movie_sprite_body_idle`;
-- the `recipe_identity` variable in the digested movie-sprite `pipeline.py`;
 - the `@stage-gen/<name>` provenance names;
 - the module name `components/_node_kit.py`;
 - the path `stage_gen/recipes/character_3d`, the frozen character implementation.

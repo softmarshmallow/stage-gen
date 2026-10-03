@@ -1,4 +1,5 @@
-# Only what the code cannot know. Steps, identity and the sample plan live in workflow.py.
+# Only what the workflow file cannot say. Steps, titles and the sample plan come from
+# workflow.yaml through gnode.
 schema_version = 1
 kind = "stage-gen-workflow-v1"
 id = "movie-sprite"
@@ -6,24 +7,17 @@ title = "Movie sprite"
 promise = "One character picture in. A transparent idle loop out."
 summary = """
 The picture is fitted on a green plate and sent once to a video model, with the same picture at \
-both ends. The take you choose is finished locally: keyed to transparency, the face held still so \
-blinks and mouth shapes can be added separately, the loop closed, and every frame checked."""
+both ends. The take is finished locally: keyed to transparency, the face held still so blinks and \
+mouth shapes can be added separately, the loop closed, and every frame checked."""
 related = ["portrait-motion"]
 
 [try]
-input = "A synthetic transparent clip and finish.json, written by uv run python src/stage_gen/workflows/movie_sprite/inputs/supplied_clip/make_inputs.py out/movie-sprite-input (needs FFmpeg)"
+input = "An original geometric actor, as a still and as a lossless clip, with the inputs that use them, written by uv run python src/stage_gen/workflows/movie_sprite/inputs/supplied_clip/make_inputs.py out/movie-sprite-input (the clip needs FFmpeg)"
 commands = [
-  "stage-gen plan movie-sprite --input out/movie-sprite-input --source actor.mkv --finish finish.json --output out/movie-sprite-plan",
-  "stage-gen run movie-sprite --input out/movie-sprite-input --source actor.mkv --finish finish.json --output out/movie-sprite-try --cache-dir out/cache",
-  "stage-gen inspect out/movie-sprite-try",
+  "gnode plan movie-sprite --inputs out/movie-sprite-input/take.yaml",
+  "gnode run movie-sprite --inputs out/movie-sprite-input/clip.yaml --deliver loop=out/movie-sprite-try/loop.mkv --deliver canonical=out/movie-sprite-try/canonical.png",
+  "gnode inspect movie-sprite --verify",
 ]
-
-# The node-type titles sit in pipeline.py, whose bytes are part of the generate and finish keys.
-[labels]
-"movie_sprite.prepare" = "Fit onto a green plate"
-"movie_sprite.generate" = "Generate a take"
-"movie_sprite.adopt" = "Adopt the chosen take"
-"movie_sprite.finish" = "Key, loop and verify"
 
 [[tools]]
 name = "FFmpeg"
@@ -34,28 +28,32 @@ name = "OpenCV"
 role = "Optical flow that closes the loop"
 
 [[outputs]]
-artifact_ref = "body/loop.mkv"
+artifact_ref = "outputs/loop.mkv"
 description = "The loop: lossless, with transparency"
 
 [[outputs]]
-artifact_ref = "body/canonical.png"
+artifact_ref = "outputs/canonical.png"
 description = "Its exact first frame, for the face workflow"
 
 [[outputs]]
-artifact_ref = "body/loop-preview.mp4"
+artifact_ref = "outputs/preview.mp4"
 description = "A quick preview on a dark background, without transparency"
 
 [[outputs]]
-artifact_ref = "body/contact-sheet.png"
+artifact_ref = "outputs/contact_sheet.png"
 description = "Sampled frames on light, dark and checkerboard grounds"
 
 [[outputs]]
-artifact_ref = "body/manifest.json"
+artifact_ref = "outputs/manifest.json"
 description = "Size, frame count, playback rate and digests"
 
 [[outputs]]
-artifact_ref = "body/processing-report.json"
+artifact_ref = "outputs/report.json"
 description = "The settings used and a hash of every frame"
+
+[[outputs]]
+artifact_ref = "outputs/frames.zip"
+description = "Every frame as a numbered PNG, when the finishing settings export them"
 
 # Frozen exports in the example store (out/examples/movie-sprite/<id>/), pinned by digest.
 [[examples]]
@@ -65,6 +63,29 @@ status = "approved"
 source = "store"
 cover = true
 order = 6
-footer = "The take was generated once, then finished on this machine by the current workflow. Every picture comes from those two runs."
+footer = "The take was generated once, then finished on this machine by the workflow of that time. Every picture comes from those two runs."
 example_sha256 = "090cd4a9578ec5477e0ba2744c67a6957e758045f5c85f3ee160595aff8df9bd"
 figures_sha256 = "31a8611f9816e12f932b7e6023984bd0e7301ca88f8482f669fb3f46a017b974"
+
+# Made with an earlier version: its take was drawn with an earlier prompt template, by a
+# pipeline whose steps the workflow file no longer has, so the example groups its own nodes.
+[examples.labels]
+prepare = "Fit onto a green plate"
+generate = "Generate a take"
+adopt = "Adopt the chosen take"
+finish = "Key, loop and verify"
+
+[[examples.steps]]
+label = "Prepare"
+note = "The picture was fitted onto a green plate, and the request was checked against the video route's limits before anything was paid for."
+members = ["prepare"]
+
+[[examples.steps]]
+label = "Generate"
+note = "One video call animated the same picture at both ends of an eight-second take."
+members = ["generate"]
+
+[[examples.steps]]
+label = "Finish"
+note = "The chosen take was finished locally, at no cost: green removed, the face held to the first frame, the loop closed and every frame verified."
+members = ["adopt", "finish"]

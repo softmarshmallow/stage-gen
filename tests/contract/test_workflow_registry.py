@@ -102,7 +102,7 @@ def test_pinned_store_examples_verify_and_carry_their_currency() -> None:
         e["id"]: e["currency"] for w in catalog["workflows"] for e in w["examples"] if e["present"]
     }
     expected = {
-        "yuzu-idle": "current",
+        "yuzu-idle": "earlier_version",
         "yuzu-face": "current",
         "wren-brief": "current",
         "tavi-parts": "earlier_version",
@@ -384,17 +384,16 @@ def test_identity_must_agree_with_the_identity_golden(loaded: dict[str, LoadedWo
         assert checks.identity(workflow, GOLDEN) == []
     moved = json.loads(json.dumps(GOLDEN))
     moved["identities"]["cache"]["universe_namespace"] = "universe-nodes-v2"
-    moved["identities"]["pipelines"]["movie_sprite_body_idle"]["namespace"] = "pipeline-0"
     moved["identities"]["node_types"] = [
         entry
         for entry in moved["identities"]["node_types"]
-        if entry[0] != "looping_parallax/compose"
+        if entry[0] not in {"looping_parallax/compose", "movie_sprite/take"}
     ]
     assert checks.identity(loaded["universe"], moved) == [
         "universe: identity cache constant universe_namespace differs from the golden"
     ]
     assert checks.identity(loaded["movie-sprite"], moved) == [
-        "movie-sprite: identity pipeline movie_sprite_body_idle differs from the golden"
+        "movie-sprite: identity node type movie_sprite/take is not in the golden inventory"
     ]
     assert checks.identity(loaded["looping-parallax"], moved) == [
         "looping-parallax: identity node type looping_parallax/compose is not in the golden "

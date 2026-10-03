@@ -1,4 +1,12 @@
-"""Write an original geometric RGBA loop without a provider; requires FFmpeg."""
+"""Write an original geometric actor, as a still and as a lossless clip; no provider.
+
+``uv run python make_inputs.py out/movie-sprite-input`` writes there:
+
+- ``character.png`` and ``take.yaml``, to plan the paid take: ``gnode plan movie-sprite
+  --inputs <dir>/take.yaml``;
+- ``actor.mkv``, ``finish.json`` and ``clip.yaml``, to finish that clip for free: ``gnode
+  run movie-sprite --inputs <dir>/clip.yaml`` (the clip needs FFmpeg).
+"""
 
 from __future__ import annotations
 
@@ -8,6 +16,7 @@ import math
 import subprocess
 from pathlib import Path
 
+import yaml
 from PIL import Image, ImageDraw
 
 WIDTH = 96
@@ -42,9 +51,29 @@ def make_frame(index: int) -> Image.Image:
     return frame
 
 
-def make_inputs(target: Path) -> None:
-    """Create a portable supplied-video input root and finishing settings."""
+#: Planning the paid take: a short, small draw of the still.
+TAKE = {
+    "character": "character.png",
+    "direction": "A calm standing idle for this simple geometric figure.",
+    "seconds": 3,
+    "resolution": "360p",
+}
+#: Finishing the supplied clip, which is already transparent and already loops.
+CLIP = {"footage": "actor.mkv", "finish": "finish.json"}
+
+
+def write_inputs(target: Path) -> Path:
+    """Write the still and the inputs that plan a take from it; returns ``take.yaml``."""
     target.mkdir(parents=True, exist_ok=True)
+    make_frame(0).save(target / "character.png")
+    path = target / "take.yaml"
+    path.write_text(yaml.safe_dump(TAKE, sort_keys=False), encoding="utf-8")
+    return path
+
+
+def make_inputs(target: Path) -> None:
+    """Write the take's inputs, and a lossless clip with the settings that finish it."""
+    write_inputs(target)
     frames = [make_frame(index) for index in range(FRAME_COUNT)]
     subprocess.run(
         [
@@ -89,6 +118,7 @@ def make_inputs(target: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
+    (target / "clip.yaml").write_text(yaml.safe_dump(CLIP, sort_keys=False), encoding="utf-8")
 
 
 def main() -> None:

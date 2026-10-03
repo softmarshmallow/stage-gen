@@ -158,7 +158,9 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
 
     parallax = "src/stage_gen/workflows/looping_parallax/inputs/supplied_layers"
     inputs = scratch / "parallax-inputs"
-    # A scratch folder with no gnode.yaml: the run and its cache stay inside it.
+    movie = "src/stage_gen/workflows/movie_sprite/inputs/supplied_clip"
+    clip = scratch / "movie-sprite-inputs"
+    # A scratch folder with no gnode.yaml: the runs and their cache stay inside it.
     project = scratch / "parallax-project"
     cache = ("--cache-dir", str(scratch / "asset-cache"))
     files = [w for w in discover() if w.root.joinpath("workflow.yaml").is_file()]
@@ -171,6 +173,11 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
             cwd=project,
         ),
         Step(("gnode", "inspect", "looping-parallax", "--verify"), cwd=project),
+        # movie-sprite: the paid take is only planned; the supplied clip is finished for free.
+        Step((python, f"{movie}/make_inputs.py", str(clip))),
+        Step(("gnode", "plan", "movie-sprite", "--inputs", str(clip / "take.yaml")), cwd=project),
+        Step(("gnode", "run", "movie-sprite", "--inputs", str(clip / "clip.yaml")), cwd=project),
+        Step(("gnode", "inspect", "movie-sprite", "--verify"), cwd=project),
         # gnode's published document schemas, and the language-neutral conformance suite that
         # any gnode implementation must pass, run through the gnode command only.
         Step((python, "scripts/write_gnode_schemas.py", "--check")),
