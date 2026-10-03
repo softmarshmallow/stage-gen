@@ -94,7 +94,7 @@ source files, not import statements. Local imports are included.
 - `_authored_package` — four files in `the_grain_pipeline`:
   `case/resolve.py`, `case_binding.py`, `dialogue_scene/scene_request.py`,
   `pointclick_room/room_request.py`.
-- `_node_kit` — `ember_hollow_pipeline/shell/nodes.py`, and `write_local_image` in `demo_game_tools.kits`.
+- `_node_kit` — `ember_hollow_pipeline/shell/nodes.py` and `demo_game_tools/kits/ui_art/nodes.py`.
 - Private recipe dispatch functions — `demo_game_collection/cli.py`.
 
 The `_game_input` symbols currently imported are `AuthoredContractLoadError`,

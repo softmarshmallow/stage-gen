@@ -6,14 +6,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-from bellweather_pipeline.execution_graph import ExecutionGraph
-from bellweather_pipeline.package_graph import (
-    build_package_execution_graph,
-    package_graph_profile,
-)
-from demo_game_collection.game_package import ResolvedGamePackage, resolve_game_package
 from scripts.graph_contracts import document_contract, render
-from stage_gen.config import StageGenConfig
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
 PIPELINE_DOCUMENT = REPOSITORY_ROOT / "godot/games/bellweather/docs/generation-pipeline.md"
@@ -245,118 +238,31 @@ def test_topology_table_total_row_equals_its_own_domain_rows() -> None:
 
 
 def test_topology_table_agrees_with_the_executable_graph_contract() -> None:
-    contract = build_graph_contract(REPOSITORY_ROOT)
-    counts = contract["operation_counts"]
+    counts = document_contract(PIPELINE_DOCUMENT)["first_take_operation_counts"]
     _, total = _topology_table_rows()[-1]
 
     assert total == [
-        counts["image_generation"],
-        counts["structured_generation"],
-        counts["music_generation"],
+        counts["image.edit"],
+        counts["structured.generate"],
+        counts["music.generate"],
         counts["local"],
     ]
 
 
-def test_topology_table_node_count_agrees_with_the_graph_contract() -> None:
+def test_topology_table_step_count_agrees_with_the_graph_contract() -> None:
     source = PIPELINE_DOCUMENT.read_text(encoding="utf-8")
-    declared = re.search(r"\| \*\*Total\*\* \| \*\*(\d+) nodes\*\*", source)
+    declared = re.search(r"\| \*\*Total\*\* \| \*\*(\d+) steps\*\*", source)
     assert declared is not None
 
-    assert int(declared.group(1)) == build_graph_contract(REPOSITORY_ROOT)["node_count"]
+    assert int(declared.group(1)) == document_contract(PIPELINE_DOCUMENT)["step_count"]
 
 
-def test_declared_provider_operation_count_is_the_sum_of_the_provider_columns() -> None:
+def test_declared_provider_call_count_is_the_sum_of_the_provider_columns() -> None:
     source = PIPELINE_DOCUMENT.read_text(encoding="utf-8")
-    declared = re.search(r"first-pass graph contains (\d+) provider operations", source)
+    declared = re.search(r"default package's plan make (\d+) provider calls", source)
     assert declared is not None
-    counts = build_graph_contract(REPOSITORY_ROOT)["operation_counts"]
+    counts = document_contract(PIPELINE_DOCUMENT)["first_take_operation_counts"]
 
     assert int(declared.group(1)) == (
-        counts["image_generation"] + counts["structured_generation"] + counts["music_generation"]
+        counts["image.edit"] + counts["structured.generate"] + counts["music.generate"]
     )
-
-
-def _closure(graph: ExecutionGraph, targets: tuple[str, ...]) -> set[str]:
-    by_id = {node.node_id: node for node in graph.nodes}
-    seen: set[str] = set()
-    stack = list(targets)
-    while stack:
-        node_id = stack.pop()
-        if node_id in seen:
-            continue
-        seen.add(node_id)
-        stack.extend(by_id[node_id].depends_on)
-    return seen
-
-
-def _bellweather_graph() -> tuple[ResolvedGamePackage, ExecutionGraph]:
-    package = resolve_game_package(REPOSITORY_ROOT / FIXTURE_REF)
-    graph = build_package_execution_graph(package, profile=package_graph_profile(StageGenConfig()))
-    return package, graph
-
-
-def test_checkpoint_closure_paragraphs_state_the_real_closure_sizes() -> None:
-    """The prose beside the gated table is checked too.
-
-    Both paragraphs drifted silently while the machine block above them stayed exact - the World
-    one by ten nodes, the Content one by six - because a checkpoint closure is a number nobody
-    recomputes by hand. A reader sizing a paid run off either was under-budgeting.
-    """
-
-    from bellweather_pipeline.prepared_content import (
-        content_target_node_ids,
-    )
-    from bellweather_pipeline.prepared_world import world_target_node_ids
-
-    _package, graph = _bellweather_graph()
-    source = PIPELINE_DOCUMENT.read_text(encoding="utf-8")
-
-    world = re.search(r"World checkpoint is the exact (\d+)-node closure", source)
-    content = re.search(r"Content checkpoint is the exact (\d+)-node closure", source)
-    assert world is not None and content is not None
-
-    assert int(world.group(1)) == len(_closure(graph, world_target_node_ids(graph)))
-    assert int(content.group(1)) == len(_closure(graph, content_target_node_ids(graph)))
-
-
-def test_every_required_runtime_artifact_is_produced_by_a_checkpoint_closure() -> None:
-    """The reason the closure sizes are worth gating at all.
-
-    `runtime_artifact_paths` requires the projectile sprite whenever a package declares the
-    catalog, but the content checkpoint did not name a projectile terminal, so integration failed
-    on a missing artifact for any package that shipped one. The sizes above are a proxy; this is
-    the property they protect.
-    """
-
-    from bellweather_pipeline.prepared_content import (
-        content_target_node_ids,
-    )
-    from bellweather_pipeline.prepared_manifest import (
-        runtime_artifact_paths,
-    )
-    from bellweather_pipeline.prepared_world import world_target_node_ids
-
-    package, graph = _bellweather_graph()
-    by_id = {node.node_id: node for node in graph.nodes}
-    reachable = _closure(graph, world_target_node_ids(graph)) | _closure(
-        graph, content_target_node_ids(graph)
-    )
-    produced = {ref for node_id in reachable for ref in by_id[node_id].declared_artifact_refs()}
-
-    assert [path for path in runtime_artifact_paths(package) if path not in produced] == []
-
-
-def test_projected_duration_and_cost_track_the_graph_projection() -> None:
-    from gnode import project_schedule
-
-    _, graph = _bellweather_graph()
-    projection = project_schedule(graph)
-    source = PIPELINE_DOCUMENT.read_text(encoding="utf-8")
-
-    duration = re.search(r"projected terminal offset is \*\*([\d.]+) seconds", source)
-    cost = re.search(r"USD ([\d.]+)[-\u2013]([\d.]+) budgetary allowance", source)
-    assert duration is not None and cost is not None
-
-    assert float(duration.group(1)) == projection.duration_ms / 1000
-    assert float(cost.group(1)) == projection.estimated_cost_low_usd
-    assert float(cost.group(2)) == projection.estimated_cost_high_usd

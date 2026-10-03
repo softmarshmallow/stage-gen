@@ -84,27 +84,27 @@ media. The game READMEs describe their refusal behavior when content is missing.
 
 ## Prepare assets
 
-Each game owns its preparation entry point and its input selection. Bellweather's
-`default` and `waves` inputs are variants of the same game. No root selector chooses
-a game for the repository.
+Each game owns its preparation entry point and its input selection. No root selector
+chooses a game for the repository.
 
 ```sh
 uv sync --frozen --group games
-uv run --group games python godot/games/bellweather/pipeline/prepare.py
 uv run --group games python godot/games/ember_hollow/pipeline/prepare.py
 uv run --group games python godot/games/the_grain/pipeline/prepare.py
 ```
 
 These defaults plan or validate inputs offline. Run `--help` on the selected
-script for generation, deterministic rehearsal and output options. Iron Petal Unit is
-built with gnode from its own folder instead:
+script for generation, deterministic rehearsal and output options. Iron Petal Unit and
+Bellweather are built with gnode from their own folders instead; Bellweather's `default`
+and `waves` inputs are variants of the same game:
 
 ```sh
 cd godot/games/iron_petal_unit && uv run gnode plan pipeline/workflow.py:build --arg package=inputs
+cd godot/games/bellweather && uv run gnode plan pipeline/workflow.py:build --arg package=inputs/default
 ```
- The collection
-CLI, `uv run --group games demo-games --help`, maintains existing format inspection
-and authoring commands without making those formats part of the public asset SDK.
+
+The collection CLI, `uv run --group games demo-games --help`, maintains existing format
+inspection and authoring commands without making those formats part of the public asset SDK.
 
 ## Packages and templates
 

@@ -80,7 +80,9 @@ GAME_PYTHON_ROOTS = (
 )
 #: Games built with gnode: each one's builder and node modules are typed in their own run,
 #: because node modules are top-level files whose names would collide across projects.
-GNODE_GAME_PROJECTS = ("godot/games/iron_petal_unit",)
+GNODE_GAME_PROJECTS = ("godot/games/iron_petal_unit", "godot/games/bellweather")
+#: Every gnode game's builder, planned from its own folder.
+BUILDER = "pipeline/workflow.py:build"
 GAME_TYPED_TOOLS = (
     "godot/games/bellweather/tools/author_terrain.py",
     "godot/games/bellweather/tools/design_map.py",
@@ -106,8 +108,6 @@ def _gnode_game_typechecks() -> tuple[Step, ...]:
 def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
     """Exercise game-owned preparation entry points without provider work."""
     plans = (
-        ("bellweather", ()),
-        ("bellweather", ("--variant", "waves")),
         ("ember_hollow", ()),
         ("the_grain", ("--mode", "case")),
         ("the_grain", ("--mode", "room")),
@@ -117,13 +117,17 @@ def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
         Step((python, f"godot/games/{game}/pipeline/prepare.py", "--plan", *options))
         for game, options in plans
     ]
-    # A game built with gnode: its node types are locked and its builder plans its own
-    # package, offline, from the game's folder.
-    for game, builder in (("iron_petal_unit", "pipeline/workflow.py:build"),):
+    # A game built with gnode: its node types are locked and its builder plans each of its
+    # packages, offline, from the game's folder.
+    for game, packages in (
+        ("iron_petal_unit", ("inputs",)),
+        ("bellweather", ("inputs/default", "inputs/waves")),
+    ):
         home = REPOSITORY_ROOT / "godot/games" / game
         result.append(Step(("gnode", "lock", "--check"), cwd=home))
-        result.append(
-            Step(("gnode", "plan", builder, "--arg", "package=inputs", "--check"), cwd=home)
+        result.extend(
+            Step(("gnode", "plan", BUILDER, "--arg", f"package={package}", "--check"), cwd=home)
+            for package in packages
         )
     for game, label, options in (
         ("the_grain", "room", ("--mode", "room")),

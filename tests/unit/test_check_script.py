@@ -76,23 +76,20 @@ def test_games_gate_exercises_local_defaults_variants_and_explicit_sources() -> 
         if command[0] == "python" and command[1].endswith("/pipeline/prepare.py")
     ]
     plans = [command for command in game_scripts if "--plan" in command]
-    assert len(plans) == 6
-    assert {command[1].split("/")[2] for command in plans} == {
-        "bellweather",
-        "ember_hollow",
-        "the_grain",
-    }
-    # Iron Petal Unit is built with gnode: its lock and its builder's plan are checked.
-    assert ("gnode", "lock", "--check") in commands
-    assert (
-        "gnode",
-        "plan",
-        "pipeline/workflow.py:build",
-        "--arg",
-        "package=inputs",
-        "--check",
-    ) in commands
-    assert any(command[-2:] == ("--variant", "waves") for command in plans)
+    assert len(plans) == 4
+    assert {command[1].split("/")[2] for command in plans} == {"ember_hollow", "the_grain"}
+    # Iron Petal Unit and Bellweather are built with gnode: each lock and each package's plan
+    # are checked.
+    assert commands.count(("gnode", "lock", "--check")) == 2
+    for package in ("inputs", "inputs/default", "inputs/waves"):
+        assert (
+            "gnode",
+            "plan",
+            "pipeline/workflow.py:build",
+            "--arg",
+            f"package={package}",
+            "--check",
+        ) in commands
     grain_modes = {command[-1] for command in plans if command[1].split("/")[2] == "the_grain"}
     assert grain_modes == {"case", "room", "dialogue"}
     dry_runs = [command for command in game_scripts if "--dry-run" in command]
@@ -142,7 +139,7 @@ def test_ci_uses_the_same_typecheck_surface_as_the_aggregate_gate() -> None:
         if not line.startswith("          "):
             break
         game_lines.append(line.strip())
-    assert [tuple(shlex.split(" ".join(game_lines)))] == [
+    assert [tuple(shlex.split(line)) for line in game_lines] == [
         ("uv", "run", "--all-groups", *command) for command in games
     ]
 

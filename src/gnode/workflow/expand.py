@@ -872,7 +872,11 @@ class Expander:
     def _feedback(
         self, frame: _Frame, judges: list[str], suffix: str, take: int, first: int
     ) -> Any:
-        """What the judges said of the take before ``take``: nothing for the first take."""
+        """What the judges said of the take before ``take``: nothing for the first take.
+
+        Nothing either when every judge accepted the take before: ``take`` will never run, and
+        a template that reads a mark only a rejection makes must not stop the run over it.
+        """
 
         if take == first:
             return MISSING
@@ -883,6 +887,8 @@ class Expander:
             if result is None:
                 return Pending(frozenset({identifier}), digest_of({"feedback": identifier}))
             said[judge] = dict(result.facts)
+        if all(facts.get("verdict") == "accept" for facts in said.values()):
+            return MISSING
         return said
 
     def _sibling(self, frame: _Frame, name: str, where: str) -> _StepExpansion | None:

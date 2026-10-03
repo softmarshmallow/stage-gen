@@ -27,10 +27,6 @@ from bellweather_pipeline.motion_contract import (
     motion_atlas_geometry,
     motion_source_facing,
 )
-from bellweather_pipeline.package_types import (
-    PREPARED_RUNTIME_MANIFEST_KIND,
-    PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION,
-)
 from bellweather_pipeline.terrain_design import terrain_artifact_path
 from bellweather_pipeline.validation import ResolvedGamePackage
 from demo_game_tools.input_formats.game_contract.asset_scale import (
@@ -64,6 +60,13 @@ from demo_game_tools.media.ui import inventory_panel_layout_contract
 from gnode import atomic_write_json
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.media.sprite_sheets import split_atlas_columns
+
+#: The runtime manifest's identity. Moves on structural change only (C-R3): a block that
+#: changes shape moves its own version in ``PLATFORMER_MANIFEST_BLOCKS``.
+PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 12
+PREPARED_RUNTIME_MANIFEST_KIND = (
+    f"prepared-game-runtime-v{PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION}"
+)
 
 #: The render projection the scrolling-preview consumer draws at. This is the only place
 #: the asset unit meets pixels, and a consumer multiplies through it exactly once.

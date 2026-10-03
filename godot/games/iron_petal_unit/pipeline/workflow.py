@@ -18,7 +18,6 @@ references are project files, read by content.
 
 from __future__ import annotations
 
-import hashlib
 import re
 from pathlib import Path
 from typing import Any
@@ -32,12 +31,12 @@ from demo_game_tools.kits.effects_art.directions import (
 )
 from demo_game_tools.kits.effects_art.models import CutInPortraitSubject
 from demo_game_tools.kits.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
-from demo_game_tools.kits.sideview_terrain import PAINT_CANVAS_SIZE
 from demo_game_tools.media.soundtrack.prompt import music_track_prompt
 from demo_game_tools.steps.effects import add_cut_in_steps, add_dust_steps
 from demo_game_tools.steps.layers import add_layer_steps
 from demo_game_tools.steps.rebase import add_rebase_steps
 from demo_game_tools.steps.soundtrack import add_track_steps
+from demo_game_tools.steps.terrain_atlas import add_atlas_steps
 from gnode import Group, StepRef, Workflow
 from iron_petal_unit_pipeline.admission import RUNNER_LAYER_GATE
 from iron_petal_unit_pipeline.audio.realizations import (
@@ -69,7 +68,6 @@ from iron_petal_unit_pipeline.track import (
     STRUCTURAL_GROUND_GUIDE_WIDTH,
     RunnerStructuralGround,
 )
-from stage_gen.resources import terrain_atlas_lookup_path, terrain_atlas_template_path
 
 #: The game's node modules, as project paths.
 GROUND = "./pipeline/nodes/ground.py"
@@ -104,10 +102,6 @@ def _project_root(package: Path) -> Path:
         if (folder / "gnode.yaml").is_file():
             return folder
     raise ValueError(f"{package} is not inside a gnode project")
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _paint(
@@ -254,42 +248,10 @@ class _Build:
             self.publish(f"world/ground/{segment_id}.validation.json", published.outputs.validation)
 
     def _atlas(self, group: Group, materials: list[str]) -> None:
-        template = _sha256(terrain_atlas_template_path())
-        target = group.step(
-            "paint_target",
-            title="Pack the locked template",
-            uses=f"{GROUND}#atlas_paint_target",
-            with_={"template_sha256": template},
-        )
-        painting = _paint(
-            group,
-            title="Paint the 47-mask atlas",
-            prompt=ground_prompt(self.resolved, self.track),
-            size=PAINT_CANVAS_SIZE,
-            background="opaque",
-            pictures=[target.outputs.image, *materials],
-        )
-        group.step(
-            "admit",
-            title="Hold the sheet to its cells",
-            uses=f"{GROUND}#admit_atlas",
-            judges="generate",
-            with_={"image": painting.outputs.image, "template_sha256": template},
-            on_reject=_REDRAW,
-        )
-        atlas = group.step(
-            "publish",
-            title="Assemble the atlas",
-            uses=f"{GROUND}#assemble_atlas",
-            with_={
-                "raw": painting.outputs.image,
-                "template_sha256": template,
-                "lookup_sha256": _sha256(terrain_atlas_lookup_path()),
-            },
-            view=True,
-        )
-        self.publish("world/ground.png", atlas.outputs.image)
-        self.publish("world/ground.validation.json", atlas.outputs.validation)
+        prompt = ground_prompt(self.resolved, self.track)
+        steps = add_atlas_steps(group, nodes=GROUND, prompt=prompt, materials=materials)
+        self.publish("world/ground.png", steps["publish"].outputs.image)
+        self.publish("world/ground.validation.json", steps["publish"].outputs.validation)
 
     # ---------------------------------------------------------------- layers
 

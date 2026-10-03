@@ -14,15 +14,15 @@ from typing import Any, cast
 
 from gnode import Ctx, Group, StepRef, node
 from stage_gen.components.sideview_layers.models import LayerRequest
-from stage_gen.components.sideview_layers.nodes import (
+from stage_gen.components.sideview_layers.pipeline import loop_layer as construct_loop
+from stage_gen.components.sideview_layers.publish import (
     LayerGate,
     admit_layer_candidate,
     bounded_repeat_preview,
 )
-from stage_gen.components.sideview_layers.nodes import (
+from stage_gen.components.sideview_layers.publish import (
     publish_layer as publish_loop_unit,
 )
-from stage_gen.components.sideview_layers.pipeline import loop_layer as construct_loop
 from stage_gen.media import LOOP_METHODS, LoopConstruction
 from stage_gen.media.loop_construction import SeamConditioning
 
@@ -80,10 +80,17 @@ async def _loop(ctx: Ctx, *, repaint: bool) -> dict[str, Any]:
         raise ctx.fail(f"a {construction} loop is not one this step {kind}")
 
     async def paint(conditioning: SeamConditioning) -> tuple[bytes, int]:
+        # The brief may name the canvas it will see: how wide the span to paint is, and how
+        # much finished artwork stands either side of it.
+        prompt = (
+            ctx.params["prompt"]
+            .replace("{editable_span}", str(conditioning.editable_span))
+            .replace("{context_span}", str(conditioning.context_span))
+        )
         made = await ctx.image_edit(
             image=ctx.out.bytes(conditioning.conditioning_png, "image/png"),
             mask=ctx.out.bytes(conditioning.mask_png, "image/png"),
-            prompt=ctx.params["prompt"],
+            prompt=prompt,
             size=f"{conditioning.width}x{conditioning.height}",
             background="transparent" if alpha_mode == "transparent" else "opaque",
         )
@@ -126,7 +133,8 @@ async def loop_layer(ctx: Ctx) -> dict[str, Any]:
 async def repaint_loop_layer(ctx: Ctx) -> dict[str, Any]:
     """Admit the painted layer as a loop, or repaint its seam (one paid edit) to make one.
 
-    A refused repaint falls back to the declared deterministic construction.
+    ``{editable_span}`` and ``{context_span}`` in the brief become the conditioning canvas's
+    pixel spans. A refused repaint falls back to the declared deterministic construction.
     """
 
     return await _loop(ctx, repaint=True)

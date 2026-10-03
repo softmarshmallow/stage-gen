@@ -64,106 +64,35 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
     )
     assert json.loads(zip_output.getvalue())["closure_sha256"] == report["closure_sha256"]
 
-    plan_output = StringIO()
+    error = StringIO()
+    # The platformer builds with gnode from its game folder; the collection names the command.
     assert (
-        main(
-            ["package", "plan", "--input", str(package), "--genre", "platformer"],
-            stdout=plan_output,
-        )
-        == 0
+        main(["package", "plan", "--input", str(package), "--genre", "platformer"], stderr=error)
+        == 2
     )
-    plan = json.loads(plan_output.getvalue())
-    assert len(plan["graph"]["nodes"]) == 230
-    assert plan["projection"]["operation_counts"] == {
-        "local": 103,
-        "image_generation": 100,
-        "structured_generation": 24,
-        "music_generation": 3,
-    }
+    assert "gnode plan pipeline/workflow.py:build --arg package=inputs/default" in error.getvalue()
 
 
-def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
+def test_generate_names_the_gnode_build_of_each_game_it_once_ran(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
 ) -> None:
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "godot/games/bellweather/inputs/default"
-    output = StringIO()
-
-    assert (
-        main(
-            [
-                "generate",
-                "--input",
-                str(package),
-                "--genre",
-                "platformer",
-                "--dry-run",
-                "--output",
-                str(tmp_path / "run"),
-                "--cache-dir",
-                str(tmp_path / "cache"),
-                "--invocation-id",
-                "integration-test",
-            ],
-            stdout=output,
-        )
-        == 0
-    )
-    report = json.loads(output.getvalue())
-    assert report["ok"] is True
-    assert report["node_count"] == 230
-    assert report["provider_operation_counts"] == {
-        "image_generation": 100,
-        "structured_generation": 24,
-        "music_generation": 3,
-    }
-    assert (tmp_path / "run/execution-plan.json").is_file()
-    assert (tmp_path / "run/execution-trace.jsonl").is_file()
-
-    view_output = StringIO()
-    assert main(["export-view", "--run", str(tmp_path / "run")], stdout=view_output) == 0
-    view_report = json.loads(view_output.getvalue())
-    assert view_report["run_state"] == "succeeded"
-    assert view_report["nodes"] == 230
-    assert view_report["states"]["succeeded"] == 230
-    view_path = tmp_path / "run/execution-view.json"
-    assert view_path.is_file()
-    view_document = json.loads(view_path.read_text(encoding="utf-8"))
-    assert view_document["kind"] == "sideview-platformer-execution-view-v1"
-    assert view_document["schema_version"] == 3
-    assert str(tmp_path) not in view_path.read_text(encoding="utf-8")
-
-    error = StringIO()
-    assert main(["export-view", "--run", str(tmp_path / "no-such-run")], stderr=error) == 1
-    assert "no execution-plan.json" in error.getvalue()
-
-    error = StringIO()
-    # A flag the command cannot mean is a usage error, and says so with status 2.
-    assert main(["generate", "--input", str(package)], stderr=error) == 2
-    assert "generate requires --output" in error.getvalue()
-
-    error = StringIO()
-    assert (
-        main(
-            [
-                "generate",
-                "--input",
-                str(package),
-                "--genre",
-                "platformer",
-                "--output",
-                str(tmp_path / "live-run"),
-            ],
-            stderr=error,
-        )
-        == 2
-    )
-    assert (
-        "requires --checkpoint world, content, soundtrack, world-review, content-review, or "
-        "integration"
-    ) in error.getvalue()
+    for package, command in (
+        (
+            "godot/games/bellweather/inputs/default",
+            "cd godot/games/bellweather && gnode plan pipeline/workflow.py:build "
+            "--arg package=inputs/default",
+        ),
+        (
+            "godot/games/iron_petal_unit/inputs",
+            "cd godot/games/iron_petal_unit && gnode plan pipeline/workflow.py:build "
+            "--arg package=inputs",
+        ),
+    ):
+        error = StringIO()
+        assert main(["generate", "--input", str(repository / package)], stderr=error) == 2
+        assert command in error.getvalue()
 
 
 def test_character_profile_cli_validate_digest_help_and_errors(
@@ -388,7 +317,7 @@ def test_soundtrack_cli_rejects_a_source_outside_the_game_owned_path(tmp_path: P
     assert "game soundtrack input must be inside game library root" in error_output.getvalue()
 
 
-def test_generate_help_exposes_package_dry_run_controls(
+def test_generate_help_names_only_what_it_reads(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exit_info:
@@ -396,13 +325,8 @@ def test_generate_help_exposes_package_dry_run_controls(
     help_text = capsys.readouterr().out
 
     assert exit_info.value.code == 0
-    assert "--dry-run" in help_text
-    assert (
-        "--checkpoint {world,content,soundtrack,world-review,content-review,integration}"
-    ) in help_text
-    assert "--artifact-root ARTIFACT_ROOTS" in help_text
-    assert "--failure-node FAILURE_NODE" in help_text
-    assert "--force-stage" not in help_text
+    assert "--input" in help_text and "--genre" in help_text
+    assert "--checkpoint" not in help_text and "--dry-run" not in help_text
 
 
 def test_doctor_consumes_cwd_dotenv_without_exposing_credentials(

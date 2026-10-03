@@ -17,7 +17,7 @@ from iron_petal_unit_pipeline.admission import (
 )
 from iron_petal_unit_pipeline.manifest import manifest_ground, manifest_rebase_multipliers
 from iron_petal_unit_pipeline.runner_request import resolve_runner_package
-from stage_gen.components.sideview_layers.nodes import admit_layer_candidate
+from stage_gen.components.sideview_layers.publish import admit_layer_candidate
 
 from ..._runner_fixture import WIDE_FLAT_ROWS, chunk_toml, runner_only_package
 

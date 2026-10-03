@@ -10,12 +10,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from demo_game_tools.kits.music.nodes import MINIMUM_TRACK_SECONDS, SOUNDTRACK_VALIDATION_KIND
 from gnode import Ctx, Group, StepRef, node
 from stage_gen.media import probe_audio, validate_music_payload
 
 #: Draws a track gets before the run stops on it.
 TRACK_TAKES = 6
+#: The shortest track that still loops as background music.
+MINIMUM_TRACK_SECONDS = 15.0
+SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
 
 
 @node("admit_track", inputs={"audio": "audio"}, judge=True, version=1)
@@ -119,4 +121,11 @@ def add_track_steps(
     return {"generate": draw, "record": record}
 
 
-__all__ = ["TRACK_TAKES", "add_track_steps", "admit_track", "record_track"]
+__all__ = [
+    "MINIMUM_TRACK_SECONDS",
+    "SOUNDTRACK_VALIDATION_KIND",
+    "TRACK_TAKES",
+    "add_track_steps",
+    "admit_track",
+    "record_track",
+]

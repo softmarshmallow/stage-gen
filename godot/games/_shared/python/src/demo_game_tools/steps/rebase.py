@@ -24,12 +24,15 @@ from demo_game_tools.kits.sideview_actor.motion_rebase import (
     motion_rebase_verification_prompt,
     parse_motion_rebase,
 )
-from demo_game_tools.kits.sideview_actor.motion_rebase_nodes import JUDGE_SYSTEM_PROMPT
 from gnode import Ctx, Group, StepRef, node
 from stage_gen.media.sprite_sheets import split_atlas_columns
 
 #: Readings a pass gets before the run stops on it.
 REBASE_TAKES = 6
+#: The judge is told to answer only in the schema; the words are part of the request.
+JUDGE_SYSTEM_PROMPT = (
+    "You are a sprite-sheet scale judge. Return only the strict structured object."
+)
 
 _SUBJECT = {
     "atlases": "image{}",
@@ -268,10 +271,16 @@ def add_rebase_steps(
         uses=f"{nodes}#rebase_verify_record",
         with_={**subject, "first_pass": first_pass.outputs.record, "reading": verify.outputs.json},
     )
-    return {"first_pass": first_pass, "record": record, "plate": plate_}
+    return {
+        "first_pass": first_pass,
+        "record": record,
+        "plate": plate_,
+        "verify_plate": verify_plate_,
+    }
 
 
 __all__ = [
+    "JUDGE_SYSTEM_PROMPT",
     "REBASE_TAKES",
     "add_rebase_steps",
     "rebase_admit",

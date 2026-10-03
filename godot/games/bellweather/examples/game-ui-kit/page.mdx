@@ -21,27 +21,22 @@ sheet, so an engine lays it out without guessing.
 
 Make a game UI kit in the style of <Ref input="cover">this picture</Ref>: a panel frame, a button in four states and the 16 system icons, using Stage Gen's UI sheets described in `godot/games/_shared/docs/formats/ui.md`. Start from a copy of the Bellweather package in `godot/games/bellweather/inputs/default`, use the picture as its style reference, and give each sheet a one-sentence direction in `ui.toml`.
 
-Do a dry run first. Then run the content checkpoint and its reviews live, and show me each sheet with the reviewer's verdict.
+Plan it first. Then build the content part live, reviews included, and show me each sheet with the reviewer's verdict.
 
 </Agent>
 <Shell>
 
 ```sh
-uv run --group games demo-games generate \
-  --input my-game --dry-run --output runs/content-dry
+cd godot/games/bellweather
+uv run gnode plan pipeline/workflow.py:build --arg package=inputs/my-game --arg part=content
 ```
 
 ```sh
-uv run --group games demo-games generate \
-  --input my-game --checkpoint content --output runs/content-01
+uv run gnode run pipeline/workflow.py:build --arg package=inputs/my-game --arg part=content \
+  --live --max-usd 140
 ```
 
-```sh
-uv run --group games demo-games generate \
-  --input my-game --checkpoint content-review --output runs/content-review-01
-```
-
-`my-game` is a copy of `godot/games/bellweather/inputs/default` with your picture as `references/cover.png` and your directions in `ui.toml`. The content checkpoint also draws the game's cast and catalog; the reviews are paid for separately, in their own checkpoint over what the first one drew.
+`inputs/my-game` is a copy of `inputs/default` in the game's folder with your picture as `references/cover.png` and your directions in `ui.toml`. The content part also draws the game's cast and catalog, and reviews each sheet over what it drew.
 
 </Shell>
 </Try>

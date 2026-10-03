@@ -25,11 +25,6 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from bellweather_pipeline.package_graph import (
-    build_package_execution_graph,
-    package_graph_profile,
-)
-from demo_game_collection.game_package import resolve_game_package
 from ember_hollow_pipeline.survival_graph import (
     build_graph as build_oblique_survival_graph,
 )
@@ -39,11 +34,13 @@ from scripts.graph_contracts import document_contract, write_contract
 from stage_gen.config import StageGenConfig
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-PIPELINE_DOCUMENT = REPOSITORY_ROOT / "godot/games/bellweather/docs/generation-pipeline.md"
-CONTRACT_KIND = "prepared-game-execution-graph-contract-v1"
-FIXTURE_REF = "godot/games/bellweather/inputs/default"
+#: Every gnode game's builder, planned from its own folder.
+BUILDER = "pipeline/workflow.py:build"
+PLATFORMER_GAME = "godot/games/bellweather"
+PIPELINE_DOCUMENT = REPOSITORY_ROOT / PLATFORMER_GAME / "docs/generation-pipeline.md"
+CONTRACT_KIND = "sideview-platformer-gnode-plan-contract-v1"
+FIXTURE_REF = f"{PLATFORMER_GAME}/inputs/default"
 RUNNER_GAME = "godot/games/iron_petal_unit"
-RUNNER_BUILDER = "pipeline/workflow.py:build"
 RUNNER_FIXTURE_REF = f"{RUNNER_GAME}/inputs"
 RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / RUNNER_GAME / "docs/runner.md"
 RUNNER_CONTRACT_KIND = "sideview-runner-gnode-plan-contract-v1"
@@ -53,37 +50,15 @@ OBLIQUE_SURVIVAL_CONTRACT_KIND = "oblique-survival-execution-graph-contract-v1"
 OBLIQUE_SURVIVAL_SCOPE = "full"
 
 
-def build_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
-    """Derive the contract from the graph the code builds. Key order is the document's order."""
+def _gnode_plan_contract(
+    *, kind: str, game: str, package: str, builder: str, repo: Path
+) -> dict[str, Any]:
+    """Derive a gnode game's contract from the plan its builder makes of its package."""
 
-    config = StageGenConfig()
-    package = resolve_game_package(repo / FIXTURE_REF)
-    graph = build_package_execution_graph(
-        package,
-        profile=package_graph_profile(config),
-        config=config,
-    )
-    return {
-        "kind": CONTRACT_KIND,
-        "fixture_ref": FIXTURE_REF,
-        "graph_schema_version": graph.schema_version,
-        "topology_sha256": graph.topology_sha256,
-        "node_count": len(graph.nodes),
-        "terminal_node_id": graph.terminal_node_id,
-        "operation_counts": graph.operation_counts(),
-        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
-    }
-
-
-def build_runner_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
-    """Derive the runner's contract from the plan its gnode builder makes of its package."""
-
-    planned = asyncio.run(
-        plan_async(RUNNER_BUILDER, cwd=repo / RUNNER_GAME, arguments={"package": "inputs"})
-    )
+    planned = asyncio.run(plan_async(builder, cwd=repo / game, arguments={"package": package}))
     if not planned.ok:
         problems = "; ".join(f"{p.where}: {p.message}" for p in planned.problems)
-        raise ValueError(f"the runner builder does not plan: {problems}")
+        raise ValueError(f"the {game} builder does not plan: {problems}")
     live = [instance for instance in planned.instances if instance.state != "absent"]
     ids = {instance.id for instance in live}
     topology = sorted(
@@ -96,9 +71,9 @@ def build_runner_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
         if not instance.take or instance.take == 1
     )
     return {
-        "kind": RUNNER_CONTRACT_KIND,
-        "fixture_ref": RUNNER_FIXTURE_REF,
-        "builder": RUNNER_BUILDER,
+        "kind": kind,
+        "fixture_ref": f"{game}/{package}",
+        "builder": builder,
         "workflow_id": planned.planner.workflow.id,
         "topology_sha256": hashlib.sha256(
             json.dumps(topology, separators=(",", ":")).encode("utf-8")
@@ -109,6 +84,26 @@ def build_runner_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
         "outputs": sorted(planned.planner.workflow.outputs),
         "type_ids": sorted({instance.uses for instance in live}),
     }
+
+
+def build_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
+    """Derive Bellweather's contract from the plan its gnode builder makes of its package."""
+
+    return _gnode_plan_contract(
+        kind=CONTRACT_KIND,
+        game=PLATFORMER_GAME,
+        package="inputs/default",
+        builder=BUILDER,
+        repo=repo,
+    )
+
+
+def build_runner_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
+    """Derive the runner's contract from the plan its gnode builder makes of its package."""
+
+    return _gnode_plan_contract(
+        kind=RUNNER_CONTRACT_KIND, game=RUNNER_GAME, package="inputs", builder=BUILDER, repo=repo
+    )
 
 
 def build_oblique_survival_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:

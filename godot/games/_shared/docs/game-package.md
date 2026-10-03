@@ -23,8 +23,8 @@ Each game selects its own package root through `pipeline/prepare.py`, its gnode
 builder's `--arg package=`, or an explicit collection CLI `--input` argument. No
 repository-level `main.toml` selects a game. The current prepared input owners are
 `godot/games/bellweather/inputs/default`, its sibling `inputs/waves` variant, and
-`godot/games/iron_petal_unit/inputs`. Bellweather has a game-local `pipeline/prepare.py`;
-Iron Petal Unit builds through gnode (`pipeline/workflow.py:build`).
+`godot/games/iron_petal_unit/inputs`. Bellweather and Iron Petal Unit build through gnode
+(`pipeline/workflow.py:build`).
 Existing package members and relative references remain intact:
 
 ```text
@@ -222,7 +222,7 @@ separate build packages. Collection tooling selects a reader only from an explic
 input or command. The product SDK does not interpret these gameplay contracts.
 
 The [canonical generation pipeline](../../bellweather/docs/generation-pipeline.md) owns the
-execution graph. The [map-generation contract](../../bellweather/docs/map-generation-contract.md)
+asset build. The [map-generation contract](../../bellweather/docs/map-generation-contract.md)
 owns one map's visual inputs, layers, continuity, binary terrain, ladder
 geometry and placement, portal presentation and anchors, and review unit.
 `gameplay.toml` alone owns map use, movement permissions, transition

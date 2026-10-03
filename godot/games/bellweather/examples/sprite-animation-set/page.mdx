@@ -21,27 +21,22 @@ whether it loops, which way it faces, and its size.
 
 Make a side-view platformer character from <Ref input="cover">this picture</Ref>, with Stage Gen's player animations described in `godot/games/bellweather/docs/generation-pipeline.md`. Start from a copy of the Bellweather package in `godot/games/bellweather/inputs/default`, use the picture as the player's reference, and write a short brief for the character in `content/player.toml`.
 
-Do a dry run first. Then run the content checkpoint live, and show me every animation playing at its published size, with the size corrections the run chose.
+Plan it first. Then build the content part live, and show me every animation playing at its published size, with the size corrections the run chose.
 
 </Agent>
 <Shell>
 
 ```sh
-uv run --group games demo-games generate \
-  --input my-game --dry-run --output runs/content-dry
+cd godot/games/bellweather
+uv run gnode plan pipeline/workflow.py:build --arg package=inputs/my-game --arg part=content
 ```
 
 ```sh
-uv run --group games demo-games generate \
-  --input my-game --checkpoint content --output runs/content-01
+uv run gnode run pipeline/workflow.py:build --arg package=inputs/my-game --arg part=content \
+  --live --max-usd 140
 ```
 
-```sh
-uv run --group games demo-games generate \
-  --input my-game --checkpoint content-review --output runs/content-review-01
-```
-
-`my-game` is a copy of `godot/games/bellweather/inputs/default` with your picture in `references/` and your brief in `content/player.toml`, which names the picture by its digest. The content checkpoint also draws the game's creatures, townsfolk and items; the review is paid for separately, in its own checkpoint.
+`inputs/my-game` is a copy of `inputs/default` in the game's folder with your picture in `references/` and your brief in `content/player.toml`, which names the picture by its digest. The content part also draws the game's creatures, townsfolk and items, and reviews each one; `--arg reviews=no` leaves the reviews out.
 
 </Shell>
 </Try>

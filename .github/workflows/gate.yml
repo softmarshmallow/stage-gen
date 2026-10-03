@@ -72,10 +72,9 @@ jobs:
           godot/templates/asset_consumer/prepare.py
           apps/concept_studio/src docs/sdk/pipelines
       - name: Typecheck gnode game projects
-        run: >-
-          uv run --all-groups mypy --strict
-          godot/games/iron_petal_unit/pipeline/workflow.py
-          godot/games/iron_petal_unit/pipeline/nodes
+        run: |
+          uv run --all-groups mypy --strict godot/games/iron_petal_unit/pipeline/workflow.py godot/games/iron_petal_unit/pipeline/nodes
+          uv run --all-groups mypy --strict godot/games/bellweather/pipeline/workflow.py godot/games/bellweather/pipeline/nodes
 
   godot:
     runs-on: ubuntu-latest

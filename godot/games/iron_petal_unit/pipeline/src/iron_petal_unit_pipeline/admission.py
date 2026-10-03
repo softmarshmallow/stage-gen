@@ -15,7 +15,7 @@ from PIL import Image
 
 from demo_game_tools.input_formats.game_contract.asset_scale import measure_subject_extent
 from demo_game_tools.kits.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
-from stage_gen.components.sideview_layers.nodes import LayerGate
+from stage_gen.components.sideview_layers.publish import LayerGate
 from stage_gen.media.layer_rasters import trim_layer_to_alpha_box
 from stage_gen.media.sprite_sheets import AlphaComponentRepackContract, repack_alpha_components
 

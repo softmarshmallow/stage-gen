@@ -45,13 +45,8 @@ from demo_game_tools.kits.ui_art.icons import (
     render_icon_template,
     validate_icon_sheet,
 )
-from demo_game_tools.kits.ui_art.inventory_nodes import (
-    InventoryNodeTypes,
-    InventoryPanelHandlers,
-    InventoryPanelHost,
-    add_inventory_panel_nodes,
+from demo_game_tools.kits.ui_art.inventory_panel import (
     canonicalize_inventory_panel_image,
-    inventory_node_types,
     inventory_panel_evidence,
     validate_inventory_panel_image,
 )
@@ -84,12 +79,7 @@ from demo_game_tools.kits.ui_art.models import (
 )
 
 __all__ = [
-    "InventoryNodeTypes",
-    "InventoryPanelHandlers",
-    "InventoryPanelHost",
-    "add_inventory_panel_nodes",
     "canonicalize_inventory_panel_image",
-    "inventory_node_types",
     "inventory_panel_evidence",
     "validate_inventory_panel_image",
     "ATLAS_ALPHA_POLICY",

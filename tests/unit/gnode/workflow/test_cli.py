@@ -156,6 +156,28 @@ def test_lock_pins_the_node_folder_the_project_names(tmp_path: Path) -> None:
     assert list(locked) == ["pipeline/nodes/stamps.py#stamp@1"]
 
 
+def test_lock_confirms_several_unchanged_nodes_in_one_call(tmp_path: Path) -> None:
+    second = VERSIONED.replace('"stamp"', '"seal"').replace("def stamp", "def seal")
+    write(
+        tmp_path,
+        {"gnode.yaml": "gnode: project/v1\n", "nodes/a.py": VERSIONED, "nodes/b.py": second},
+    )
+    assert _gnode(tmp_path, "lock")[0] == 0
+    # A refactor touches both modules without changing what either makes.
+    for name in ("a", "b"):
+        path = tmp_path / "nodes" / f"{name}.py"
+        path.write_text("# moved\n" + path.read_text(encoding="utf-8"), encoding="utf-8")
+    status, out, _ = _gnode(tmp_path, "lock", "--check")
+    assert status == 1 and out.count("source changed") == 2
+
+    status, out, _ = _gnode(
+        tmp_path, "lock", "--same", "nodes/a.py#stamp", "--same", "nodes/b.py#seal"
+    )
+
+    assert status == 0, out
+    assert _gnode(tmp_path, "lock", "--check")[0] == 0
+
+
 def test_a_builder_that_refuses_its_input_is_a_plan_error(tmp_path: Path) -> None:
     write(
         tmp_path,

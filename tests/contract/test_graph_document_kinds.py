@@ -16,11 +16,6 @@ from types import ModuleType
 
 import pytest
 
-from bellweather_pipeline.execution_graph import (
-    EXECUTION_GRAPH_SCHEMA_VERSION,
-    ExecutionGraph,
-)
-from bellweather_pipeline.package_executor import PreparedPackageExecutor
 from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
 from ember_hollow_pipeline.survival_graph import (
     OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION,
@@ -48,14 +43,12 @@ WORKFLOW_ROOTS = (SOURCE_ROOT / "workflows",)
 #: Every recipe graph, the recipe word it derives its document kinds from, and the
 #: schema-version constant its module still exports beside the pinned literal.
 GRAPHS: tuple[tuple[type[GraphDocument], str, int], ...] = (
-    (ExecutionGraph, "sideview-platformer", EXECUTION_GRAPH_SCHEMA_VERSION),
     (PointClickRoomGraph, "pointclick-room", POINTCLICK_GRAPH_SCHEMA_VERSION),
     (DialogueSceneGraph, "dialogue-scene", DIALOGUE_GRAPH_SCHEMA_VERSION),
     (ObliqueSurvivalGraph, "oblique-survival", OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION),
 )
 
 EXECUTORS = (
-    PreparedPackageExecutor,
     PointClickRoomExecutor,
     DialogueSceneExecutor,
     ObliqueSurvivalExecutor,
@@ -67,8 +60,6 @@ SUBSTRATE_FUNCTIONS = frozenset(
 )
 #: Methods the base classes own; a recipe handler or executor may not carry its own.
 SUBSTRATE_METHODS = frozenset({"_build_registry", "_bind", "_open_run", "_secrets", "__call__"})
-#: Handlers that route to owners rather than own a cache; they are not the substrate's.
-ROUTERS = frozenset({"PreparedIntegrationNodeHandler"})
 
 
 @pytest.mark.parametrize(("graph_type", "recipe", "schema_version"), GRAPHS)
@@ -100,9 +91,7 @@ def test_every_recipe_runs_through_the_substrate() -> None:
         member
         for module in _recipe_modules()
         for _name, member in inspect.getmembers(module, inspect.isclass)
-        if member.__name__.endswith("NodeHandler")
-        and member.__module__ == module.__name__
-        and member.__name__ not in ROUTERS
+        if member.__name__.endswith("NodeHandler") and member.__module__ == module.__name__
     ]
     assert handlers, "no recipe node handlers found"
     for handler in handlers:
@@ -125,7 +114,7 @@ def test_no_recipe_redefines_a_substrate_helper() -> None:
                 if node.name in SUBSTRATE_FUNCTIONS:
                     violations.append(f"{where}:{node.lineno} {node.name}")
                 continue
-            if not isinstance(node, ast.ClassDef) or node.name in ROUTERS:
+            if not isinstance(node, ast.ClassDef):
                 continue
             if not (node.name.endswith("NodeHandler") or node.name.endswith("Executor")):
                 continue

@@ -23,9 +23,6 @@ def build_repository_model_policy_projection(
 ) -> ModelPolicySnapshotV1:
     """Plan canonical recipes under one explicit provider policy, offline."""
 
-    from bellweather_pipeline.package_executor import (
-        PreparedPackageExecutor,
-    )
     from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
     from stage_gen.config import StageGenConfig
     from stage_gen.image_product import ImageProvider
@@ -42,7 +39,6 @@ def build_repository_model_policy_projection(
         "dialogue_scene": "godot/games/the_grain/inputs",
         "oblique_survival": "godot/games/ember_hollow/inputs",
         "pointclick_room": "godot/games/the_grain/inputs/rooms/window",
-        "sideview_platformer": "godot/games/bellweather/inputs/default",
     }
     available = tuple(sorted(fixture_by_recipe))
     if recipe_id is not None and recipe_id not in fixture_by_recipe:
@@ -64,12 +60,6 @@ def build_repository_model_policy_projection(
     if "pointclick_room" in selected:
         graphs["pointclick_room"] = (
             PointClickRoomExecutor(config).plan(root / fixture_by_recipe["pointclick_room"]).graph
-        )
-    if "sideview_platformer" in selected:
-        graphs["sideview_platformer"] = (
-            PreparedPackageExecutor(config)
-            .plan(root / fixture_by_recipe["sideview_platformer"])
-            .graph
         )
     policy_selections = {
         "default": image_workload_policies(),

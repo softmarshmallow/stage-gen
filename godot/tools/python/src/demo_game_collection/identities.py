@@ -263,20 +263,14 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     # Runtime manifests: what a host parses.
     (
         "manifest",
-        _constant("recipes.sideview_platformer.package_types", "PREPARED_RUNTIME_MANIFEST_KIND"),
+        _constant(
+            "recipes.sideview_platformer.prepared_manifest", "PREPARED_RUNTIME_MANIFEST_KIND"
+        ),
     ),
     ("manifest", _constant("recipes.sideview_runner.manifest", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.pointclick_room.room_types", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.oblique_survival.manifest", "MANIFEST_KIND")),
     # Execution graphs.
-    (
-        "graph",
-        _graph(
-            "recipes.sideview_platformer.execution_graph",
-            "EXECUTION_GRAPH_KIND",
-            "ExecutionGraph",
-        ),
-    ),
     (
         "graph",
         _graph(
@@ -309,11 +303,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("mode", _field("components.runner_track.models", "RunnerStructuralGround", "mode")),
     ("mode", _field("components.runner_track.models", "RunnerCamera", "mode")),
     # Cache namespaces.
-    ("namespace", _constant("recipes.sideview_platformer.package_graph", "WORLD_CACHE_NAMESPACE")),
-    (
-        "namespace",
-        _constant("recipes.sideview_platformer.package_graph", "CONTENT_CACHE_NAMESPACE"),
-    ),
     ("namespace", _constant("recipes.pointclick_room.room_graph", "POINTCLICK_CACHE_NAMESPACE")),
     ("namespace", _constant("recipes.dialogue_scene.scene_graph", "DIALOGUE_CACHE_NAMESPACE")),
     (
@@ -365,6 +354,12 @@ RETIRED_FAMILIES: tuple[tuple[str, str], ...] = (
         "the runner builds through gnode; its plan is a `gnode-graph`",
     ),
     ("sideview-runner-nodes", "retired with the runner's execution graph; gnode keeps one cache"),
+    (
+        "sideview-platformer-execution-graph",
+        "the platformer builds through gnode; its plan is a `gnode-graph`",
+    ),
+    ("sideview-platformer-world", "retired with the platformer's execution graph"),
+    ("sideview-platformer-content", "retired with the platformer's execution graph"),
 )
 
 #: Strings that are not `<family>-v<n>` shaped but name a retired thing all the same.

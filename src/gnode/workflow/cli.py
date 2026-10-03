@@ -165,7 +165,13 @@ def build_parser() -> argparse.ArgumentParser:
     lock.add_argument(
         "where", nargs="?", help="a project folder, or a published workflow's id (default: here)"
     )
-    lock.add_argument("--same", metavar="NODE", help="confirm a source change keeps behaviour")
+    lock.add_argument(
+        "--same",
+        metavar="NODE",
+        action="append",
+        default=[],
+        help="confirm a source change keeps behaviour (repeatable)",
+    )
     lock.add_argument(
         "--check", action="store_true", help="refuse an unlocked change; write nothing"
     )
@@ -679,7 +685,8 @@ def _all_steps(steps: dict[str, Any]) -> list[Any]:
 def cmd_lock(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
     """Pin each versioned node type to its source; a change without a bump is refused.
 
-    ``--same NODE`` confirms that NODE's source changed without changing what it makes;
+    ``--same NODE`` (repeatable) confirms that NODE's source changed without changing what it
+    makes;
     ``--check`` reports what is not locked and writes nothing.
     """
 
@@ -712,7 +719,7 @@ def cmd_lock(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
                 out.write(f"unlocked  {relative}#{name}@{spec.version}: run gnode lock\n")
                 status = 1
                 continue
-            if locked.get(key, source) != source and args.same != f"{relative}#{name}":
+            if locked.get(key, source) != source and f"{relative}#{name}" not in args.same:
                 out.write(
                     f"changed   {relative}#{name}: its source changed but version "
                     f"{spec.version} did not; bump it, or confirm with --same {relative}#{name}\n"

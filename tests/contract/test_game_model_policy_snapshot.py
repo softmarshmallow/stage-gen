@@ -65,12 +65,12 @@ def test_active_snapshot_covers_every_policy_route_and_canonical_recipe() -> Non
     snapshot = load_active_model_policy_snapshot()
     route_ids = {route.route_id for route in snapshot.routes}
     assert all(policy.route_id in route_ids for policy in snapshot.policies)
-    # The runner is built with gnode: its routes are its project's, not this census's.
+    # The runner and the platformer are built with gnode: their routes are their projects',
+    # not this census's.
     assert {recipe.recipe_id for recipe in snapshot.recipes} == {
         "dialogue_scene",
         "oblique_survival",
         "pointclick_room",
-        "sideview_platformer",
     }
     assert all(
         binding.route_id in route_ids for recipe in snapshot.recipes for binding in recipe.bindings

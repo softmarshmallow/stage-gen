@@ -1,23 +1,20 @@
-"""Collection regression adapters for inputs holding both sideview members.
+"""Which games build with gnode from their own folder, and the command that plans each."""
 
-Named games default to their own input readers. This developer-tool composition
-retains mixed-member input support by explicitly injecting the collection reader.
-"""
-
-from bellweather_pipeline.package_executor import PreparedPackageExecutor as BellweatherExecutor
-from demo_game_collection.game_package import resolve_game_package
-from stage_gen.config import StageGenConfig
+#: Genre -> the game folder that builds it and the package its plan reads.
+GNODE_BUILDS: dict[str, tuple[str, str]] = {
+    "runner": ("godot/games/iron_petal_unit", "inputs"),
+    "platformer": ("godot/games/bellweather", "inputs/default"),
+}
 
 
-class PreparedPackageExecutor(BellweatherExecutor):
-    """Run the maintained platformer builder against collection input formats."""
+def gnode_build(genre: str) -> str | None:
+    """The notice for a genre that builds with gnode, or None for one this collection runs."""
 
-    def __init__(self, config: StageGenConfig) -> None:
-        super().__init__(config, input_resolver=resolve_game_package)
-
-
-#: The runner is built with gnode from its own project; this collection no longer runs it.
-RUNNER_BUILD = (
-    "the runner builds with gnode from its game folder: cd godot/games/iron_petal_unit && "
-    "gnode plan pipeline/workflow.py:build --arg package=inputs"
-)
+    found = GNODE_BUILDS.get(genre)
+    if found is None:
+        return None
+    folder, package = found
+    return (
+        f"the {genre} builds with gnode from its game folder: cd {folder} && "
+        f"gnode plan pipeline/workflow.py:build --arg package={package}"
+    )

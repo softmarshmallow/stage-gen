@@ -20,22 +20,22 @@ and packed into an atlas a game engine loads directly.
 
 Make a 47-tile ground atlas that matches <Ref input="village_scene">this scene</Ref>, using Stage Gen's side-view terrain atlas in `docs/spec/terrain-atlas.md`. The picture is my own artwork. Start from a copy of the Bellweather package in `godot/games/bellweather/inputs/default`, and give one map's ground this scene as its reference, asking for warm cream paving, moss-softened edges and darker soil beneath.
 
-Do a dry run first. Then run the world checkpoint live, and show me the atlas and the level laid out with it.
+Plan it first. Then build the world part live, and show me the atlas and the level laid out with it.
 
 </Agent>
 <Shell>
 
 ```sh
-uv run --group games demo-games generate \
-  --input my-game --dry-run --output runs/world-dry
+cd godot/games/bellweather
+uv run gnode plan pipeline/workflow.py:build --arg package=inputs/my-game --arg part=world
 ```
 
 ```sh
-uv run --group games demo-games generate \
-  --input my-game --checkpoint world --output runs/world-01
+uv run gnode run pipeline/workflow.py:build --arg package=inputs/my-game --arg part=world \
+  --live --max-usd 30
 ```
 
-`my-game` is a copy of `godot/games/bellweather/inputs/default` whose map names your scene under `[ground]`. The world checkpoint also paints that map's backgrounds. Needs OpenAI and OpenRouter keys.
+`inputs/my-game` is a copy of `inputs/default` in the game's folder whose map names your scene under `[ground]`. The world part also paints that map's backgrounds. Needs OpenAI and OpenRouter keys.
 
 </Shell>
 </Try>

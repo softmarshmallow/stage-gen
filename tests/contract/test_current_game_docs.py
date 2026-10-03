@@ -47,11 +47,7 @@ REQUIRED_FAMILIES = {
     "godot/games/_shared/docs/game-package.md": ("sideview-runner-runtime",),
     "godot/games/_shared/docs/formats/authored-contract-schema.md": ("game-contract",),
     "godot/games/bellweather/docs/map-generation-contract.md": ("map-terrain", "climbable-atlas"),
-    "godot/games/bellweather/docs/generation-pipeline.md": (
-        "sideview-platformer-execution-graph",
-        "sideview-platformer-world",
-        "sideview-platformer-content",
-    ),
+    "godot/games/bellweather/docs/generation-pipeline.md": ("prepared-game-runtime",),
     "godot/games/_shared/docs/formats/ui.md": ("game-ui",),
     "godot/games/_shared/docs/soundtrack.md": ("game-soundtrack", "prepared-game-runtime"),
     "godot/games/iron_petal_unit/docs/audio.md": ("runner-audio", "generated_clip"),
@@ -142,14 +138,12 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert 'mode = "portal-pair-1x2-v1"' in map_contract
 
     pipeline = documents["godot/games/bellweather/docs/generation-pipeline.md"]
-    assert "deterministically assemble 47-mask atlas" in pipeline
-    assert "Player `crouch` is the current explicit vocabulary boundary" in pipeline
-    assert "Optional map-local climbable and portal branches" in pipeline
-    # The persisted recipe identity and its execution-document kinds, post-bump.
-    # Nodes are typed and registry-dispatched, not addressed by path or name convention.
-    assert "Every node in this graph is **typed**" in pipeline
-    assert "`2d/sideview/platformer/motion_atlas.generate`" in pipeline
-    assert "Dispatch is a registry lookup over `type_id`" in pipeline
+    # The game's folder is the gnode project; its node types are locked to their source.
+    assert "The game's folder is a gnode project" in pipeline
+    assert "`gnode.lock` pins every node type" in pipeline
+    assert "the 47-mask atlas painted over the packed template and assembled" in pipeline
+    assert "the sheet, repacked one subject per cell" in pipeline
+    assert "Every painting and every track is drawn at most six times" in pipeline
 
     ui = documents["godot/games/_shared/docs/formats/ui.md"]
     assert "`preview_icons`" in ui

@@ -45,6 +45,8 @@ from .designer import (
     DesignAttempt,
     DesignBrief,
     design_chunks,
+    expand_design,
+    rejection_feedback,
 )
 from .grammar import (
     ChunkSpan,
@@ -82,8 +84,10 @@ __all__ = [
     "canonical_platformer_chunk_map_design_json",
     "check",
     "design_chunks",
+    "expand_design",
     "expand_chunks",
     "load_platformer_chunk_map_design_bytes",
+    "rejection_feedback",
     "translate",
     "unreachable",
     "vocabulary",

@@ -249,7 +249,7 @@ commit the wording to `audio.toml`.
 
 ```sh
 uv run --group games demo-games package validate --input godot/games/iron_petal_unit/inputs
-uv run --group games demo-games package plan --input godot/games/iron_petal_unit/inputs
+(cd godot/games/iron_petal_unit && uv run gnode plan pipeline/workflow.py:build --arg package=inputs)
 ```
 
 Contract validity proves the closure and the plan, not the sound. Generated

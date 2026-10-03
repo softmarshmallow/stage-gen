@@ -76,13 +76,27 @@ def _require_mapping(decoded: object) -> Mapping[str, object]:
     return decoded
 
 
-def _expand(
+def expand_design(
     value: Mapping[str, object], profile: PlatformerProfile, columns: int
 ) -> tuple[DesignedMap, list[str]]:
     """Compile one composition and judge it. Pure and deterministic, so it is safe to repeat."""
 
     designed, chunk_errors, spans = expand_chunks(value, profile, columns)
     return designed, chunk_errors + translate(check(designed, profile), spans)
+
+
+def rejection_feedback(problems: list[str]) -> str:
+    """What the next composition is told about the last one the validator rejected.
+
+    The validator's messages are already written for a reader; they are handed back verbatim
+    rather than paraphrased, so the model is corrected by the same authority that judges.
+    """
+
+    listed = "\n".join(f"  - {problem}" for problem in problems[:MAX_QUOTED_PROBLEMS])
+    return (
+        "\n\nYour previous attempt was rejected by the game's own validator:\n"
+        f"{listed}\n\nFix exactly these and keep everything that was already good."
+    )
 
 
 async def design_chunks(
@@ -125,7 +139,7 @@ async def design_chunks(
         chunks = value.get("chunks")
         if not isinstance(chunks, list) or not chunks:
             raise ValueError("a composed map payload must carry a non-empty 'chunks' array")
-        _, problems = _expand(value, profile, columns)
+        _, problems = expand_design(value, profile, columns)
         return {"chunks": len(chunks), "problems": len(problems)}
 
     for attempt in range(1, max_attempts + 1):
@@ -146,18 +160,12 @@ async def design_chunks(
         )
         result = await service.generate(request)
         value: Mapping[str, object] = result.value
-        designed, problems = _expand(value, profile, columns)
+        designed, problems = expand_design(value, profile, columns)
         payload_chars = len(json.dumps(value.get("chunks", [])))
         attempts.append(DesignAttempt(designed, problems, attempt, payload_chars))
         if not problems:
             return attempts
-        # The validator's messages are already written for a reader; hand them back verbatim
-        # rather than paraphrasing, so the model is corrected by the same authority that judges.
-        listed = "\n".join(f"  - {problem}" for problem in problems[:MAX_QUOTED_PROBLEMS])
-        feedback = (
-            "\n\nYour previous attempt was rejected by the game's own validator:\n"
-            f"{listed}\n\nFix exactly these and keep everything that was already good."
-        )
+        feedback = rejection_feedback(problems)
     return attempts
 
 
@@ -167,4 +175,6 @@ __all__ = [
     "DesignAttempt",
     "DesignBrief",
     "design_chunks",
+    "expand_design",
+    "rejection_feedback",
 ]

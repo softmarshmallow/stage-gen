@@ -184,6 +184,62 @@ async def test_a_redraw_is_told_what_the_judge_said_of_the_take_before(tmp_path:
     ]
 
 
+MARKED = """
+gnode: workflow/v1
+id: flow
+title: Flow
+steps:
+  draw:
+    uses: ./nodes/extra.py#draft
+    with: { note: "${{ feedback && feedback.ok.note || '' }}" }
+  ok:
+    uses: ./nodes/extra.py#marker
+    judges: draw
+    with: { subject: "${{ steps.draw.outputs.text }}", accept_take: ACCEPT }
+    on_reject: { regenerate: { max: 3, feedback: true } }
+"""
+
+MARKER = """
+from gnode import Ctx, node
+
+
+@node("draft", params={"note": str}, outputs={"text": "text"})
+def draft(ctx: Ctx) -> dict:
+    return {"text": ctx.out.text(f"take {ctx.instance.take} told {ctx.params['note']!r}")}
+
+
+@node("marker", inputs={"subject": "file"}, params={"accept_take": int}, judge=True)
+def marker(ctx: Ctx) -> dict:
+    if ctx.instance.take >= ctx.params["accept_take"]:
+        ctx.fact("verdict", "accept")
+    else:
+        ctx.fact("note", f"take {ctx.instance.take} was too pale")
+        ctx.fact("verdict", "reject")
+    return {}
+"""
+
+
+@pytest.mark.parametrize("accept", [1, 2])
+async def test_a_mark_only_a_rejection_carries_reaches_only_the_take_after_it(
+    tmp_path: Path, accept: int
+) -> None:
+    workflow = MARKED.replace("ACCEPT", str(accept))
+    built = planner(project(tmp_path, workflow, **{"nodes/extra.py": MARKER}))
+    plan = await make_plan(built)
+    assert plan.ok, plan.problems
+    outcome = await WorkflowRun(
+        plan, run_dir=tmp_path / "runs/one", services=FakeProvider(built.store).services()
+    ).run()
+
+    # The take after an accepted one never runs, so it is told nothing rather than asked to
+    # read a mark the judge did not make.
+    assert outcome.ok, (outcome.failed, outcome.stopped)
+    drawn = [f"draw#{take}" for take in range(1, accept + 1)]
+    assert (
+        _texts(outcome, drawn) == ["take 1 told ''", "take 2 told 'take 1 was too pale'"][:accept]
+    )
+
+
 GROUP_FEEDBACK = """
 gnode: workflow/v1
 id: flow

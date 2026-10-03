@@ -31,18 +31,14 @@ from bellweather_pipeline.examples import (
     ExamplesManifest,
     currency_of,
     export,
-    graph_kinds,
     problems_of,
     read_manifest,
     rederive,
 )
 from bellweather_pipeline.examples.parallax_layers import GAME_SCRIPTS
-from bellweather_pipeline.package_executor import PreparedPackageExecutor
-from bellweather_pipeline.package_types import platformer_type_index
 from demo_game_collection.parser import build_parser
 from demo_game_tools.kits.sideview_terrain.atlas import terrain_atlas_paint_target
 from demo_game_tools.kits.ui_art import ATLAS_ROLES, render_atlas_template
-from stage_gen.config import StageGenConfig
 from stage_gen.examples import (
     ENTRY_FILE,
     PAGE_FILE,
@@ -60,7 +56,6 @@ from stage_gen.resources import terrain_atlas_lookup_path, terrain_atlas_templat
 from stage_gen.workflows._registry import discover
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-BELLWEATHER = REPOSITORY_ROOT / "godot/games/bellweather/inputs/default"
 KIND_V2 = "sideview-platformer-execution-graph-v2"
 P = "2d/sideview/platformer"
 
@@ -95,27 +90,27 @@ def test_every_example_has_a_page_without_front_matter(manifest: ExamplesManifes
         assert not text.lstrip().startswith(("+++", "---"))
 
 
-def test_steps_place_nodes_of_todays_plan_once_each_with_a_title(
-    manifest: ExamplesManifest,
-) -> None:
-    graph = PreparedPackageExecutor(StageGenConfig()).plan(BELLWEATHER).graph
-    planned = {planned_node.node_id: planned_node.type_id for planned_node in graph.nodes}
-    types = platformer_type_index()
+def test_steps_place_each_node_once_with_a_title(manifest: ExamplesManifest) -> None:
     for declaration in manifest.examples:
         members = declaration.members()
         assert len(members) == len(set(members)), declaration.id
         assert set(members) == set(declaration.labels), declaration.id
         assert all(title.strip() for title in declaration.labels.values())
-        for member in members:
-            assert member in planned, f"{declaration.id}: {member} is not a planned node"
-            assert planned[member] in types, f"{declaration.id}: {planned[member]} is unknown"
 
 
-def test_commands_parse_with_the_demo_games_parser(manifest: ExamplesManifest) -> None:
+def test_commands_are_live_gnode_builds_of_a_part(manifest: ExamplesManifest) -> None:
     for declaration in manifest.examples:
         words = shlex.split(declaration.command)
-        assert words[0] == "demo-games"
-        build_parser().parse_args(words[1:])
+        assert words[:3] == ["gnode", "run", "pipeline/workflow.py:build"], declaration.id
+        arguments = dict(
+            words[index + 1].split("=", 1) for index, word in enumerate(words) if word == "--arg"
+        )
+        assert set(arguments) == {"package", "part"}, declaration.id
+        assert arguments["part"] in {"world", "content"}, declaration.id
+        assert "--live" in words and "--max-usd" in words, declaration.id
+
+
+def test_the_export_command_parses_with_the_demo_games_parser() -> None:
     exporting = build_parser().parse_args(["example", "export", "bellweather", "--from-frozen"])
     assert (exporting.game, exporting.from_frozen, exporting.store) == ("bellweather", True, None)
 
@@ -126,15 +121,9 @@ def test_related_names_product_workflows(manifest: ExamplesManifest) -> None:
         assert set(declaration.related) <= workflows
 
 
-def test_currency_follows_todays_types_and_the_kinds_the_game_reads() -> None:
-    assert graph_kinds() == {
-        "sideview-platformer-execution-graph-v1",
-        "sideview-platformer-execution-graph-v2",
-    }
-    current = _example([f"{P}/map_ground.generate"], "sideview-platformer-execution-graph-v1")
-    assert currency_of(current) == "current"
-    retired = _example([f"{P}/ui_atlas.generate"], KIND_V2)
-    assert currency_of(retired) == "earlier_version"
+def test_every_example_is_a_record_of_the_build_before_gnode() -> None:
+    for kind in ("sideview-platformer-execution-graph-v1", KIND_V2):
+        assert currency_of(_example([f"{P}/map_ground.generate"], kind)) == "earlier_version"
 
 
 # ---------------------------------------------------------------- synthetic runs
@@ -772,7 +761,7 @@ def test_each_importer_makes_a_complete_example_from_synthetic_runs(
     assert example.made_by == MadeBy(kind="game", id="bellweather")
     assert example.importer == declaration.importer
     assert [run.path for run in example.source_runs] == declaration.run["runs"]
-    assert currency_of(example) == "current"
+    assert currency_of(example) == "earlier_version"
     # Every file the importer opened is named with its digest, package files included.
     assert example.source_files is not None
     assert any(name.startswith("package/") for name in example.source_files)
@@ -838,7 +827,7 @@ def test_export_rederives_then_writes_the_page_and_entry(tmp_path: Path) -> None
     fixture, manifest, store, game = _pinned_store(tmp_path)
     (exported,) = export(manifest, store=store, base=fixture.base, game_root=game)
 
-    assert exported.rederived and exported.currency == "current"
+    assert exported.rederived and exported.currency == "earlier_version"
     assert (exported.directory / PAGE_FILE).read_text(encoding="utf-8") == "The page.\n"
     entry = read_entry(exported.directory)
     assert isinstance(entry, GameExampleEntry)
@@ -890,8 +879,7 @@ def test_the_real_declaration_matches_the_store_when_present(manifest: ExamplesM
         assert verify(directory, declaration.pin) == [], declaration.id
         document = WorkflowExample.model_validate_json((directory / "example.json").read_bytes())
         assert problems_of(declaration, document) == [], declaration.id
-        expected = "earlier_version" if declaration.id == "game-ui-kit" else "current"
-        assert currency_of(document) == expected
+        assert currency_of(document) == "earlier_version"
         if (directory / ENTRY_FILE).is_file():
             assert verify_game_example(directory) == []
 

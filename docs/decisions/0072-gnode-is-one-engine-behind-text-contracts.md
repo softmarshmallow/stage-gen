@@ -183,6 +183,22 @@ said TOML; the amendment is posted on issue #3 with the owner's go.
   take, or a failed judge, was drawn again; a list or map input with a missing file still ran;
   a source package kept inside a project changed its lock digest; and a builder's error was a
   traceback, not a plan error.
+- **M8b port (Bellweather).** The platformer's executor, two checkpoint handlers, integration
+  handler, graph document, view and type census (about 5,900 lines), and the node halves of
+  the layer, soundtrack, rebase, painted-terrain and inventory kits (about 2,500), gave way to
+  a builder over the game's two packages (`build(package, part, reviews)`), 45 locked node
+  types and pure brief, gate and binding modules (about 2,700 lines); the terrain atlas,
+  painted terrain, UI sheets and inventory panel became step families (about 900). The plan has 351
+  steps, 100 image edits, 24 structured calls and 3 tracks at first takes, the same fan-out
+  as the v1 graph. Its last world and content runs were drawn on today's route, and the
+  builder rebuilds every request exactly: a replay answers all 98 image edits, 3 tracks and 20
+  structured calls from those runs by exact request, and delivers a runtime whose 93 images
+  and tracks are byte-identical and whose 16 records differ only in JSON formatting. Re-key
+  carried the 101 paid images and tracks into the call cache; it refused the two terrain
+  compositions (v1 sent no token limit, at most USD 1.20 to draw again). Two engine findings
+  came with it: `gnode lock --same` took one node, so a refactor needed a call per node; and a
+  take after an accepted one was still expanded, so a template reading a mark only a
+  rejection makes stopped the run. Its four examples stay pinned as records of the v1 build.
 - **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
   pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
   USD 5.6), about double if a cohort fails.

@@ -27,7 +27,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
-    generate_parser = commands.add_parser("generate")
+    generate_parser = commands.add_parser(
+        "generate",
+        help="name the gnode command that builds a game package's assets",
+    )
     generate_parser.add_argument(
         "--input",
         required=True,
@@ -35,56 +38,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="prepared game directory or ZIP",
     )
     generate_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="execute deterministic fake operations without provider access",
-    )
-    generate_parser.add_argument(
-        "--output",
-        dest="output_path",
-        help="new immutable execution output directory",
-    )
-    generate_parser.add_argument(
-        "--cache-dir",
-        dest="cache_dir",
-        help="content-and-lineage validated execution cache directory",
-    )
-    generate_parser.add_argument(
-        "--checkpoint",
-        choices=("world", "content", "soundtrack", "world-review", "content-review", "integration"),
-        help=(
-            "execute one explicitly bounded live checkpoint; the review checkpoints run the "
-            "semantic reviews over a world or content closure the cache already holds"
-        ),
-    )
-    generate_parser.add_argument(
-        "--replace-output",
-        action="store_true",
-        help=(
-            "permit integration to destroy an existing output directory whose content differs; "
-            "republishing identical content never needs this"
-        ),
-    )
-    generate_parser.add_argument(
-        "--artifact-root",
-        action="append",
-        default=[],
-        dest="artifact_roots",
-        help=(
-            "an accepted run root integration may read after the cache; repeat in priority "
-            "order. The cache is the authority: a root supplies what it lacks, never overrides"
-        ),
-    )
-    generate_parser.add_argument("--invocation-id")
-    generate_parser.add_argument(
-        "--failure-node",
-        help="inject one deterministic node failure during a dry run",
-    )
-    generate_parser.add_argument(
         "--genre",
         help=(
-            "which declared genre member to generate; optional when the package "
-            "declares exactly one"
+            "which declared genre member to build; optional when the package declares exactly one"
         ),
     )
 

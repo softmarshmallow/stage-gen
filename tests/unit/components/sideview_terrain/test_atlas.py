@@ -10,14 +10,14 @@ from typing import cast
 import pytest
 from PIL import Image, ImageDraw
 
+from bellweather_pipeline.assets import (
+    canonicalize_map_presentation,
+    validate_map_presentation_source,
+)
 from bellweather_pipeline.climbable_atlas import (
     ClimbableRole,
     nominal_cell_box,
     plan_climbable_atlas,
-)
-from bellweather_pipeline.prepared_world import (
-    _canonicalize_map_presentation,
-    _validate_map_presentation_source,
 )
 from demo_game_tools.kits.sideview_terrain.atlas import (
     CANONICAL_CELL_PX,
@@ -329,8 +329,8 @@ def test_source_refuses_a_wrong_canvas_flat_material_and_cell_to_cell_tone_drift
 
 def test_portal_presentation_is_repacked_from_native_alpha() -> None:
     source = _presentation_source("portal")
-    facts = _validate_map_presentation_source(source, asset="portal", expected_size=(1536, 1024))
-    canonical, report = _canonicalize_map_presentation(source, asset="portal")
+    facts = validate_map_presentation_source(source, asset="portal", expected_size=(1536, 1024))
+    canonical, report = canonicalize_map_presentation(source, asset="portal")
 
     assert facts["required_subject_count"] == 2
     assert report["selected_component_count"] == 2
@@ -351,10 +351,10 @@ def test_climbable_atlas_is_repacked_one_cell_per_declared_variant(
     roles: tuple[ClimbableRole, ...],
 ) -> None:
     source, size = _climbable_source(roles)
-    facts = _validate_map_presentation_source(
+    facts = validate_map_presentation_source(
         source, asset="climbable", expected_size=size, roles=roles
     )
-    canonical, report = _canonicalize_map_presentation(source, asset="climbable", roles=roles)
+    canonical, report = canonicalize_map_presentation(source, asset="climbable", roles=roles)
 
     assert facts["required_subject_count"] == len(roles)
     assert facts["index_order"] == "left_to_right"
@@ -371,7 +371,7 @@ def test_climbable_rejects_a_column_whose_silhouette_is_not_its_declared_role() 
     source, size = _climbable_source(("ladder", "ladder"))
 
     with pytest.raises(ValueError, match="does not hold a rope silhouette"):
-        _validate_map_presentation_source(
+        validate_map_presentation_source(
             source, asset="climbable", expected_size=size, roles=("ladder", "rope")
         )
 
@@ -383,7 +383,7 @@ def test_climbable_rejects_a_sheet_carrying_more_subjects_than_declared() -> Non
     two = plan_climbable_atlas(2)
 
     with pytest.raises(ValueError):
-        _validate_map_presentation_source(
+        validate_map_presentation_source(
             source,
             asset="climbable",
             expected_size=(two.width_px, two.height_px),

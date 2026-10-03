@@ -53,7 +53,6 @@ def test_models_routes_is_credential_network_and_adapter_free(
         "dialogue_scene",
         "oblique_survival",
         "pointclick_room",
-        "sideview_platformer",
     }
 
 
@@ -73,7 +72,7 @@ def test_models_diff_reads_a_local_base_and_honors_recipe_filter(tmp_path: Path)
                 "--base",
                 str(base),
                 "--recipe",
-                "sideview_platformer",
+                "pointclick_room",
             ],
             stdout=output,
         )
@@ -82,7 +81,7 @@ def test_models_diff_reads_a_local_base_and_honors_recipe_filter(tmp_path: Path)
 
     report = json.loads(output.getvalue())
     assert report["kind"] == "stage-gen-model-policy-diff-v1"
-    assert report["recipe_filter"] == "sideview_platformer"
+    assert report["recipe_filter"] == "pointclick_room"
     assert report["route_deltas"] == []
     assert report["policy_deltas"] == []
     assert report["recipe_deltas"] == []
@@ -113,7 +112,7 @@ def test_models_diff_projects_provider_policy_through_canonical_graphs_offline(
                 "--image-provider",
                 "fal",
                 "--recipe",
-                "sideview_platformer",
+                "pointclick_room",
             ],
             stdout=output,
         )
@@ -122,7 +121,7 @@ def test_models_diff_projects_provider_policy_through_canonical_graphs_offline(
 
     report = json.loads(output.getvalue())
     [delta] = report["recipe_deltas"]
-    assert delta["recipe_id"] == "sideview_platformer"
+    assert delta["recipe_id"] == "pointclick_room"
     assert delta["direct_nodes"]
     assert delta["downstream_cache_rekeys"]
     assert report["consumer_source_changes"]["catalog_or_policy_only"] is True

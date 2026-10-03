@@ -299,7 +299,7 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
     for required in (
         "demo-games package validate",
         "demo-games package digest",
-        "demo-games package plan",
+        "gnode plan pipeline/workflow.py:build",
         "godot/games/bellweather/inputs/default",
         "godot/games/iron_petal_unit/inputs",
         _current("game-contract"),

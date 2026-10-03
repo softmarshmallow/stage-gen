@@ -1,0 +1,15 @@
+# Bellweather's asset build. The builder (pipeline/workflow.py) reads the game's own package
+# with the game's reader and writes one step per asset; the node modules under pipeline/nodes/
+# import the game's pipeline package, the shared game tools and Stage Gen, so those count as
+# their source: gnode.lock notices when they change under a version.
+gnode: project/v1
+runs: ../../../out/runs
+cache: ../../../out/gnode-cache
+nodes: pipeline/nodes
+sources: [bellweather_pipeline, demo_game_tools, stage_gen]
+routes:
+  # Cut-out art needs native alpha and seam repaints need a mask: the direct route has both.
+  image.generate: gpt-image-2.5-sunburst@openai
+  image.edit: gpt-image-2.5-sunburst@openai
+  structured.generate: openai/gpt-5.6-sol@openrouter
+  music.generate: google/lyria-3-pro-preview@openrouter

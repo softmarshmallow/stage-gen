@@ -37,17 +37,6 @@ def _build_run_view_for(run_dir: Path) -> RunView:
 
         return build_pointclick_room_view(run_dir)
     if (
-        declared == "sideview-platformer-execution-graph-v2"
-        or declared == "sideview-platformer-execution-graph-v1"
-    ):
-        from bellweather_pipeline.execution_view import build_execution_view
-        from bellweather_pipeline.view_annotations import annotate_sideview_platformer_artifact
-
-        return build_execution_view(
-            run_dir,
-            annotators={"sideview-platformer": annotate_sideview_platformer_artifact},
-        )
-    if (
         declared == "oblique-survival-execution-graph-v2"
         or declared == "oblique-survival-execution-graph-v1"
     ):

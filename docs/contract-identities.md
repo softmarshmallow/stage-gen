@@ -106,10 +106,9 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `dialogue-scene-execution-graph-v6` | `graph` | `the_grain_pipeline.dialogue_scene.scene_graph:DIALOGUE_GRAPH_KIND` |
 | `oblique-survival-execution-graph-v2` | `graph` | `ember_hollow_pipeline.survival_graph:OBLIQUE_SURVIVAL_GRAPH_KIND` |
 | `pointclick-room-execution-graph-v2` | `graph` | `the_grain_pipeline.pointclick_room.room_graph:POINTCLICK_GRAPH_KIND` |
-| `sideview-platformer-execution-graph-v2` | `graph` | `bellweather_pipeline.execution_graph:EXECUTION_GRAPH_KIND` |
 | `oblique-survival-manifest-v3` | `manifest` | `ember_hollow_pipeline.manifest:MANIFEST_KIND` |
 | `pointclick-room-runtime-v3` | `manifest` | `the_grain_pipeline.pointclick_room.room_types:MANIFEST_KIND` |
-| `prepared-game-runtime-v12` | `manifest` | `bellweather_pipeline.package_types:PREPARED_RUNTIME_MANIFEST_KIND` |
+| `prepared-game-runtime-v12` | `manifest` | `bellweather_pipeline.prepared_manifest:PREPARED_RUNTIME_MANIFEST_KIND` |
 | `sideview-runner-runtime-v13` | `manifest` | `iron_petal_unit_pipeline.manifest:MANIFEST_KIND` |
 | `auto_run_x_v1` | `mode` | `iron_petal_unit_pipeline.track.models:RunnerCamera.mode` |
 | `climbable-atlas-v1` | `mode` | `bellweather_pipeline.maps.prepared:PreparedMapClimbable.mode` |
@@ -120,8 +119,6 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `dialogue-scene-nodes-v2` | `namespace` | `the_grain_pipeline.dialogue_scene.scene_graph:DIALOGUE_CACHE_NAMESPACE` |
 | `oblique-survival-nodes-v1` | `namespace` | `ember_hollow_pipeline.survival_graph:OBLIQUE_SURVIVAL_CACHE_NAMESPACE` |
 | `pointclick-room-nodes-v1` | `namespace` | `the_grain_pipeline.pointclick_room.room_graph:POINTCLICK_CACHE_NAMESPACE` |
-| `sideview-platformer-content-v1` | `namespace` | `bellweather_pipeline.package_graph:CONTENT_CACHE_NAMESPACE` |
-| `sideview-platformer-world-v1` | `namespace` | `bellweather_pipeline.package_graph:WORLD_CACHE_NAMESPACE` |
 | `generated_clip_v1` | `realization` | `stage_gen.components.sound_effect.models:GENERATED_CLIP_REALIZATION_KIND` |
 | `oscillator_sweep_v1` | `realization` | `iron_petal_unit_pipeline.audio.models:OscillatorSweepRealization.kind` |
 | `spoken_line_v1` | `realization` | `stage_gen.components.speech.models:SPOKEN_LINE_REALIZATION_KIND` |
@@ -138,7 +135,6 @@ retired while their owning reader explicitly declares this compatibility.
 | `dialogue-scene-execution-graph-v5` | `5` | `the_grain_pipeline.dialogue_scene.scene_graph:DialogueSceneGraph.LEGACY_GRAPH_IDENTITIES` |
 | `oblique-survival-execution-graph-v1` | `1` | `ember_hollow_pipeline.survival_graph:ObliqueSurvivalGraph.LEGACY_GRAPH_IDENTITIES` |
 | `pointclick-room-execution-graph-v1` | `1` | `the_grain_pipeline.pointclick_room.room_graph:PointClickRoomGraph.LEGACY_GRAPH_IDENTITIES` |
-| `sideview-platformer-execution-graph-v1` | `1` | `bellweather_pipeline.execution_graph:ExecutionGraph.LEGACY_GRAPH_IDENTITIES` |
 
 ## Retired identities
 
@@ -165,6 +161,9 @@ These families have no current member; the whole family is retired:
 | `prepared-game-execution-view` | renamed with the node ABI |
 | `sideview-runner-execution-graph` | the runner builds through gnode; its plan is a `gnode-graph` |
 | `sideview-runner-nodes` | retired with the runner's execution graph; gnode keeps one cache |
+| `sideview-platformer-execution-graph` | the platformer builds through gnode; its plan is a `gnode-graph` |
+| `sideview-platformer-world` | retired with the platformer's execution graph |
+| `sideview-platformer-content` | retired with the platformer's execution graph |
 
 And these strings, which are not version-shaped:
 

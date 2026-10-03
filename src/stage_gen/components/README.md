@@ -11,7 +11,7 @@ and it does not need a game package or a particular runtime.
 | Component | Public surface | Output or responsibility |
 |---|---|---|
 | Repeating images | `image_repeat.ImageRepeatService` | Explicit repeat admission or repair, with validation and lineage |
-| Layered scenery | `sideview_layers.models.LayerRequest`, `sideview_layers.nodes` | Layer generation, repeat construction, and placement |
+| Layered scenery | `sideview_layers.models.LayerRequest`, `sideview_layers.publish` | Repeat construction, the painted layer's gate, trimming and placement |
 | Supplied-layer parallax | `sideview_layers.parallax`, `workflows.looping_parallax` | Repeating PNGs, portable composition metadata, and a scrolling preview |
 | Fixed portrait motion | `portrait_motion` | Local eye/mouth patches, registration, review, and diagnostic playback |
 | Rigged characters | `character_3d` | Profiles, partitions, quality bars, studios and the Blender worker |

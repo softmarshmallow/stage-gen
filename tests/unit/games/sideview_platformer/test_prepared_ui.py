@@ -5,7 +5,7 @@ import io
 import pytest
 from PIL import Image, ImageDraw
 
-from demo_game_tools.kits.ui_art.inventory_nodes import (
+from demo_game_tools.kits.ui_art.inventory_panel import (
     canonicalize_inventory_panel_image,
     validate_inventory_panel_image,
 )

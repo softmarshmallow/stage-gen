@@ -20,12 +20,10 @@ import tomllib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, get_args
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from bellweather_pipeline.execution_graph import ExecutionGraph
-from bellweather_pipeline.package_types import platformer_type_index
 from gnode import atomic_write_bytes
 from stage_gen.examples import (
     ENTRY_FILE,
@@ -139,15 +137,11 @@ def page_of(example_id: str, game_root: Path = GAME_ROOT) -> Path:
     return game_root / PAGES_DIR / example_id / PAGE_FILE
 
 
-def graph_kinds() -> frozenset[str]:
-    """Every graph kind Bellweather's execution document still reads."""
-    return frozenset(get_args(ExecutionGraph.model_fields["kind"].annotation))
-
-
 def currency_of(example: WorkflowExample) -> Currency:
-    """``current`` when every node ran as a type the game declares today, in a graph kind it
-    still reads; otherwise the example was made with an earlier version."""
-    return currency(example, platformer_type_index(), graph_kinds())
+    """Every example here is a record of the build before gnode: its nodes ran as types the
+    game no longer declares, in a graph kind it no longer writes. None is current until one
+    is imported from a run of the gnode build."""
+    return currency(example, (), ())
 
 
 def problems_of(declaration: ExampleDeclaration, example: WorkflowExample) -> list[str]:
@@ -307,7 +301,6 @@ __all__ = [
     "currency_of",
     "entry_of",
     "export",
-    "graph_kinds",
     "ledger_differences",
     "page_of",
     "problems_of",

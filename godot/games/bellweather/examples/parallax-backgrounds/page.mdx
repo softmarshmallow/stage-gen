@@ -21,27 +21,22 @@ are measured against the layer's own columns, and the layer is trimmed and place
 
 Make the scrolling backgrounds for a side-view platformer map from <Ref input="reference">this picture</Ref>, with Stage Gen's map layers described in `godot/games/bellweather/docs/map-generation-contract.md`. Start from a copy of the Bellweather package in `godot/games/bellweather/inputs/default`, put the picture in `references/`, and describe the map's layers far to near in its file under `maps/`, as `maps/sunpetal-crossing.toml` does, with `loop_construction = "seam_repaint"`.
 
-Do a dry run first. Then run the world checkpoint live, and show me every layer tiled across its wrap, with the path where each repaint was cut in.
+Plan it first. Then build the world part live, and show me every layer tiled across its wrap, with the path where each repaint was cut in.
 
 </Agent>
 <Shell>
 
 ```sh
-uv run --group games demo-games generate \
-  --input my-game --dry-run --output runs/world-dry
+cd godot/games/bellweather
+uv run gnode plan pipeline/workflow.py:build --arg package=inputs/my-game --arg part=world
 ```
 
 ```sh
-uv run --group games demo-games generate \
-  --input my-game --checkpoint world --output runs/world-01
+uv run gnode run pipeline/workflow.py:build --arg package=inputs/my-game --arg part=world \
+  --live --max-usd 30
 ```
 
-```sh
-uv run --group games demo-games generate \
-  --input my-game --checkpoint world-review --output runs/world-review-01
-```
-
-`my-game` is a copy of `godot/games/bellweather/inputs/default` with your picture in `references/`, named by its digest in the map's file under `maps/`. The world checkpoint also draws each map's ground tiles, portal and ladders; the review is paid for separately, in its own checkpoint.
+`inputs/my-game` is a copy of `inputs/default` in the game's folder with your picture in `references/`, named by its digest in the map's file under `maps/`. The world part also draws each map's ground tiles, portal and ladders, and its review of each map; `--arg reviews=no` leaves the reviews out.
 
 </Shell>
 </Try>

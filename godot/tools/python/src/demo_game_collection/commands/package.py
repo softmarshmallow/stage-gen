@@ -7,20 +7,12 @@ import json
 from pathlib import Path
 from typing import TextIO
 
-from bellweather_pipeline.package_graph import (
-    CONTENT_CACHE_NAMESPACE,
-    WORLD_CACHE_NAMESPACE,
-)
-from demo_game_collection.executors import RUNNER_BUILD, PreparedPackageExecutor
+from demo_game_collection.executors import gnode_build
 from demo_game_collection.game_package import resolve_prepared_package
 from demo_game_tools.application import resolve_genre
 from stage_gen.application import (
     UsageError as CliUsageError,
 )
-from stage_gen.config import (
-    load_config,
-)
-from stage_gen.pipeline.cache_report import cache_report
 
 
 def dispatch(args: argparse.Namespace, *, stdout: TextIO) -> int:
@@ -30,23 +22,7 @@ def dispatch(args: argparse.Namespace, *, stdout: TextIO) -> int:
     elif args.package_command == "plan":
         declared_genres = [entry.genre for entry in resolved_package.game.genres]
         genre = resolve_genre(declared_genres, getattr(args, "genre", None))
-        if genre == "runner":
-            raise CliUsageError(RUNNER_BUILD)
-        if genre != "platformer":
-            raise CliUsageError(f"no recipe is registered for genre {genre!r}")
-        plan = PreparedPackageExecutor(load_config()).plan(Path(args.input_path))
-        plan_report = {
-            "genre": genre,
-            "graph": plan.graph.model_dump(mode="json"),
-            "projection": plan.projection.model_dump(mode="json"),
-        }
-        if args.cache_dir:
-            plan_report["cache"] = cache_report(
-                plan.graph,
-                Path(args.cache_dir),
-                (WORLD_CACHE_NAMESPACE, CONTENT_CACHE_NAMESPACE),
-            )
-        stdout.write(f"{json.dumps(plan_report, sort_keys=True, separators=(',', ':'))}\n")
+        raise CliUsageError(gnode_build(genre) or f"no recipe is registered for genre {genre!r}")
     else:
         package_report = {"valid": True, **resolved_package.identity()}
         stdout.write(f"{json.dumps(package_report, sort_keys=True, separators=(',', ':'))}\n")

@@ -267,7 +267,7 @@ Validate the canonical package with:
 ```sh
 uv run --group games demo-games package validate --input godot/games/bellweather/inputs/default
 uv run --group games demo-games package digest --input godot/games/bellweather/inputs/default
-uv run --group games demo-games package plan --input godot/games/bellweather/inputs/default
+(cd godot/games/bellweather && uv run gnode plan pipeline/workflow.py:build --arg package=inputs/default)
 ```
 
 The executable authority is

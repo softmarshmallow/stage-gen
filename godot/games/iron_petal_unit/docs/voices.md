@@ -239,7 +239,7 @@ the catalog.
 
 ```sh
 uv run --group games demo-games package validate --input godot/games/iron_petal_unit/inputs
-uv run --group games demo-games package plan --input godot/games/iron_petal_unit/inputs
+(cd godot/games/iron_petal_unit && uv run gnode plan pipeline/workflow.py:build --arg package=inputs)
 ```
 
 Contract validity proves the cast resolves and the plan is sound, not the

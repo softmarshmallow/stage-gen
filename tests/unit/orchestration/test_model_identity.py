@@ -7,7 +7,6 @@ from collections.abc import Callable
 
 import pytest
 
-from bellweather_pipeline.package_graph import package_graph_profile
 from ember_hollow_pipeline.survival_graph import oblique_survival_graph_profile
 from gnode import BindingTable
 from stage_gen.config import StageGenConfig
@@ -42,7 +41,6 @@ SERVICE_FOR_OPERATION: dict[str, Callable[[RunServices], object]] = {
 }
 
 PROFILES: tuple[tuple[str, Callable[[StageGenConfig], BindingTable]], ...] = (
-    ("sideview-platformer", package_graph_profile),
     ("pointclick-room", room_graph_profile),
     ("dialogue-scene", dialogue_graph_profile),
     ("oblique-survival", oblique_survival_graph_profile),

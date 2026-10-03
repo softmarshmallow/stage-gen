@@ -538,21 +538,14 @@ uv run stage-gen capability remove-background --input ./input.png --output ./out
 Prepared-game planning is separate and provider-free:
 
 ```sh
-uv run --group games demo-games package plan --input godot/games/bellweather/inputs/default
-uv run --group games demo-games generate \
-  --input godot/games/bellweather/inputs/default \
-  --dry-run \
-  --output /tmp/bellweather-dry-run
+(cd godot/games/bellweather && uv run gnode plan pipeline/workflow.py:build --arg package=inputs/default)
 ```
 
-The runner genre is connected as one single-shot prepared-game execution. Its
-image nodes carry the same per-instance route requirements as every other
-consumer: structural ground is opaque, while alpha-bearing layers, avatar
-sheets, props, and items request transparency. The graph's sealed route snapshot
-is authoritative even when `STAGE_GEN_IMAGE_PROVIDER` replans those requirements
-from the checked-in defaults onto fal or direct OpenAI. OpenRouter still owns the
-runner's structured rebase and optional music nodes independently. The
-platformer retains its separately bounded checkpoint workflow. Compatibility
+The runner and the platformer build with gnode from their game folders. Each
+`gnode.yaml` names its routes; a painting that needs alpha declares
+`transparent_background` and a seam repaint declares `mask`, so a route that
+cannot serve one is refused while planning. OpenRouter owns the structured
+reviews, rebase readings and music. Compatibility
 background removal remains an explicit standalone capability and never silently
 replaces failed native generation.
 
@@ -563,8 +556,7 @@ bytes after the recipe's validators tightened, because a tightening inside a
 paid node could only be expressed as "redraw everything". It was retired in
 the engineering pass: a paid node's contract version now moves only when its
 request does, acceptance lives in the free validate node downstream and in
-every checkpoint's cache-admission callback, and `demo-games package plan
---cache-dir` says what a run would bill before it runs. What the tool
+every judge, and `gnode plan` says what a run would bill before it runs. What the tool
 preserved - historical bytes exactly, under a current request identity - is
 what the cache does by construction when the request has not changed.
 

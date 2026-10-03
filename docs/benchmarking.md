@@ -10,13 +10,12 @@ uv run stage-gen --help
 Use the CLI help as the source of truth for currently implemented pipeline and
 benchmark arguments. Do not document an aspirational subcommand as shipped.
 
-The offline evidence a change is expected to produce is the plan and the dry
-run, both provider-free:
+The offline evidence a change is expected to produce is the plan, provider-free, and
+the builder's own tests, which run a whole build on stand-in calls:
 
 ```sh
-uv run --group games demo-games package plan --input godot/games/bellweather/inputs/default
-uv run --group games demo-games generate --input godot/games/bellweather/inputs/default --dry-run \
-  --output out/plan-check --cache-dir .cache/plan-check
+(cd godot/games/bellweather && uv run gnode plan pipeline/workflow.py:build --arg package=inputs/default)
+uv run pytest tests/unit/games/sideview_platformer/test_workflow.py
 ```
 
 There is no separate benchmark subcommand. A suite whose only assertion was that

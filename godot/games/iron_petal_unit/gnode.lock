@@ -1,15 +1,15 @@
 # gnode.lock: the source behind each versioned node type; commit it
 nodes:
-  pipeline/nodes/actors.py#admit_concept@1: f052feac623100bd9d1af730d014c6b8b840aadb51f77a44e238891f9a2f4bb6
-  pipeline/nodes/actors.py#admit_motion@1: f052feac623100bd9d1af730d014c6b8b840aadb51f77a44e238891f9a2f4bb6
-  pipeline/nodes/actors.py#repack_motion@1: f052feac623100bd9d1af730d014c6b8b840aadb51f77a44e238891f9a2f4bb6
-  pipeline/nodes/audio.py#admit_clip@1: b1f1cbdaffd574c7b255744148bd7ac709cf44535515826a4dfbb93165263547
-  pipeline/nodes/audio.py#admit_line@1: b1f1cbdaffd574c7b255744148bd7ac709cf44535515826a4dfbb93165263547
-  pipeline/nodes/audio.py#record_clip@1: b1f1cbdaffd574c7b255744148bd7ac709cf44535515826a4dfbb93165263547
-  pipeline/nodes/audio.py#record_line@1: b1f1cbdaffd574c7b255744148bd7ac709cf44535515826a4dfbb93165263547
-  pipeline/nodes/audio.py#republish_take@1: b1f1cbdaffd574c7b255744148bd7ac709cf44535515826a4dfbb93165263547
-  pipeline/nodes/catalog.py#admit_catalog@1: ef24f223b1708b79913dd78e45d4f0b8fddf99e2cfbb9e35901bf348236a063e
-  pipeline/nodes/catalog.py#publish_catalog@1: ef24f223b1708b79913dd78e45d4f0b8fddf99e2cfbb9e35901bf348236a063e
+  pipeline/nodes/actors.py#admit_concept@1: 30275f09e83c8bdb7b0d8dfdb20ada4d10f2b415ca5d3b134c6d886e30de377e
+  pipeline/nodes/actors.py#admit_motion@1: 30275f09e83c8bdb7b0d8dfdb20ada4d10f2b415ca5d3b134c6d886e30de377e
+  pipeline/nodes/actors.py#repack_motion@1: 30275f09e83c8bdb7b0d8dfdb20ada4d10f2b415ca5d3b134c6d886e30de377e
+  pipeline/nodes/audio.py#admit_clip@1: 57f8460c547ae8ce0fcb660c802bdc8fd7e3868ab5b23708d46c03a98c91bf49
+  pipeline/nodes/audio.py#admit_line@1: 57f8460c547ae8ce0fcb660c802bdc8fd7e3868ab5b23708d46c03a98c91bf49
+  pipeline/nodes/audio.py#record_clip@1: 57f8460c547ae8ce0fcb660c802bdc8fd7e3868ab5b23708d46c03a98c91bf49
+  pipeline/nodes/audio.py#record_line@1: 57f8460c547ae8ce0fcb660c802bdc8fd7e3868ab5b23708d46c03a98c91bf49
+  pipeline/nodes/audio.py#republish_take@1: 57f8460c547ae8ce0fcb660c802bdc8fd7e3868ab5b23708d46c03a98c91bf49
+  pipeline/nodes/catalog.py#admit_catalog@1: 718cd8a2cd8b7e76cc0335f5e426ac1e877702c280f03fb8fcf159f6fd633611
+  pipeline/nodes/catalog.py#publish_catalog@1: 718cd8a2cd8b7e76cc0335f5e426ac1e877702c280f03fb8fcf159f6fd633611
   pipeline/nodes/effects.py#admit_dust@1: f2a52fc90e54707f1a4a0c1c758e3daa315185f928a73ae4b1ce26be24d68285
   pipeline/nodes/effects.py#admit_plate@1: f2a52fc90e54707f1a4a0c1c758e3daa315185f928a73ae4b1ce26be24d68285
   pipeline/nodes/effects.py#canonicalize_dust@1: f2a52fc90e54707f1a4a0c1c758e3daa315185f928a73ae4b1ce26be24d68285
@@ -17,24 +17,24 @@ nodes:
   pipeline/nodes/effects.py#draw_frame@1: f2a52fc90e54707f1a4a0c1c758e3daa315185f928a73ae4b1ce26be24d68285
   pipeline/nodes/effects.py#place_portrait@1: f2a52fc90e54707f1a4a0c1c758e3daa315185f928a73ae4b1ce26be24d68285
   pipeline/nodes/effects.py#review_schema@1: f2a52fc90e54707f1a4a0c1c758e3daa315185f928a73ae4b1ce26be24d68285
-  pipeline/nodes/ground.py#admit_atlas@1: e2a7fc95f58aee2e0183c03f020de1680c4639ae66a84f01b8f1554782ed6177
-  pipeline/nodes/ground.py#admit_structural@1: e2a7fc95f58aee2e0183c03f020de1680c4639ae66a84f01b8f1554782ed6177
-  pipeline/nodes/ground.py#assemble_atlas@1: e2a7fc95f58aee2e0183c03f020de1680c4639ae66a84f01b8f1554782ed6177
-  pipeline/nodes/ground.py#atlas_paint_target@1: e2a7fc95f58aee2e0183c03f020de1680c4639ae66a84f01b8f1554782ed6177
-  pipeline/nodes/ground.py#canonicalize_structural@1: e2a7fc95f58aee2e0183c03f020de1680c4639ae66a84f01b8f1554782ed6177
-  pipeline/nodes/ground.py#seam_bridge@1: e2a7fc95f58aee2e0183c03f020de1680c4639ae66a84f01b8f1554782ed6177
-  pipeline/nodes/ground.py#structural_guide@1: e2a7fc95f58aee2e0183c03f020de1680c4639ae66a84f01b8f1554782ed6177
-  pipeline/nodes/layers.py#admit_layer@1: ffe5b136e2893d824976a4dc0c5b15478bc59e35829bbdde375b4e013824f21f
-  pipeline/nodes/layers.py#loop_layer@1: ffe5b136e2893d824976a4dc0c5b15478bc59e35829bbdde375b4e013824f21f
-  pipeline/nodes/layers.py#publish_layer@1: ffe5b136e2893d824976a4dc0c5b15478bc59e35829bbdde375b4e013824f21f
-  pipeline/nodes/layers.py#repaint_loop_layer@1: ffe5b136e2893d824976a4dc0c5b15478bc59e35829bbdde375b4e013824f21f
+  pipeline/nodes/ground.py#admit_atlas@1: 8ade4209b526c9b98a3cf0d67c8b986aac22b135ea35e85fa844ef375f1aa55b
+  pipeline/nodes/ground.py#admit_structural@1: 8ade4209b526c9b98a3cf0d67c8b986aac22b135ea35e85fa844ef375f1aa55b
+  pipeline/nodes/ground.py#assemble_atlas@1: 8ade4209b526c9b98a3cf0d67c8b986aac22b135ea35e85fa844ef375f1aa55b
+  pipeline/nodes/ground.py#atlas_paint_target@1: 8ade4209b526c9b98a3cf0d67c8b986aac22b135ea35e85fa844ef375f1aa55b
+  pipeline/nodes/ground.py#canonicalize_structural@1: 8ade4209b526c9b98a3cf0d67c8b986aac22b135ea35e85fa844ef375f1aa55b
+  pipeline/nodes/ground.py#seam_bridge@1: 8ade4209b526c9b98a3cf0d67c8b986aac22b135ea35e85fa844ef375f1aa55b
+  pipeline/nodes/ground.py#structural_guide@1: 8ade4209b526c9b98a3cf0d67c8b986aac22b135ea35e85fa844ef375f1aa55b
+  pipeline/nodes/layers.py#admit_layer@1: 66c61af9b1309fad65b111c6e0f7d052e284af96fcc4d459b30e48c0acec9335
+  pipeline/nodes/layers.py#loop_layer@1: 66c61af9b1309fad65b111c6e0f7d052e284af96fcc4d459b30e48c0acec9335
+  pipeline/nodes/layers.py#publish_layer@1: 66c61af9b1309fad65b111c6e0f7d052e284af96fcc4d459b30e48c0acec9335
+  pipeline/nodes/layers.py#repaint_loop_layer@1: 66c61af9b1309fad65b111c6e0f7d052e284af96fcc4d459b30e48c0acec9335
   pipeline/nodes/package.py#assemble_package@1: 97a92c0605a4659cccd376b7cb3d734ba71e9942094202a3651bd608fb820037
-  pipeline/nodes/rebase.py#rebase_admit@1: c583d9ccd66e62e200eadd5a7eb532b6a090cd6d956185de75e87e4a98e5b14b
-  pipeline/nodes/rebase.py#rebase_plate@1: c583d9ccd66e62e200eadd5a7eb532b6a090cd6d956185de75e87e4a98e5b14b
-  pipeline/nodes/rebase.py#rebase_record@1: c583d9ccd66e62e200eadd5a7eb532b6a090cd6d956185de75e87e4a98e5b14b
-  pipeline/nodes/rebase.py#rebase_schema@1: c583d9ccd66e62e200eadd5a7eb532b6a090cd6d956185de75e87e4a98e5b14b
-  pipeline/nodes/rebase.py#rebase_verify_admit@1: c583d9ccd66e62e200eadd5a7eb532b6a090cd6d956185de75e87e4a98e5b14b
-  pipeline/nodes/rebase.py#rebase_verify_plate@1: c583d9ccd66e62e200eadd5a7eb532b6a090cd6d956185de75e87e4a98e5b14b
-  pipeline/nodes/rebase.py#rebase_verify_record@1: c583d9ccd66e62e200eadd5a7eb532b6a090cd6d956185de75e87e4a98e5b14b
-  pipeline/nodes/soundtrack.py#admit_track@1: a7007c629afa550ce211eed23631dd87ddb8d5ebe4fb0b6d302ecaff34873c7d
-  pipeline/nodes/soundtrack.py#record_track@1: a7007c629afa550ce211eed23631dd87ddb8d5ebe4fb0b6d302ecaff34873c7d
+  pipeline/nodes/rebase.py#rebase_admit@1: 9dc82b0ef75b92132501f7a8550fea3f941346666e92829f351d5d1feb3b5d47
+  pipeline/nodes/rebase.py#rebase_plate@1: 9dc82b0ef75b92132501f7a8550fea3f941346666e92829f351d5d1feb3b5d47
+  pipeline/nodes/rebase.py#rebase_record@1: 9dc82b0ef75b92132501f7a8550fea3f941346666e92829f351d5d1feb3b5d47
+  pipeline/nodes/rebase.py#rebase_schema@1: 9dc82b0ef75b92132501f7a8550fea3f941346666e92829f351d5d1feb3b5d47
+  pipeline/nodes/rebase.py#rebase_verify_admit@1: 9dc82b0ef75b92132501f7a8550fea3f941346666e92829f351d5d1feb3b5d47
+  pipeline/nodes/rebase.py#rebase_verify_plate@1: 9dc82b0ef75b92132501f7a8550fea3f941346666e92829f351d5d1feb3b5d47
+  pipeline/nodes/rebase.py#rebase_verify_record@1: 9dc82b0ef75b92132501f7a8550fea3f941346666e92829f351d5d1feb3b5d47
+  pipeline/nodes/soundtrack.py#admit_track@1: c9706efd507821ef50e8dd0ce676d115cfb1c90301848bb7737310dc9e02a0b4
+  pipeline/nodes/soundtrack.py#record_track@1: c9706efd507821ef50e8dd0ce676d115cfb1c90301848bb7737310dc9e02a0b4
