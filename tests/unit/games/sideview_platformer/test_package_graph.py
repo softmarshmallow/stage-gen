@@ -19,12 +19,12 @@ from bellweather_pipeline.package_graph import (
 )
 from bellweather_pipeline.package_types import platformer_type_index
 from demo_game_collection.game_package import ResolvedGamePackage, resolve_game_package
-from gnode import CapabilityError, Node, project_schedule
-from stage_gen.components.painted_terrain import (
+from demo_game_tools.kits.painted_terrain import (
     PAINTED_TERRAIN_GENERATE,
     PAINTED_TERRAIN_NODE_TYPES,
     PaintedTerrainGround,
 )
+from gnode import CapabilityError, Node, project_schedule
 from stage_gen.components.sideview_layers import contract as layer_contract
 from stage_gen.config import StageGenConfig
 from stage_gen.media import LOOP_METHODS, LoopConstruction

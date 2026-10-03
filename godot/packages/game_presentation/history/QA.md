@@ -894,7 +894,7 @@ with credentials stripped by the gate. Logs are retained under `qa/`.
 Final result: **26 of 28 steps passed in 411 seconds**, exit 1. Python tests
 reported **2,164 passed, 1 failed, 7 deselected**. The two failing steps were:
 
-- Strict mypy: `src/stage_gen/components/sideview_terrain/atlas.py:596`, a
+- Strict mypy: `godot/games/_shared/python/src/demo_game_tools/kits/sideview_terrain/atlas.py:596`, a
   tuple-to-integer comparison type error in the terrain work outside this spike.
 - Pytest: `test_planning_bellweather_reproduces_its_cache_key_golden` in
   `tests/unit/recipes/sideview_platformer/test_execution_graph_identity.py`.

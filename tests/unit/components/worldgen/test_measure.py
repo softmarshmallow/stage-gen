@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from stage_gen.components.worldgen import (
+from demo_game_tools.kits.worldgen import (
     ClusterProcess,
     ObjectSpec,
     PoissonProcess,
@@ -73,7 +73,7 @@ def test_small_counts_are_reported_never_refused() -> None:
 
 
 def test_the_bucketed_statistics_match_brute_force() -> None:
-    from stage_gen.components.worldgen import Stream
+    from demo_game_tools.kits.worldgen import Stream
 
     stream = Stream.of(5, "points")
     points = [(stream.span(-30.0, 30.0, i, 0), stream.span(-30.0, 30.0, i, 1)) for i in range(300)]

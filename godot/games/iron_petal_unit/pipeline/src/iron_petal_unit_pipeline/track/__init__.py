@@ -1,6 +1,6 @@
 """Runner track contracts and structural-ground raster canonicalization."""
 
-from stage_gen.components.painted_terrain.structural_ground import (
+from demo_game_tools.kits.painted_terrain.structural_ground import (
     STRUCTURAL_GROUND_APRON_COLUMNS,
     STRUCTURAL_GROUND_CANONICALIZER_ID,
     STRUCTURAL_GROUND_CELL_PX,

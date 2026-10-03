@@ -6,6 +6,15 @@ from typing import cast
 import pytest
 from PIL import Image
 
+from demo_game_tools.kits.ui_art.nodes import (
+    CURSOR_GRID_FAMILY,
+    ICON_GRID_FAMILY,
+    CursorSetLayout,
+    cursor_content_task,
+    cursor_review_prompt,
+    sheet_family,
+    validate_ui_sheet,
+)
 from demo_game_tools.media.ui import (
     CURSOR_ALPHA_POLICY,
     CURSOR_GLYPHS,
@@ -17,15 +26,6 @@ from demo_game_tools.media.ui import (
     cursor_role_contract,
     render_icon_template,
     validate_cursor_sheet,
-)
-from stage_gen.components.ui_art.nodes import (
-    CURSOR_GRID_FAMILY,
-    ICON_GRID_FAMILY,
-    CursorSetLayout,
-    cursor_content_task,
-    cursor_review_prompt,
-    sheet_family,
-    validate_ui_sheet,
 )
 from tests.unit._ui_atlas_fixture import cursor_sheet, ui_sheet
 

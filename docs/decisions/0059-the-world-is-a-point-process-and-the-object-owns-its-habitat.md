@@ -37,7 +37,7 @@ correct groves and pass everything on the shore.
 ## Ruling
 
 The world is a marked point process over solved fields, laid by a component
-with no vocabulary (`src/stage_gen/components/worldgen/`): regions are
+with no vocabulary (`godot/games/_shared/python/src/demo_game_tools/kits/worldgen/`): regions are
 integers, objects are ids, and everything else is a number. **The object owns
 its habitat.** A prop, the mob and each ground sheet carry a `placement`
 block (`godot/games/ember_hollow/docs/world.md`); a biome never lists a roster. The

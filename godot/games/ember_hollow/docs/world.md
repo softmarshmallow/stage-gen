@@ -6,7 +6,7 @@
 > **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
 
 > **Contract maturity: exact-current authored contracts.** Executable
-> authority: `src/stage_gen/components/worldgen/` (the generator),
+> authority: `godot/games/_shared/python/src/demo_game_tools/kits/worldgen/` (the generator),
 > `godot/games/ember_hollow/pipeline/src/ember_hollow_pipeline/layout.py` (the binding) and
 > `godot/games/ember_hollow/pipeline/src/ember_hollow_pipeline/survival_request.py` (the loader);
 > the authored files are `world.toml` and the `placement` blocks in
@@ -32,7 +32,7 @@ regions as integers, objects as id strings, and everything else as a number:
 a habitat weight, a density, a cluster's parents and size and radius, a
 spacing, an attachment, a quota, a keep-out. The recipe binds the package's
 words to those numbers and turns the answer into the layout record. Nothing
-in `src/stage_gen/components/worldgen/` names a prop, a family, a biome or a
+in `godot/games/_shared/python/src/demo_game_tools/kits/worldgen/` names a prop, a family, a biome or a
 camp, and a test scans it to keep it that way.
 
 The layout is local and free: no provider is called, and the same package

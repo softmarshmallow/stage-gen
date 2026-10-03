@@ -89,26 +89,29 @@ metadata, so installing it does not require absent demo directories.
 
 ```text
 src/stage_gen/components/
-├── actor_content/                     # Actor asset content and admission
-├── character_profile/                 # Reusable identity/profile input
+├── character_3d/                      # Character rules, studios and the Blender worker
 ├── portrait_motion/                   # Portrait prompts, schemas, validators and pixel work
 ├── movie_sprite/                      # Transparent body-loop finishing and spatial controls
-├── sideview_actor/                    # Sprite geometry, scale and locomotion assets
 ├── sideview_layers/                   # Layer processing and parallax parameters
-├── sideview_map_design/               # Constrained spatial/layout generation
-├── sideview_terrain/                  # Side-view terrain asset geometry
-├── painted_terrain/                   # Painted ground, including structural pieces
-├── worldgen/                          # Spatial generation primitives and fields
 ├── image_repeat/                      # Repeat admission and conditioned repair
-├── ui_art/                            # Requested UI artwork roles and validation
-├── screen_art/                        # Screen plates, layouts and admission
-├── effects_art/                       # Effect imagery and portable geometry
-├── music/                             # Individual generated music assets
-├── voice_profile/                     # Reusable voice definitions
 ├── sound_effect/                      # Individual sound-effect requests
 ├── speech/                            # Individual speech requests
 ├── audio_normalization/               # Explicit audio transforms
 └── video_clip/                        # Video processing with explicit frame constraints
+
+godot/games/_shared/python/src/demo_game_tools/kits/   # The games' own kits; no product import
+├── actor_content/                     # Actor asset content and admission
+├── character_profile/                 # Reusable identity/profile input
+├── sideview_actor/                    # Sprite geometry, scale and locomotion assets
+├── sideview_map_design/               # Constrained spatial/layout generation
+├── sideview_terrain/                  # Side-view terrain asset geometry
+├── painted_terrain/                   # Painted ground, including structural pieces
+├── worldgen/                          # Spatial generation primitives and fields
+├── ui_art/                            # Requested UI artwork roles and validation
+├── screen_art/                        # Screen plates, layouts and admission
+├── effects_art/                       # Effect imagery and portable geometry
+├── music/                             # Individual generated music assets
+└── voice_profile/                     # Reusable voice definitions
 ```
 
 These names describe actual component families. A component need not be fully

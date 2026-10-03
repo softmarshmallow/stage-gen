@@ -55,6 +55,28 @@ from bellweather_pipeline.terrain_design import (
     terrain_profile,
 )
 from bellweather_pipeline.validation import ResolvedGamePackage
+from demo_game_tools.kits.painted_terrain import (
+    PAINTED_TERRAIN_CANONICALIZE,
+    PAINTED_TERRAIN_COMPOSE,
+    PAINTED_TERRAIN_GENERATE,
+    PAINTED_TERRAIN_GUIDE,
+    PaintedMaterial,
+    PaintedTerrainGround,
+    PaintedTerrainHandlers,
+    PaintedTerrainHost,
+    painted_terrain_material_identity,
+)
+from demo_game_tools.kits.sideview_map_design import DesignBrief, design_chunks
+from demo_game_tools.kits.sideview_terrain.atlas import (
+    MATERIAL_ASSEMBLER_ID,
+    PAINT_CANVAS_SIZE,
+    PAINT_TARGET_ID,
+    assemble_terrain_atlas,
+    compose_canonical_terrain,
+    require_terrain_atlas_source,
+    terrain_atlas_generation_prompt,
+    terrain_atlas_paint_target,
+)
 from gnode import (
     BinaryArtifact,
     ImageGenerationRequest,
@@ -78,31 +100,9 @@ from stage_gen.components.image_repeat import (
     ImageRepeatValidationPolicy,
     validate_image_repeat,
 )
-from stage_gen.components.painted_terrain import (
-    PAINTED_TERRAIN_CANONICALIZE,
-    PAINTED_TERRAIN_COMPOSE,
-    PAINTED_TERRAIN_GENERATE,
-    PAINTED_TERRAIN_GUIDE,
-    PaintedMaterial,
-    PaintedTerrainGround,
-    PaintedTerrainHandlers,
-    PaintedTerrainHost,
-    painted_terrain_material_identity,
-)
 from stage_gen.components.sideview_layers.nodes import LayerHandlers, LayerHost
 from stage_gen.components.sideview_layers.pipeline import (
     validate_provider_image,
-)
-from stage_gen.components.sideview_map_design import DesignBrief, design_chunks
-from stage_gen.components.sideview_terrain.atlas import (
-    MATERIAL_ASSEMBLER_ID,
-    PAINT_CANVAS_SIZE,
-    PAINT_TARGET_ID,
-    assemble_terrain_atlas,
-    compose_canonical_terrain,
-    require_terrain_atlas_source,
-    terrain_atlas_generation_prompt,
-    terrain_atlas_paint_target,
 )
 from stage_gen.media import (
     AlphaComponentRepackContract,

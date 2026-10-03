@@ -6,21 +6,21 @@ import pytest
 from PIL import Image
 from pydantic import ValidationError
 
-from gnode import ImageReference
-from stage_gen.components.effects_art import EffectsArt
-from stage_gen.components.effects_art.models import DustAtlasDirection, SpriteDirection
-from stage_gen.components.music import MusicTrack, TrackGenerationIntent, music_track_prompt
-from stage_gen.components.screen_art import ImagePlate, Rect, ScreenLayout, ScreenPlateRequest
-from stage_gen.components.sideview_actor import AssetScale, ResolvedMagnitude, calibrate_subject
-from stage_gen.components.sound_effect import SoundEffectRequest
-from stage_gen.components.speech import SpeechRequest
-from stage_gen.components.ui_art import (
+from demo_game_tools.kits.effects_art import EffectsArt
+from demo_game_tools.kits.effects_art.models import DustAtlasDirection, SpriteDirection
+from demo_game_tools.kits.music import MusicTrack, TrackGenerationIntent, music_track_prompt
+from demo_game_tools.kits.screen_art import ImagePlate, Rect, ScreenLayout, ScreenPlateRequest
+from demo_game_tools.kits.sideview_actor import AssetScale, ResolvedMagnitude, calibrate_subject
+from demo_game_tools.kits.ui_art import (
     PANEL_FRAME_LAYOUT,
     AtlasRoleDirection,
     UiArt,
     UiReference,
 )
-from stage_gen.components.ui_art.nodes import document_roles
+from demo_game_tools.kits.ui_art.nodes import document_roles
+from gnode import ImageReference
+from stage_gen.components.sound_effect import SoundEffectRequest
+from stage_gen.components.speech import SpeechRequest
 from stage_gen.media.codec import encode_png
 
 

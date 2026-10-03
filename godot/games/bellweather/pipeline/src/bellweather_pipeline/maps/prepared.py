@@ -22,6 +22,12 @@ from demo_game_tools.input_formats.sideview_stage import (
     PreparedMapView,
     bottom_contiguous_surface_row,
 )
+from demo_game_tools.kits.painted_terrain import (
+    PAINTED_TERRAIN_MAX_ROWS,
+    PAINTED_TERRAIN_MIN_SEGMENT_COLUMNS,
+    PaintedTerrainGround,
+    painted_terrain_segments,
+)
 from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
@@ -32,12 +38,6 @@ from stage_gen.components._game_input import (
     normalized_text,
     parse_toml_contract,
     unique_values,
-)
-from stage_gen.components.painted_terrain import (
-    PAINTED_TERRAIN_MAX_ROWS,
-    PAINTED_TERRAIN_MIN_SEGMENT_COLUMNS,
-    PaintedTerrainGround,
-    painted_terrain_segments,
 )
 
 PREPARED_GAME_MAP_SCHEMA_VERSION = 10

@@ -6,85 +6,85 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from demo_game_tools.kits.ui_art.atlas import ATLAS_ALPHA_POLICY
+from demo_game_tools.kits.ui_art.cursors import CURSOR_ALPHA_POLICY, CURSOR_SET_LAYOUT
+from demo_game_tools.kits.ui_art.icons import ICON_ALPHA_POLICY, PREVIEW_ICONS_LAYOUT
+from demo_game_tools.kits.ui_art.models import (
+    ATLAS_ROLE_LAYOUTS as ATLAS_ROLE_LAYOUTS,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_CANVAS_HEIGHT as INVENTORY_CANVAS_HEIGHT,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_CANVAS_WIDTH as INVENTORY_CANVAS_WIDTH,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_PANEL_ALPHA_POLICY as INVENTORY_PANEL_ALPHA_POLICY,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_PANEL_HEIGHT as INVENTORY_PANEL_HEIGHT,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_PANEL_LAYOUT as INVENTORY_PANEL_LAYOUT,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_PANEL_LEFT as INVENTORY_PANEL_LEFT,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_PANEL_TOP as INVENTORY_PANEL_TOP,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_PANEL_WIDTH as INVENTORY_PANEL_WIDTH,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_SLOT_COLUMNS as INVENTORY_SLOT_COLUMNS,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_SLOT_GUTTER as INVENTORY_SLOT_GUTTER,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_SLOT_LEFT as INVENTORY_SLOT_LEFT,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_SLOT_ROWS as INVENTORY_SLOT_ROWS,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_SLOT_SIZE as INVENTORY_SLOT_SIZE,
+)
+from demo_game_tools.kits.ui_art.models import (
+    INVENTORY_SLOT_TOP as INVENTORY_SLOT_TOP,
+)
+from demo_game_tools.kits.ui_art.models import (
+    OPTIONAL_SHEET_LAYOUTS as OPTIONAL_SHEET_LAYOUTS,
+)
+from demo_game_tools.kits.ui_art.models import (
+    UI_SHEET_LAYOUTS as UI_SHEET_LAYOUTS,
+)
+from demo_game_tools.kits.ui_art.models import (
+    AtlasRoleDirection as AtlasRoleDirection,
+)
+from demo_game_tools.kits.ui_art.models import (
+    CursorSetDirection as CursorSetDirection,
+)
+from demo_game_tools.kits.ui_art.models import (
+    IconSetDirection as IconSetDirection,
+)
+from demo_game_tools.kits.ui_art.models import (
+    InventoryPanelDirection as InventoryPanelDirection,
+)
+from demo_game_tools.kits.ui_art.models import (
+    UiArtwork as UiArtwork,
+)
+from demo_game_tools.kits.ui_art.models import (
+    UiReference as UiReference,
+)
+from demo_game_tools.kits.ui_art.models import (
+    inventory_panel_layout_contract as inventory_panel_layout_contract,
+)
 from stage_gen.components._game_input import (
     PACKAGE_ID_PATTERN,
     parse_toml_contract,
     unique_values,
-)
-from stage_gen.components.ui_art.atlas import ATLAS_ALPHA_POLICY
-from stage_gen.components.ui_art.cursors import CURSOR_ALPHA_POLICY, CURSOR_SET_LAYOUT
-from stage_gen.components.ui_art.icons import ICON_ALPHA_POLICY, PREVIEW_ICONS_LAYOUT
-from stage_gen.components.ui_art.models import (
-    ATLAS_ROLE_LAYOUTS as ATLAS_ROLE_LAYOUTS,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_CANVAS_HEIGHT as INVENTORY_CANVAS_HEIGHT,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_CANVAS_WIDTH as INVENTORY_CANVAS_WIDTH,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_PANEL_ALPHA_POLICY as INVENTORY_PANEL_ALPHA_POLICY,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_PANEL_HEIGHT as INVENTORY_PANEL_HEIGHT,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_PANEL_LAYOUT as INVENTORY_PANEL_LAYOUT,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_PANEL_LEFT as INVENTORY_PANEL_LEFT,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_PANEL_TOP as INVENTORY_PANEL_TOP,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_PANEL_WIDTH as INVENTORY_PANEL_WIDTH,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_SLOT_COLUMNS as INVENTORY_SLOT_COLUMNS,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_SLOT_GUTTER as INVENTORY_SLOT_GUTTER,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_SLOT_LEFT as INVENTORY_SLOT_LEFT,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_SLOT_ROWS as INVENTORY_SLOT_ROWS,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_SLOT_SIZE as INVENTORY_SLOT_SIZE,
-)
-from stage_gen.components.ui_art.models import (
-    INVENTORY_SLOT_TOP as INVENTORY_SLOT_TOP,
-)
-from stage_gen.components.ui_art.models import (
-    OPTIONAL_SHEET_LAYOUTS as OPTIONAL_SHEET_LAYOUTS,
-)
-from stage_gen.components.ui_art.models import (
-    UI_SHEET_LAYOUTS as UI_SHEET_LAYOUTS,
-)
-from stage_gen.components.ui_art.models import (
-    AtlasRoleDirection as AtlasRoleDirection,
-)
-from stage_gen.components.ui_art.models import (
-    CursorSetDirection as CursorSetDirection,
-)
-from stage_gen.components.ui_art.models import (
-    IconSetDirection as IconSetDirection,
-)
-from stage_gen.components.ui_art.models import (
-    InventoryPanelDirection as InventoryPanelDirection,
-)
-from stage_gen.components.ui_art.models import (
-    UiArtwork as UiArtwork,
-)
-from stage_gen.components.ui_art.models import (
-    UiReference as UiReference,
-)
-from stage_gen.components.ui_art.models import (
-    inventory_panel_layout_contract as inventory_panel_layout_contract,
 )
 
 GAME_UI_SCHEMA_VERSION = 5

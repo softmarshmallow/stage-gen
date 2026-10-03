@@ -15,8 +15,8 @@ from typing import Literal
 
 from pydantic import Field, field_validator
 
+from demo_game_tools.kits.music.models import SoundtrackTrack, TrackGenerationIntent
 from gnode import PersistedContractModel
-from stage_gen.components.music.models import SoundtrackTrack, TrackGenerationIntent
 
 GAME_SOUNDTRACK_SCHEMA_VERSION = 1
 _JS_SAFE_INTEGER_MAX = 9_007_199_254_740_991

@@ -21,13 +21,13 @@ from typing import Any
 from PIL import Image
 from pydantic import Field
 
-from stage_gen.components.ui_art import (
+from demo_game_tools.kits.ui_art import (
     ATLAS_ROLES,
     ICON_ROLES,
     PREVIEW_ICON_GLYPHS,
     render_atlas_template,
 )
-from stage_gen.components.ui_art.icons import render_icon_template
+from demo_game_tools.kits.ui_art.icons import render_icon_template
 from stage_gen.examples import (
     ImportRequest,
     Media,

@@ -43,7 +43,7 @@ from bellweather_pipeline.terrain_design import (
     terrain_artifact_path,
     terrain_profile,
 )
-from stage_gen.components.sideview_map_design import (
+from demo_game_tools.kits.sideview_map_design import (
     DesignBrief,
     DesignedMap,
     PlatformerChunkMapDesign,

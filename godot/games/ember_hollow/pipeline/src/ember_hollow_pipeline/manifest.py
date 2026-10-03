@@ -30,6 +30,7 @@ from typing import Any, Final, NotRequired, Protocol, TypedDict, cast
 
 from PIL import Image
 
+from demo_game_tools.kits.ui_art.nodes import document_roles, ui_atlas_manifest_block
 from ember_hollow_pipeline.models import (
     MUSIC_CUES,
     Actor,
@@ -44,7 +45,6 @@ from ember_hollow_pipeline.shell.nodes import (
     shell_manifest_block,
     shell_typeface_ref,
 )
-from stage_gen.components.ui_art.nodes import document_roles, ui_atlas_manifest_block
 from stage_gen.pipeline.dry_run import is_placeholder
 
 SCHEMA_VERSION: Final = 1

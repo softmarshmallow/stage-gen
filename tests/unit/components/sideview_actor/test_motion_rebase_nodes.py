@@ -12,24 +12,14 @@ from typing import Any, Literal
 import pytest
 from PIL import Image
 
-from gnode import (
-    Binding,
-    BindingTable,
-    GraphBuilder,
-    ModelRef,
-    Node,
-    SoftwareIdentity,
-    StructuredGenerationRequest,
-)
-from stage_gen.components._node_kit import text_digest
-from stage_gen.components.sideview_actor.motion_geometry import MotionAtlasGeometry
-from stage_gen.components.sideview_actor.motion_rebase import (
+from demo_game_tools.kits.sideview_actor.motion_geometry import MotionAtlasGeometry
+from demo_game_tools.kits.sideview_actor.motion_rebase import (
     MOTION_REBASE_CORRECTION_SCHEMA_NAME,
     MOTION_REBASE_SCHEMA_NAME,
     MotionRebaseReading,
     StateRebaseReading,
 )
-from stage_gen.components.sideview_actor.motion_rebase_nodes import (
+from demo_game_tools.kits.sideview_actor.motion_rebase_nodes import (
     MOTION_REBASE_JUDGE,
     MOTION_REBASE_VERIFY,
     REBASE_READING_KIND,
@@ -41,6 +31,16 @@ from stage_gen.components.sideview_actor.motion_rebase_nodes import (
     add_motion_rebase_nodes,
     motion_rebase_node_types,
 )
+from gnode import (
+    Binding,
+    BindingTable,
+    GraphBuilder,
+    ModelRef,
+    Node,
+    SoftwareIdentity,
+    StructuredGenerationRequest,
+)
+from stage_gen.components._node_kit import text_digest
 from stage_gen.pipeline.graph_document import GraphDocument
 
 STATES = ("idle", "run", "hurt")

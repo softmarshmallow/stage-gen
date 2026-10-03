@@ -1,30 +1,15 @@
 """Application-owned generation components.
 
 The provider-neutral modality services live in the engine (`gnode` ring 1);
-what remains here is application vocabulary: authored-contract components,
-the image-repeat admission system, audio post-processing, and genre modules.
+what remains here is application vocabulary: the image-repeat admission system, audio
+post-processing and the asset product's own components. The games' kits live in
+``demo_game_tools.kits``.
 """
 
 from .audio_normalization import (
     AudioNormalizationRequest,
     AudioNormalizationResult,
     FfmpegAudioNormalizer,
-)
-from .character_profile import (
-    PROFILE_LIBRARY_RESOLUTION_VERSION,
-    CharacterProfile,
-    CharacterProfileBinding,
-    CharacterProfileLoadError,
-    CharacterProfileReference,
-    CharacterProfileReferenceReader,
-    CharacterProfileRights,
-    CharacterProfileRightsStatus,
-    ResolvedCharacterProfile,
-    canonical_character_profile_json,
-    character_profile_sha256,
-    load_character_profile,
-    load_character_profile_bytes,
-    resolve_character_profile_binding,
 )
 from .image_repeat import (
     DIRECT_WRAP_ADMISSION_ALGORITHM,
@@ -47,13 +32,6 @@ from .image_repeat import (
 __all__ = [
     "AudioNormalizationRequest",
     "AudioNormalizationResult",
-    "CharacterProfile",
-    "CharacterProfileBinding",
-    "CharacterProfileLoadError",
-    "CharacterProfileReference",
-    "CharacterProfileReferenceReader",
-    "CharacterProfileRights",
-    "CharacterProfileRightsStatus",
     "DIRECT_WRAP_ADMISSION_ALGORITHM",
     "ENDPOINT_CONDITIONED_REPAIR_ALGORITHM",
     "FfmpegAudioNormalizer",
@@ -69,12 +47,5 @@ __all__ = [
     "ImageRepeatService",
     "ImageRepeatValidationError",
     "IntendedLoopReviewer",
-    "PROFILE_LIBRARY_RESOLUTION_VERSION",
     "ProviderImageRepeatEdit",
-    "ResolvedCharacterProfile",
-    "canonical_character_profile_json",
-    "character_profile_sha256",
-    "load_character_profile",
-    "load_character_profile_bytes",
-    "resolve_character_profile_binding",
 ]

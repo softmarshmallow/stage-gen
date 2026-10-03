@@ -14,7 +14,7 @@ from io import BytesIO
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
-from stage_gen.components.painted_terrain import (
+from demo_game_tools.kits.painted_terrain import (
     PAINTED_TERRAIN_CELL_PX,
     PaintedTerrainSegment,
     build_painted_terrain_guide,

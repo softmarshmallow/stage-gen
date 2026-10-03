@@ -18,7 +18,7 @@ from bellweather_pipeline.maps.prepared import (
     PreparedMapClimbablePlacement,
     PreparedMapTerrain,
 )
-from stage_gen.components.sideview_map_design import (
+from demo_game_tools.kits.sideview_map_design import (
     STANDARD_TILE_ROLES,
     DesignedMap,
     GeometryProfile,

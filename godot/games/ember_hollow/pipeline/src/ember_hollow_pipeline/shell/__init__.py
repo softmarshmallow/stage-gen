@@ -8,6 +8,23 @@ a shot list — while their content is authored per package, which is the same s
 See ``docs/spec/game/shell.md``.
 """
 
+from demo_game_tools.kits.screen_art.layouts import (
+    BACKDROP_DEPTHS,
+    CUTOUT_ALPHA_POLICY,
+    LOADING_SCREEN,
+    LOADING_SCREEN_LAYOUT,
+    OPAQUE_ALPHA_POLICY,
+    OPENING_LAYOUT,
+    OPENING_SHOT,
+    SHELL_CANVAS,
+    SHELL_LAYOUTS,
+    SHOT_MOVES,
+    SHOT_TRANSITIONS,
+    TITLE_SCREEN,
+    TITLE_SCREEN_LAYOUT,
+    Rect,
+    ShellLayout,
+)
 from ember_hollow_pipeline.shell.models import (
     FIRST_SHELL_DRAW,
     FONT_SUFFIXES,
@@ -29,23 +46,6 @@ from ember_hollow_pipeline.shell.models import (
     ShotPlate,
     TitleScreen,
     load_game_shell_bytes,
-)
-from stage_gen.components.screen_art.layouts import (
-    BACKDROP_DEPTHS,
-    CUTOUT_ALPHA_POLICY,
-    LOADING_SCREEN,
-    LOADING_SCREEN_LAYOUT,
-    OPAQUE_ALPHA_POLICY,
-    OPENING_LAYOUT,
-    OPENING_SHOT,
-    SHELL_CANVAS,
-    SHELL_LAYOUTS,
-    SHOT_MOVES,
-    SHOT_TRANSITIONS,
-    TITLE_SCREEN,
-    TITLE_SCREEN_LAYOUT,
-    Rect,
-    ShellLayout,
 )
 
 __all__ = [

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from stage_gen.components.worldgen import (
+from demo_game_tools.kits.worldgen import (
     AttachedProcess,
     Bump,
     ClusterProcess,

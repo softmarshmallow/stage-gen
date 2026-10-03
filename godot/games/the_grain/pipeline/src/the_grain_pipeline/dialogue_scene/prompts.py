@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from demo_game_tools.media.soundtrack.prompt import music_track_prompt
-from stage_gen.components.character_profile import (
+from demo_game_tools.kits.character_profile import (
     CharacterProfile,
     canonical_character_profile_json,
 )
+from demo_game_tools.media.soundtrack.prompt import music_track_prompt
 from the_grain_pipeline.dialogue_scene.identity import canonical_sha256
 from the_grain_pipeline.dialogue_scene.models import (
     DialogueRequest,

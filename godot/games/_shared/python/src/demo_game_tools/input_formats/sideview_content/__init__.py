@@ -1,6 +1,6 @@
 """Provider-neutral prepared game-content catalog API."""
 
-from stage_gen.components.actor_content import (
+from demo_game_tools.kits.actor_content import (
     DEFAULT_MOTION_ANCHOR,
     ContentReference,
     MotionAnchor,

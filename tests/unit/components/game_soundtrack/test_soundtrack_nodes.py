@@ -10,6 +10,16 @@ from typing import Literal
 
 import pytest
 
+from demo_game_tools.kits.music import SoundtrackTrack, TrackGenerationIntent
+from demo_game_tools.kits.music import nodes as family
+from demo_game_tools.kits.music.nodes import (
+    SOUNDTRACK_GENERATE,
+    SOUNDTRACK_VALIDATE,
+    SoundtrackHandlers,
+    SoundtrackHost,
+    add_soundtrack_nodes,
+    soundtrack_node_types,
+)
 from gnode import (
     Binding,
     BindingTable,
@@ -19,16 +29,6 @@ from gnode import (
     Port,
 )
 from stage_gen.components._node_kit import object_digest
-from stage_gen.components.music import SoundtrackTrack, TrackGenerationIntent
-from stage_gen.components.music import nodes as family
-from stage_gen.components.music.nodes import (
-    SOUNDTRACK_GENERATE,
-    SOUNDTRACK_VALIDATE,
-    SoundtrackHandlers,
-    SoundtrackHost,
-    add_soundtrack_nodes,
-    soundtrack_node_types,
-)
 from stage_gen.media.audio import AudioProbe
 from stage_gen.pipeline.graph_document import GraphDocument
 

@@ -16,13 +16,13 @@ from bellweather_pipeline.motion_contract import (
     MotionActorKind,
     motion_atlas_geometry,
 )
+from demo_game_tools.kits.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 from gnode import (
     ArtifactAnnotation,
     Node,
     RunViewGap,
     generic_artifact_annotation,
 )
-from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 
 _MOTION_KINDS = {"motion-source-v1", "motion-atlas-v1"}
 _ACTOR_KINDS: dict[str, MotionActorKind] = {"player": "player", "mob": "mob", "npc": "npc"}

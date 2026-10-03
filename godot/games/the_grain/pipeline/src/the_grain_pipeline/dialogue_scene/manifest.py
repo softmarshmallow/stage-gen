@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
 
+from demo_game_tools.kits.character_profile import CharacterProfile, character_profile_sha256
+from demo_game_tools.kits.ui_art.nodes import ui_atlas_manifest_block
 from demo_game_tools.scenario import (
     CastMember as ScenarioCastMember,
 )
@@ -25,8 +27,6 @@ from gnode import (
     resolve_relative_path_within_root,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components import CharacterProfile, character_profile_sha256
-from stage_gen.components.ui_art.nodes import ui_atlas_manifest_block
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_style import CanonicalStyleAnchor, canonical_style_anchor_digest
 from stage_gen.media import inspect_image, probe_audio

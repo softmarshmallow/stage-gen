@@ -7,7 +7,7 @@ from io import BytesIO
 import pytest
 from PIL import Image, ImageChops, ImageDraw
 
-from stage_gen.components.painted_terrain import (
+from demo_game_tools.kits.painted_terrain import (
     PAINTED_TERRAIN_CELL_PX,
     canonicalize_painted_terrain_segment,
     occupancy_window,

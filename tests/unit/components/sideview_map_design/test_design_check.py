@@ -14,7 +14,7 @@ from collections.abc import Sequence
 
 import pytest
 
-from stage_gen.components.sideview_map_design import (
+from demo_game_tools.kits.sideview_map_design import (
     PLATFORMER_MAP_DESIGN_KIND,
     PLATFORMER_MAP_DESIGN_SCHEMA_VERSION,
     Climbable,

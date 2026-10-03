@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.components.character_profile import (
+from demo_game_tools.kits.character_profile import (
     CharacterProfile,
     CharacterProfileReferenceReader,
     load_character_profile_bytes,
@@ -106,7 +106,7 @@ def test_shared_library_resolver_parses_the_same_captured_bytes_it_hashes(
         )
 
     monkeypatch.setattr(
-        "stage_gen.components.character_profile.library.load_character_profile_bytes",
+        "demo_game_tools.kits.character_profile.library.load_character_profile_bytes",
         mutate_after_capture,
     )
     resolved = resolve_character_profile_binding(binding, package_root=tmp_path)

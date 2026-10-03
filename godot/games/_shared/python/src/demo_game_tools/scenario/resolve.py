@@ -16,11 +16,11 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from scenario_authoring.compatibility.v2 import parse_scenario
-from stage_gen.components._authored_package import (
+from demo_game_tools.authored_package import (
     read_digest_bound_member,
     read_package_member,
 )
+from scenario_authoring.compatibility.v2 import parse_scenario
 from stage_gen.components._game_input import (
     parse_toml_contract,
     sha256_bytes,

@@ -85,6 +85,7 @@ GAME_TYPED_TOOLS = (
     "godot/games/bellweather/tools/render_asset_scale_figures.py",
     "godot/games/ember_hollow/tools/write_oblique_survival_cache_keys.py",
     "godot/tools/parity_diff.py",
+    "godot/tools/render_terrain_atlas_qa.py",
     "godot/tools/validate_game_package.py",
     "godot/tools/write_game_contract_identities.py",
     "godot/tools/write_game_graph_contract.py",

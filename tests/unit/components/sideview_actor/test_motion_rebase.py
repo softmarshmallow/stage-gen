@@ -5,7 +5,7 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from stage_gen.components.sideview_actor.motion_rebase import (
+from demo_game_tools.kits.sideview_actor.motion_rebase import (
     MotionRebaseError,
     MotionRebaseReading,
     StateRebaseReading,

@@ -19,6 +19,13 @@ from typing import Literal
 
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 
+from demo_game_tools.kits.actor_content import (
+    ContentReference,
+    MotionPresentation,
+    validate_motion_states,
+    validate_reference_closure,
+)
+from demo_game_tools.kits.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
@@ -29,13 +36,6 @@ from stage_gen.components._game_input import (
     sha256_bytes,
     unique_values,
 )
-from stage_gen.components.actor_content import (
-    ContentReference,
-    MotionPresentation,
-    validate_motion_states,
-    validate_reference_closure,
-)
-from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 
 RUNNER_AVATAR_SCHEMA_VERSION = 3
 

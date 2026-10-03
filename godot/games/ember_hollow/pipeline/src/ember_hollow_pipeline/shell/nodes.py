@@ -24,6 +24,21 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, cast
 
+from demo_game_tools.kits.screen_art.layouts import (
+    CUTOUT_ALPHA_POLICY,
+    LOADING_SCREEN,
+    OPAQUE_ALPHA_POLICY,
+    OPENING_CLIP,
+    OPENING_SHOT,
+    TITLE_SCREEN,
+    ShellLayout,
+)
+from demo_game_tools.kits.screen_art.plates import (
+    SHELL_PLATE_VALIDATION_VERSION,
+    canonicalize_shell_plate,
+    shell_plate_evidence,
+    validate_shell_plate,
+)
 from ember_hollow_pipeline.shell.clips import (
     SHELL_CLIP_VALIDATION_VERSION,
     match_title_verdict,
@@ -73,21 +88,6 @@ from stage_gen.components._node_kit import (
     ProviderCall,
     card_prompt,
     node_result,
-)
-from stage_gen.components.screen_art.layouts import (
-    CUTOUT_ALPHA_POLICY,
-    LOADING_SCREEN,
-    OPAQUE_ALPHA_POLICY,
-    OPENING_CLIP,
-    OPENING_SHOT,
-    TITLE_SCREEN,
-    ShellLayout,
-)
-from stage_gen.components.screen_art.plates import (
-    SHELL_PLATE_VALIDATION_VERSION,
-    canonicalize_shell_plate,
-    shell_plate_evidence,
-    validate_shell_plate,
 )
 from stage_gen.components.video_clip import (
     CLIP_REVIEW_CELL_WIDTH,

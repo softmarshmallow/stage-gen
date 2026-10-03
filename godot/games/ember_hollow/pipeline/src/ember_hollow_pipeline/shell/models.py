@@ -40,15 +40,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, field_validator, model_validator
 
-from gnode import PersistedContractModel
-from stage_gen.components._game_input import (
-    PACKAGE_ID_PATTERN,
-    SNAKE_ID_PATTERN,
-    normalized_text,
-    parse_toml_contract,
-    unique_values,
-)
-from stage_gen.components.screen_art.layouts import (
+from demo_game_tools.kits.screen_art.layouts import (
     BACKDROP_DEPTHS,
     CUTOUT_ALPHA_POLICY,
     LOADING_SCREEN_LAYOUT,
@@ -58,12 +50,20 @@ from stage_gen.components.screen_art.layouts import (
     SHOT_TRANSITIONS,
     TITLE_SCREEN_LAYOUT,
 )
-from stage_gen.components.screen_art.models import (
+from demo_game_tools.kits.screen_art.models import (
     ShellClip,
     ShellClipTake,
     ShellPlate,
     ShellReference,
     ShellTypeface,
+)
+from gnode import PersistedContractModel
+from stage_gen.components._game_input import (
+    PACKAGE_ID_PATTERN,
+    SNAKE_ID_PATTERN,
+    normalized_text,
+    parse_toml_contract,
+    unique_values,
 )
 
 GAME_SHELL_SCHEMA_VERSION = 3

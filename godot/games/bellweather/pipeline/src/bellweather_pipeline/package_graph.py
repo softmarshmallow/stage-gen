@@ -65,6 +65,31 @@ from demo_game_tools.input_formats.sideview_content import (
     ContentReference,
     MotionPresentation,
 )
+from demo_game_tools.kits.music.nodes import SoundtrackNodeTypes, add_soundtrack_nodes
+from demo_game_tools.kits.painted_terrain import (
+    PaintedTerrainGround,
+    PaintedTerrainLayout,
+    add_painted_terrain_nodes,
+    painted_terrain_node_types,
+)
+from demo_game_tools.kits.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
+from demo_game_tools.kits.sideview_actor.motion_rebase import MOTION_REBASE_SCHEMA_NAME
+from demo_game_tools.kits.sideview_actor.motion_rebase_nodes import (
+    MotionRebaseNodeTypes,
+    RebaseLayout,
+    add_motion_rebase_nodes,
+)
+from demo_game_tools.kits.sideview_terrain.atlas import (
+    MATERIAL_ASSEMBLER_ID,
+    MATERIAL_SOURCE_CONTRACT_ID,
+    PAINT_CANVAS_SIZE,
+    terrain_atlas_generation_prompt,
+)
+from demo_game_tools.kits.ui_art.inventory_nodes import (
+    InventoryNodeTypes,
+    add_inventory_panel_nodes,
+)
+from demo_game_tools.kits.ui_art.nodes import add_ui_atlas_nodes, document_roles
 from demo_game_tools.media.soundtrack.prompt import music_track_prompt
 from gnode import (
     Binding,
@@ -76,20 +101,6 @@ from gnode import (
     NodeCard,
     PortRef,
     WorkloadRequestV1,
-)
-from stage_gen.components.music.nodes import SoundtrackNodeTypes, add_soundtrack_nodes
-from stage_gen.components.painted_terrain import (
-    PaintedTerrainGround,
-    PaintedTerrainLayout,
-    add_painted_terrain_nodes,
-    painted_terrain_node_types,
-)
-from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
-from stage_gen.components.sideview_actor.motion_rebase import MOTION_REBASE_SCHEMA_NAME
-from stage_gen.components.sideview_actor.motion_rebase_nodes import (
-    MotionRebaseNodeTypes,
-    RebaseLayout,
-    add_motion_rebase_nodes,
 )
 from stage_gen.components.sideview_layers.contract import (
     LAYER_PLACEMENT_CANONICALIZER,
@@ -104,17 +115,6 @@ from stage_gen.components.sideview_layers.nodes import (
     LayerNodeTypes,
     add_layer_nodes,
 )
-from stage_gen.components.sideview_terrain.atlas import (
-    MATERIAL_ASSEMBLER_ID,
-    MATERIAL_SOURCE_CONTRACT_ID,
-    PAINT_CANVAS_SIZE,
-    terrain_atlas_generation_prompt,
-)
-from stage_gen.components.ui_art.inventory_nodes import (
-    InventoryNodeTypes,
-    add_inventory_panel_nodes,
-)
-from stage_gen.components.ui_art.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.config import StageGenConfig
 from stage_gen.model_routes import (
     configured_image_route_catalog,

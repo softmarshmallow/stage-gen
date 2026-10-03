@@ -6,7 +6,7 @@ from itertools import pairwise
 
 import pytest
 
-from stage_gen.components.painted_terrain import (
+from demo_game_tools.kits.painted_terrain import (
     PAINTED_TERRAIN_CELL_PX,
     PAINTED_TERRAIN_GUIDE_HEIGHT,
     PAINTED_TERRAIN_GUIDE_MARGIN_PX,

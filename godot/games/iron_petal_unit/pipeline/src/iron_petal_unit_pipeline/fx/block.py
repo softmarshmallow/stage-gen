@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
+from demo_game_tools.kits.effects_art.block import effects_art_manifest
 from iron_petal_unit_pipeline.fx.models import (
     GameFx,
 )
-from stage_gen.components.effects_art.block import effects_art_manifest
 
 # ---------------------------------------------------------------- manifest
 

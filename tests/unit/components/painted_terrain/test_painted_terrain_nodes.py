@@ -8,20 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
-from gnode import (
-    Binding,
-    BindingTable,
-    GraphBuilder,
-    ImageGenerationRequest,
-    ImageGenerationResult,
-    ImageReference,
-    ModelRef,
-    ProviderResponseMetadata,
-    SoftwareIdentity,
-    atomic_write_bytes,
-)
-from stage_gen.components._node_kit import text_digest
-from stage_gen.components.painted_terrain import (
+from demo_game_tools.kits.painted_terrain import (
     PAINTED_TERRAIN_COMPOSE,
     PAINTED_TERRAIN_GENERATE,
     PAINTED_TERRAIN_GROUND_VALIDATION_KIND,
@@ -39,6 +26,19 @@ from stage_gen.components.painted_terrain import (
     painted_terrain_node_types,
     painted_terrain_segments,
 )
+from gnode import (
+    Binding,
+    BindingTable,
+    GraphBuilder,
+    ImageGenerationRequest,
+    ImageGenerationResult,
+    ImageReference,
+    ModelRef,
+    ProviderResponseMetadata,
+    SoftwareIdentity,
+    atomic_write_bytes,
+)
+from stage_gen.components._node_kit import text_digest
 from stage_gen.media import data_url
 from stage_gen.pipeline.graph_document import GraphDocument
 

@@ -19,6 +19,14 @@ from typing import Any, Final, Literal, Protocol, cast
 
 from PIL import Image
 
+from demo_game_tools.kits.sideview_actor import motion_rebase
+from demo_game_tools.kits.ui_art.nodes import (
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
+    UiAtlasHandlers,
+    UiAtlasHost,
+)
 from ember_hollow_pipeline import gates, templates
 from ember_hollow_pipeline import layout as layout_module
 from ember_hollow_pipeline import manifest as manifest_module
@@ -177,15 +185,7 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.canonical import content_sha256
-from stage_gen.components.sideview_actor import motion_rebase
 from stage_gen.components.sound_effect import admit_sound_effect_bytes_sync
-from stage_gen.components.ui_art.nodes import (
-    UI_ATLAS_GENERATE,
-    UI_ATLAS_REVIEW,
-    UI_ATLAS_VALIDATE,
-    UiAtlasHandlers,
-    UiAtlasHost,
-)
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.media import measure_level_and_duration_sync, validate_music_payload
 from stage_gen.media.comparison_plate import BandedComparisonPlate
@@ -2330,7 +2330,7 @@ class ObliqueSurvivalNodeHandler(CachedNodeHandler):
         return self._result(node)
 
     async def _dust_generate(self, node: Node) -> NodeExecutionResult:
-        from stage_gen.components.effects_art.sprite import validate_dust_atlas
+        from demo_game_tools.kits.effects_art.sprite import validate_dust_atlas
 
         def validate(artifact: BinaryArtifact) -> dict[str, object]:
             return dict(validate_dust_atlas(artifact.data))
@@ -2345,7 +2345,7 @@ class ObliqueSurvivalNodeHandler(CachedNodeHandler):
         )
 
     async def _dust_validate(self, node: Node) -> NodeExecutionResult:
-        from stage_gen.components.effects_art.sprite import (
+        from demo_game_tools.kits.effects_art.sprite import (
             canonicalize_dust_atlas,
             dust_atlas_contract,
         )

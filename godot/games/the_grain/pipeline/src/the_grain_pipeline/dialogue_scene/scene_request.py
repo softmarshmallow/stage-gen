@@ -29,6 +29,13 @@ from pathlib import Path, PurePosixPath
 
 from pydantic import ValidationError
 
+from demo_game_tools.authored_package import read_digest_bound_member
+from demo_game_tools.kits.character_profile import (
+    CharacterExpression,
+    CharacterProfile,
+    CharacterProfileBinding,
+    resolve_character_profile_binding,
+)
 from demo_game_tools.media.ui import GameUi, UiReference, load_game_ui_bytes
 from demo_game_tools.scenario import (
     CastMember,
@@ -38,14 +45,7 @@ from demo_game_tools.scenario import (
     resolve_scenario,
 )
 from gnode import InputProvenance
-from stage_gen.components._authored_package import read_digest_bound_member
 from stage_gen.components._secure_fs import read_absolute_regular_file
-from stage_gen.components.character_profile import (
-    CharacterExpression,
-    CharacterProfile,
-    CharacterProfileBinding,
-    resolve_character_profile_binding,
-)
 from stage_gen.image_prompting import load_image_style_resources
 from stage_gen.media import (
     CHROMA_MATTE_VERSION,

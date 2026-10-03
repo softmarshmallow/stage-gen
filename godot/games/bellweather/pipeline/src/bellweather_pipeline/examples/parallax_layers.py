@@ -30,8 +30,8 @@ import numpy.typing as npt
 from PIL import Image, ImageDraw
 from pydantic import Field
 
+from demo_game_tools.kits.sideview_terrain.atlas import compose_canonical_terrain
 from stage_gen.components.sideview_layers.pipeline import loop_conditioning
-from stage_gen.components.sideview_terrain.atlas import compose_canonical_terrain
 from stage_gen.examples import (
     ImportRequest,
     Media,

@@ -33,8 +33,8 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `boss-content-v1` | `authored` | `iron_petal_unit_pipeline.content.models:RunnerBossCatalog.kind` |
 | `case-catalog-v1` | `authored` | `the_grain_pipeline.case.models:CaseCatalog.kind` |
 | `case-v1` | `authored` | `the_grain_pipeline.case.models:CaseDocument.kind` |
-| `character-profile-binding-v1` | `authored` | `stage_gen.components.character_profile.models:CharacterProfileBinding.kind` |
-| `character-profile-v1` | `authored` | `stage_gen.components.character_profile.models:CharacterProfile.kind` |
+| `character-profile-binding-v1` | `authored` | `demo_game_tools.kits.character_profile.models:CharacterProfileBinding.kind` |
+| `character-profile-v1` | `authored` | `demo_game_tools.kits.character_profile.models:CharacterProfile.kind` |
 | `dialogue-scene-v5` | `authored` | `the_grain_pipeline.dialogue_scene.models:DialogueSceneDocument.kind` |
 | `game-contract-v9` | `authored` | `demo_game_tools.input_formats.game_contract.package:PreparedGameContract.kind` |
 | `game-fx-v2` | `authored` | `iron_petal_unit_pipeline.fx.models:GameFx.kind` |
@@ -98,7 +98,7 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `dialogue-scene-review-v6` | `generated` | `the_grain_pipeline.dialogue_scene.models:IndependentReview.kind` |
 | `game-package-validation-v6` | `generated` | `demo_game_tools.io.package_capture:GAME_PACKAGE_VALIDATION_KIND` |
 | `map-terrain-v1` | `generated` | `bellweather_pipeline.maps.prepared:PreparedMapTerrain.kind` |
-| `platformer-chunk-map-v1` | `generated` | `stage_gen.components.sideview_map_design.design:PlatformerChunkMapDesign.kind` |
+| `platformer-chunk-map-v1` | `generated` | `demo_game_tools.kits.sideview_map_design.design:PlatformerChunkMapDesign.kind` |
 | `pointclick-solvability-v1` | `generated` | `the_grain_pipeline.pointclick_room.models:RoomSolvabilityReport.kind` |
 | `resolved-game-package-v6` | `generated` | `demo_game_tools.io.package_capture:RESOLVED_GAME_PACKAGE_KIND` |
 | `scenario-admission-v1` | `generated` | `demo_game_tools.scenario.models:ScenarioAdmissionReport.kind` |
@@ -114,7 +114,7 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `sideview-runner-runtime-v13` | `manifest` | `iron_petal_unit_pipeline.runner_types:MANIFEST_KIND` |
 | `auto_run_x_v1` | `mode` | `iron_petal_unit_pipeline.track.models:RunnerCamera.mode` |
 | `climbable-atlas-v1` | `mode` | `bellweather_pipeline.maps.prepared:PreparedMapClimbable.mode` |
-| `painted-terrain-v1` | `mode` | `stage_gen.components.painted_terrain.models:PaintedTerrainGround.mode` |
+| `painted-terrain-v1` | `mode` | `demo_game_tools.kits.painted_terrain.models:PaintedTerrainGround.mode` |
 | `portal-pair-1x2-v1` | `mode` | `bellweather_pipeline.maps.prepared:PreparedMapPortal.mode` |
 | `runner-structural-ground-v1` | `mode` | `iron_petal_unit_pipeline.track.models:RunnerStructuralGround.mode` |
 | `terrain-atlas-3x3-minimal-v1` | `mode` | `demo_game_tools.input_formats.sideview_stage.models:PreparedMapGround.mode` |

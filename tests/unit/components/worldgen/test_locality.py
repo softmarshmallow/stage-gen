@@ -14,7 +14,7 @@ from __future__ import annotations
 import math
 from dataclasses import replace
 
-from stage_gen.components.worldgen import (
+from demo_game_tools.kits.worldgen import (
     AttachedProcess,
     Placed,
     WorldPlan,

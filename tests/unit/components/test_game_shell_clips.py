@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from PIL import Image
 
+from demo_game_tools.kits.screen_art.layouts import OPENING_CLIP, OPENING_SHOT
 from ember_hollow_pipeline.shell.clips import (
     CLIP_MATCH_TITLE_MAX_DISTANCE,
     SHELL_CLIP_VALIDATION_VERSION,
@@ -12,7 +13,6 @@ from ember_hollow_pipeline.shell.clips import (
     match_title_verdict,
     shell_clip_record,
 )
-from stage_gen.components.screen_art.layouts import OPENING_CLIP, OPENING_SHOT
 from stage_gen.media.codec import encode_png
 
 

@@ -24,6 +24,11 @@ from bellweather_pipeline.prepared_content import (
     soundtrack_target_node_ids,
 )
 from demo_game_collection.resources import bundled_music_path
+from demo_game_tools.kits.sideview_actor.motion_geometry import (
+    dialogue_atlas_grid,
+    runtime_mirrors_source,
+)
+from demo_game_tools.kits.ui_art.nodes import UI_SHEET_ROLES
 from demo_game_tools.media.ui import (
     INVENTORY_PANEL_HEIGHT,
     INVENTORY_PANEL_LEFT,
@@ -37,11 +42,6 @@ from gnode import (
     Scheduler,
     StructuredGenerationRequest,
 )
-from stage_gen.components.sideview_actor.motion_geometry import (
-    dialogue_atlas_grid,
-    runtime_mirrors_source,
-)
-from stage_gen.components.ui_art.nodes import UI_SHEET_ROLES
 from stage_gen.config import StageGenConfig
 from tests.unit._ui_atlas_fixture import ui_sheet
 

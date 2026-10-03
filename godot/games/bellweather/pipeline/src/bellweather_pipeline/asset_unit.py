@@ -1,7 +1,7 @@
 """The platformer's rank ladder over the shared asset-unit contract.
 
 Measurement, calibration, and admission are camera-scoped and live in
-`stage_gen.components.sideview_actor.asset_unit`. What stays here is the RPG
+`demo_game_tools.kits.sideview_actor.asset_unit`. What stays here is the RPG
 vocabulary: a mob's magnitude resolved from its declared rank, and the ladder
 admission that keeps silhouette height carrying threat.
 """

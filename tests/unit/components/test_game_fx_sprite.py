@@ -7,7 +7,7 @@ import io
 import pytest
 from PIL import Image, ImageDraw
 
-from stage_gen.components.effects_art.sprite import (
+from demo_game_tools.kits.effects_art.sprite import (
     DUST_CELL_FILL_MIN,
     DUST_CELL_KINDS,
     DUST_CELL_MIN_SIDE,

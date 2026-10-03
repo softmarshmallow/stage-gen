@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from stage_gen.components.worldgen import (
+from demo_game_tools.kits.worldgen import (
     AvoidRule,
     Candidate,
     ObjectSpec,
@@ -24,7 +24,7 @@ from stage_gen.components.worldgen import (
     placement_order,
     plan_world,
 )
-from stage_gen.components.worldgen.spec import AttachedProcess
+from demo_game_tools.kits.worldgen.spec import AttachedProcess
 
 from ._world import EVERYWHERE, SEED, SIZE, fresh_fields, spec
 

@@ -35,7 +35,7 @@ have one authority: the validated model, not two synchronized source files.
 The programmatic API is:
 
 ```python
-from stage_gen.components.character_profile import (
+from demo_game_tools.kits.character_profile import (
     canonical_character_profile_json,
     character_profile_sha256,
     load_character_profile,

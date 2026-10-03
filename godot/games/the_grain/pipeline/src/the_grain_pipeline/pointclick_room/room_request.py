@@ -14,9 +14,9 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from demo_game_tools.authored_package import read_digest_bound_member
 from demo_game_tools.media.ui import GameUi, UiReference, load_game_ui_bytes
 from stage_gen.canonical import canonical_json_bytes, canonical_sha256
-from stage_gen.components._authored_package import read_digest_bound_member
 from stage_gen.image_prompting import load_image_style_resources
 from the_grain_pipeline.pointclick_room.models import (
     PointClickRoom,

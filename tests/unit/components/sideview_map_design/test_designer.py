@@ -7,17 +7,17 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import ClassVar, Literal
 
+from demo_game_tools.kits.sideview_map_design import (
+    MAX_QUOTED_PROBLEMS,
+    DesignBrief,
+    design_chunks,
+)
 from gnode import (
     ProviderResponseMetadata,
     ProviderStructuredOutput,
     RetryPolicy,
     StructuredGenerationRequest,
     StructuredGenerationService,
-)
-from stage_gen.components.sideview_map_design import (
-    MAX_QUOTED_PROBLEMS,
-    DesignBrief,
-    design_chunks,
 )
 from stage_gen.identity import STAGE_GEN_TOOL, STRUCTURED_GENERATION_COMPONENT
 

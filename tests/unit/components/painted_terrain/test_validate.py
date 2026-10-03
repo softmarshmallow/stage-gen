@@ -13,7 +13,7 @@ from io import BytesIO
 import pytest
 from PIL import Image, ImageDraw
 
-from stage_gen.components.painted_terrain import (
+from demo_game_tools.kits.painted_terrain import (
     PAINTED_TERRAIN_CELL_PX,
     painted_terrain_join_discontinuity,
     validate_painted_terrain_source,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from stage_gen.components.worldgen import (
+from demo_game_tools.kits.worldgen import (
     Clearing,
     GridSpec,
     HabitatSpec,

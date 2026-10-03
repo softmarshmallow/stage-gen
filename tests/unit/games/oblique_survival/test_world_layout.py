@@ -25,19 +25,19 @@ from typing import Any, Final, cast
 import pytest
 from PIL import Image
 
+from demo_game_tools.kits.worldgen import PointIndex, plate_cells
 from ember_hollow_pipeline import layout as layout_module
 from ember_hollow_pipeline.layout import Layout
 from ember_hollow_pipeline.manifest import manifest_bytes
 from ember_hollow_pipeline.models import ClusterRule, Package, SourceError
 from ember_hollow_pipeline.survival_request import load_package
-from stage_gen.components.worldgen import PointIndex, plate_cells
 
 PACKAGE: Final = Path("godot/games/ember_hollow/inputs")
 #: The card count the world is authored to, and the tolerance a density edit
 #: may drift it by before the host sees a different game.
 ENTITY_BUDGET: Final = 2471
 BUDGET_TOLERANCE: Final = 0.10
-COMPONENT: Final = Path("src/stage_gen/components/worldgen")
+COMPONENT: Final = Path("godot/games/_shared/python/src/demo_game_tools/kits/worldgen")
 
 
 def _record(world: Layout) -> dict[str, Any]:

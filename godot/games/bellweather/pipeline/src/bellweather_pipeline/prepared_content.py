@@ -63,6 +63,36 @@ from demo_game_tools.input_formats.sideview_content import (
     PropContent,
     projectile_silhouette_art,
 )
+from demo_game_tools.kits.music.nodes import SoundtrackHandlers, SoundtrackHost
+from demo_game_tools.kits.sideview_actor.motion_geometry import (
+    MOTION_ATLAS_HEIGHT,
+    MOTION_ATLAS_WIDTH,
+    MotionAtlasGeometry,
+    dialogue_atlas_grid,
+    runtime_mirrors_source,
+)
+from demo_game_tools.kits.sideview_actor.motion_rebase import (
+    BASELINE_STATE,
+)
+from demo_game_tools.kits.sideview_actor.motion_rebase_nodes import (
+    MotionRebaseHandlers,
+    MotionRebaseHost,
+    RebaseSubject,
+)
+from demo_game_tools.kits.ui_art.inventory_nodes import (
+    InventoryPanelHandlers,
+    InventoryPanelHost,
+    validate_inventory_panel_image,
+)
+from demo_game_tools.kits.ui_art.nodes import (
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
+    UiAtlasHandlers,
+    UiAtlasHost,
+    document_roles,
+    validate_ui_sheet,
+)
 from demo_game_tools.media.ui import (
     AtlasRole,
     UiReference,
@@ -86,36 +116,6 @@ from gnode import (
     atomic_write_json,
     dependency_port,
     write_artifact_with_provenance_async,
-)
-from stage_gen.components.music.nodes import SoundtrackHandlers, SoundtrackHost
-from stage_gen.components.sideview_actor.motion_geometry import (
-    MOTION_ATLAS_HEIGHT,
-    MOTION_ATLAS_WIDTH,
-    MotionAtlasGeometry,
-    dialogue_atlas_grid,
-    runtime_mirrors_source,
-)
-from stage_gen.components.sideview_actor.motion_rebase import (
-    BASELINE_STATE,
-)
-from stage_gen.components.sideview_actor.motion_rebase_nodes import (
-    MotionRebaseHandlers,
-    MotionRebaseHost,
-    RebaseSubject,
-)
-from stage_gen.components.ui_art.inventory_nodes import (
-    InventoryPanelHandlers,
-    InventoryPanelHost,
-    validate_inventory_panel_image,
-)
-from stage_gen.components.ui_art.nodes import (
-    UI_ATLAS_GENERATE,
-    UI_ATLAS_REVIEW,
-    UI_ATLAS_VALIDATE,
-    UiAtlasHandlers,
-    UiAtlasHost,
-    document_roles,
-    validate_ui_sheet,
 )
 from stage_gen.media import (
     AlphaComponentRepackContract,

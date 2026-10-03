@@ -20,6 +20,13 @@ from typing import TYPE_CHECKING, Any
 
 from PIL import Image
 
+from demo_game_tools.kits.ui_art.nodes import (
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
+    UiAtlasHandlers,
+    UiAtlasHost,
+)
 from gnode import (
     ArtifactRights,
     BackgroundRemovalRequest,
@@ -39,13 +46,6 @@ from gnode import (
     atomic_write_json,
     dependency_port,
     write_artifact_with_provenance_async,
-)
-from stage_gen.components.ui_art.nodes import (
-    UI_ATLAS_GENERATE,
-    UI_ATLAS_REVIEW,
-    UI_ATLAS_VALIDATE,
-    UiAtlasHandlers,
-    UiAtlasHost,
 )
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_prompting import build_image_style_compiler_request

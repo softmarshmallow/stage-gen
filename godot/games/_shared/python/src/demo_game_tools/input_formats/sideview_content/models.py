@@ -6,6 +6,16 @@ from typing import Literal
 
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 
+from demo_game_tools.kits.actor_content import (
+    ContentReference,
+    MotionPresentation,
+)
+from demo_game_tools.kits.actor_content import (
+    validate_motion_states as _validate_motion_states,
+)
+from demo_game_tools.kits.actor_content import (
+    validate_reference_closure as _validate_reference_closure,
+)
 from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
@@ -14,16 +24,6 @@ from stage_gen.components._game_input import (
     normalized_text,
     parse_toml_contract,
     unique_values,
-)
-from stage_gen.components.actor_content import (
-    ContentReference,
-    MotionPresentation,
-)
-from stage_gen.components.actor_content import (
-    validate_motion_states as _validate_motion_states,
-)
-from stage_gen.components.actor_content import (
-    validate_reference_closure as _validate_reference_closure,
 )
 
 GAME_CONTENT_SCHEMA_VERSION = 2

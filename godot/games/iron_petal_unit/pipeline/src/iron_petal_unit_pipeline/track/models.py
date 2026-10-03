@@ -30,6 +30,11 @@ from demo_game_tools.input_formats.sideview_stage import (
     PreparedMapView,
     bottom_contiguous_surface_row,
 )
+from demo_game_tools.kits.painted_terrain.projection import (
+    DEFAULT_GROUND_PROJECTION,
+    GroundProjection,
+    GroundProjectionMode,
+)
 from gnode import PersistedContractModel
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
@@ -40,11 +45,6 @@ from stage_gen.components._game_input import (
     parse_toml_contract,
     sha256_bytes,
     unique_values,
-)
-from stage_gen.components.painted_terrain.projection import (
-    DEFAULT_GROUND_PROJECTION,
-    GroundProjection,
-    GroundProjectionMode,
 )
 
 RUNNER_TRACK_SCHEMA_VERSION = 4

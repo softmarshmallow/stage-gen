@@ -11,7 +11,7 @@
 > resolved and admitted, and how a consumer projects it onto the screen.
 >
 > It is implemented rather than proposed:
-> `src/stage_gen/components/sideview_actor/asset_unit.py` resolves, measures and
+> `godot/games/_shared/python/src/demo_game_tools/kits/sideview_actor/asset_unit.py` resolves, measures and
 > admits one package's magnitudes against the canonical player height, and both
 > side-view recipes read it. It still does not track migration work or serve as
 > a project plan. The measurements that motivate every choice here are recorded

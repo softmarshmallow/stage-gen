@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from PIL import Image, ImageDraw
 
-from stage_gen.components.painted_terrain import (
+from demo_game_tools.kits.painted_terrain import (
     PAINTED_TERRAIN_CELL_PX,
     PAINTED_TERRAIN_DILATE_PX,
     PAINTED_TERRAIN_ERODE_PX,

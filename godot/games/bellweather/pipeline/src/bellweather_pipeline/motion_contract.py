@@ -1,7 +1,7 @@
 """The platformer's motion-state vocabulary over the shared strip geometry.
 
 Strip geometry (the canvases, the cell grammar, the mirror rule) is
-camera-scoped and lives in `stage_gen.components.sideview_actor.motion_geometry`.
+camera-scoped and lives in `demo_game_tools.kits.sideview_actor.motion_geometry`.
 What stays here is genre vocabulary: which states exist, which face away from
 the camera, which select the climb canvas, and the per-state generation
 directives measured against this recipe's providers.
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from stage_gen.components.sideview_actor.motion_geometry import (
+from demo_game_tools.kits.sideview_actor.motion_geometry import (
     CANONICAL_SIDE_SOURCE_FACING,
     DEFAULT_MOTION_ATLAS_GEOMETRY,
     MOTION_ATLAS_ROWS,

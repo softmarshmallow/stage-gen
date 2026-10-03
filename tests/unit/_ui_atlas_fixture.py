@@ -12,8 +12,8 @@ import io
 
 from PIL import Image, ImageDraw
 
+from demo_game_tools.kits.ui_art.nodes import UI_SHEET_ROLES
 from demo_game_tools.media.ui import AtlasRole, CursorGridRole, IconGridRole
-from stage_gen.components.ui_art.nodes import UI_SHEET_ROLES
 
 
 def ui_sheet(role: str) -> bytes:

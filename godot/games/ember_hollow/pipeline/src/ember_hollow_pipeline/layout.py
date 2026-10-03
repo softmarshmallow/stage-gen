@@ -4,7 +4,7 @@ Local and free. Nothing here calls a provider, and the same seed must produce
 byte-identical JSON and identical plate bytes, because the layout is part of
 the run's identity and a host reload must not shuffle the world.
 
-The generator (``stage_gen.components.worldgen``) knows regions as integers
+The generator (``demo_game_tools.kits.worldgen``) knows regions as integers
 and objects as ids. This module is where the recipe's words meet it: a biome
 becomes a region index, a prop's ``placement`` block becomes an object spec,
 a ``[[set_pieces]]`` entry becomes a composition, and what comes back is
@@ -23,14 +23,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final, Protocol, TypedDict
 
-from ember_hollow_pipeline.models import (
-    Package,
-    Placement,
-    Prop,
-    SourceError,
-)
-from stage_gen.components import worldgen
-from stage_gen.components.worldgen import (
+from demo_game_tools.kits import worldgen
+from demo_game_tools.kits.worldgen import (
     AttachedProcess,
     AvoidRule,
     Bump,
@@ -56,6 +50,12 @@ from stage_gen.components.worldgen import (
     WorldSpec,
     plate_cells,
     polyline_distance,
+)
+from ember_hollow_pipeline.models import (
+    Package,
+    Placement,
+    Prop,
+    SourceError,
 )
 
 #: Metres per plate cell at the finest a plate is drawn; a plate caps at 1024

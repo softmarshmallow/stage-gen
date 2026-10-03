@@ -16,6 +16,22 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
+from demo_game_tools.kits.effects_art.nodes import (
+    TOOL_LOOP_FEATURES,
+    add_cut_in_nodes,
+    add_sprite_nodes,
+)
+from demo_game_tools.kits.music.nodes import SoundtrackNodeTypes, add_soundtrack_nodes
+from demo_game_tools.kits.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
+from demo_game_tools.kits.sideview_actor.motion_rebase import (
+    MOTION_REBASE_SCHEMA_NAME,
+)
+from demo_game_tools.kits.sideview_actor.motion_rebase_nodes import (
+    MotionRebaseNodeTypes,
+    RebaseLayout,
+    add_motion_rebase_nodes,
+)
+from demo_game_tools.kits.sideview_terrain import PAINT_CANVAS_SIZE
 from demo_game_tools.media.soundtrack.prompt import music_track_prompt
 from gnode import (
     SHA256_PATTERN,
@@ -126,27 +142,11 @@ from iron_petal_unit_pipeline.track import (
     structural_ground_occupancy_sha256,
 )
 from iron_petal_unit_pipeline.voices import GameVoice
-from stage_gen.components.effects_art.nodes import (
-    TOOL_LOOP_FEATURES,
-    add_cut_in_nodes,
-    add_sprite_nodes,
-)
-from stage_gen.components.music.nodes import SoundtrackNodeTypes, add_soundtrack_nodes
-from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
-from stage_gen.components.sideview_actor.motion_rebase import (
-    MOTION_REBASE_SCHEMA_NAME,
-)
-from stage_gen.components.sideview_actor.motion_rebase_nodes import (
-    MotionRebaseNodeTypes,
-    RebaseLayout,
-    add_motion_rebase_nodes,
-)
 from stage_gen.components.sideview_layers.nodes import (
     LayerLayout,
     LayerNodeTypes,
     add_layer_nodes,
 )
-from stage_gen.components.sideview_terrain import PAINT_CANVAS_SIZE
 from stage_gen.components.sound_effect import PinnedTake
 from stage_gen.config import StageGenConfig
 from stage_gen.model_routes import (

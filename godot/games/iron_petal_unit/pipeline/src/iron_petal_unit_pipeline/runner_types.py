@@ -9,20 +9,20 @@ judges - every other review stays an operator decision.
 
 from __future__ import annotations
 
-from gnode import NodePolicy, NodeType, ViewArchetype
-from iron_petal_unit_pipeline.fx.block import FX_MANIFEST_BLOCK_VERSION
-from stage_gen.components.effects_art.nodes import FX_CUT_IN_NODE_TYPES, FX_SPRITE_NODE_TYPES
-from stage_gen.components.music.nodes import (
+from demo_game_tools.kits.effects_art.nodes import FX_CUT_IN_NODE_TYPES, FX_SPRITE_NODE_TYPES
+from demo_game_tools.kits.music.nodes import (
     SOUNDTRACK_TRACK_KIND,
     SOUNDTRACK_VALIDATION_KIND,
     soundtrack_node_types,
 )
-from stage_gen.components.sideview_actor.motion_rebase_nodes import (
+from demo_game_tools.kits.sideview_actor.motion_rebase_nodes import (
     REBASE_PLATE_KIND,
     REBASE_READING_KIND,
     REBASE_VERIFICATION_KIND,
     motion_rebase_node_types,
 )
+from gnode import NodePolicy, NodeType, ViewArchetype
+from iron_petal_unit_pipeline.fx.block import FX_MANIFEST_BLOCK_VERSION
 from stage_gen.components.sideview_layers.nodes import (
     LAYER_LOOP_EDIT_KIND,
     LAYER_LOOP_KIND,

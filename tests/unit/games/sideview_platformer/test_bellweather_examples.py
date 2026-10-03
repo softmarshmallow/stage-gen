@@ -40,8 +40,8 @@ from bellweather_pipeline.examples.parallax_layers import GAME_SCRIPTS
 from bellweather_pipeline.package_executor import PreparedPackageExecutor
 from bellweather_pipeline.package_types import platformer_type_index
 from demo_game_collection.parser import build_parser
-from stage_gen.components.sideview_terrain.atlas import terrain_atlas_paint_target
-from stage_gen.components.ui_art import ATLAS_ROLES, render_atlas_template
+from demo_game_tools.kits.sideview_terrain.atlas import terrain_atlas_paint_target
+from demo_game_tools.kits.ui_art import ATLAS_ROLES, render_atlas_template
 from stage_gen.config import StageGenConfig
 from stage_gen.examples import (
     ENTRY_FILE,

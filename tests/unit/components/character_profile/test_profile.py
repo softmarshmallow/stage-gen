@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.components import (
+from demo_game_tools.kits.character_profile import (
     PROFILE_LIBRARY_RESOLUTION_VERSION,
     CharacterProfile,
     CharacterProfileBinding,
@@ -22,7 +22,7 @@ from stage_gen.components import (
     load_character_profile_bytes,
     resolve_character_profile_binding,
 )
-from stage_gen.components.character_profile._filesystem import read_absolute_regular_file
+from demo_game_tools.kits.character_profile._filesystem import read_absolute_regular_file
 
 PROFILE_TOML = """\
 schema_version = 1
@@ -129,7 +129,7 @@ def test_direct_loader_reads_source_once_before_parsing(
         return captured
 
     monkeypatch.setattr(
-        "stage_gen.components.character_profile.loader.read_absolute_regular_file",
+        "demo_game_tools.kits.character_profile.loader.read_absolute_regular_file",
         mutate_after_capture,
     )
     profile = load_character_profile(path)

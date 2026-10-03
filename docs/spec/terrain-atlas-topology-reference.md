@@ -156,5 +156,5 @@ Sources:
 - <https://docs.godotengine.org/en/3.4/tutorials/2d/using_tilemaps.html#x3-minimal>
 - <https://docs.godotengine.org/en/latest/tutorials/2d/using_tilesets.html>
 - `docs/spec/terrain-atlas.md`
-- `src/stage_gen/components/sideview_terrain/atlas.py`
+- `godot/games/_shared/python/src/demo_game_tools/kits/sideview_terrain/atlas.py`
 - `src/stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.json`

@@ -11,7 +11,7 @@
 > contains, what a judge returns, and how a consumer composes the result.
 >
 > It is implemented rather than proposed:
-> `src/stage_gen/components/sideview_actor/motion_rebase.py` and its node kit
+> `godot/games/_shared/python/src/demo_game_tools/kits/sideview_actor/motion_rebase.py` and its node kit
 > are wired into both side-view recipes, which is where the judging atlas and
 > the verification pass are produced. It still does not track migration work or
 > serve as a project plan. It is scoped to coherence within one actor;

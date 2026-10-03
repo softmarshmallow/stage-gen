@@ -10,10 +10,10 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final
 
+from demo_game_tools.kits.ui_art.nodes import UI_ATLAS_NODE_TYPES
 from ember_hollow_pipeline.scopes import SCOPES as SCOPES
 from ember_hollow_pipeline.shell.nodes import SHELL_NODE_TYPES
 from gnode import LOCAL_OPERATION, NodePolicy, NodeType, ViewArchetype
-from stage_gen.components.ui_art.nodes import UI_ATLAS_NODE_TYPES
 
 #: The recipe word: document kinds, the graph's ``recipe`` literal, the CLI verb.
 RECIPE: Final = "oblique-survival"

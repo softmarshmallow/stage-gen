@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from stage_gen.components.worldgen import Stream, fnv1a64, splitmix64
+from demo_game_tools.kits.worldgen import Stream, fnv1a64, splitmix64
 
 
 def test_draws_are_uniform_and_53_bit() -> None:

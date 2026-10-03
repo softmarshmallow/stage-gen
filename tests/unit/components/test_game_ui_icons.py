@@ -7,6 +7,14 @@ from typing import cast
 import pytest
 from PIL import Image
 
+from demo_game_tools.kits.ui_art.nodes import (
+    ICON_GRID_FAMILY,
+    NINE_SLICE_FAMILY,
+    icon_content_task,
+    icon_review_prompt,
+    sheet_family,
+    validate_ui_sheet,
+)
 from demo_game_tools.media.ui import (
     ICON_ALPHA_POLICY,
     PREVIEW_ICON_GLYPHS,
@@ -18,14 +26,6 @@ from demo_game_tools.media.ui import (
     icon_role_contract,
     render_icon_template,
     validate_icon_sheet,
-)
-from stage_gen.components.ui_art.nodes import (
-    ICON_GRID_FAMILY,
-    NINE_SLICE_FAMILY,
-    icon_content_task,
-    icon_review_prompt,
-    sheet_family,
-    validate_ui_sheet,
 )
 from tests.unit._ui_atlas_fixture import icon_sheet, ui_sheet
 

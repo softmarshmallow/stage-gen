@@ -10,6 +10,7 @@ from typing import cast
 import pytest
 from PIL import Image, ImageChops, ImageDraw
 
+from demo_game_tools.kits.painted_terrain.structural_ground import diagonal_family_lean_degrees
 from iron_petal_unit_pipeline.track import (
     DEFAULT_GROUND_PROJECTION,
     STRUCTURAL_GROUND_CELL_PX,
@@ -28,7 +29,6 @@ from iron_petal_unit_pipeline.track import (
     validate_structural_ground_source,
 )
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.painted_terrain.structural_ground import diagonal_family_lean_degrees
 
 from ..._runner_fixture import (
     WIDE_FLAT_ROWS,

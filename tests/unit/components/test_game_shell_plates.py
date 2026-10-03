@@ -14,6 +14,12 @@ from typing import cast
 import pytest
 from PIL import Image, ImageDraw
 
+from demo_game_tools.kits.screen_art.plates import (
+    ShellPlateError,
+    canonicalize_shell_plate,
+    shell_plate_evidence,
+    validate_shell_plate,
+)
 from ember_hollow_pipeline.shell import (
     LOADING_SCREEN,
     OPENING_SHOT,
@@ -24,12 +30,6 @@ from ember_hollow_pipeline.shell import (
 from ember_hollow_pipeline.shell.nodes import (
     document_plate_roles,
     plate_content_task,
-)
-from stage_gen.components.screen_art.plates import (
-    ShellPlateError,
-    canonicalize_shell_plate,
-    shell_plate_evidence,
-    validate_shell_plate,
 )
 
 OPAQUE = "fully_opaque_v1"

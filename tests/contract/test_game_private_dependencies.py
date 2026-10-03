@@ -7,7 +7,6 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 REVIEWED = {
-    "stage_gen.components._authored_package": {"read_digest_bound_member", "read_package_member"},
     "stage_gen.components._game_input": {
         "AuthoredContractLoadError",
         "GAME_ID_PATTERN",
@@ -22,7 +21,12 @@ REVIEWED = {
         "sha256_bytes",
         "unique_values",
     },
-    "stage_gen.components._node_kit": {"ProviderCall", "card_prompt", "node_result"},
+    "stage_gen.components._node_kit": {
+        "ProviderCall",
+        "card_prompt",
+        "node_result",
+        "write_local_image",
+    },
     "stage_gen.components._secure_fs": {
         "SecurePathError",
         "open_absolute_directory",

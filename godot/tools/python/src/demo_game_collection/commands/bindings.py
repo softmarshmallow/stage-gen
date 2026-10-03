@@ -9,15 +9,15 @@ import tomllib
 from pathlib import Path
 from typing import TextIO
 
+from demo_game_tools.kits.character_profile import (
+    ResolvedCharacterProfile,
+    resolve_character_profile_binding,
+)
 from demo_game_tools.media.soundtrack import (
     ResolvedGameSoundtrack,
     resolve_game_soundtrack_binding,
 )
 from stage_gen.components._secure_fs import SecurePathError, read_absolute_regular_file
-from stage_gen.components.character_profile import (
-    ResolvedCharacterProfile,
-    resolve_character_profile_binding,
-)
 
 
 def _parse_input_document(text: str, *, suffix: str) -> object:

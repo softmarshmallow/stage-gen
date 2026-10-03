@@ -10,6 +10,10 @@ from typing import Literal
 
 from pydantic import Field, ValidationError
 
+from demo_game_tools.kits.character_profile import (
+    CharacterProfile,
+    canonical_character_profile_json,
+)
 from gnode import (
     ArtifactProvenance,
     ArtifactRights,
@@ -23,7 +27,6 @@ from gnode import (
     serialize_provenance,
     write_artifact_with_provenance,
 )
-from stage_gen.components import CharacterProfile, canonical_character_profile_json
 from the_grain_pipeline.dialogue_scene.identity import canonical_json_bytes, content_sha256
 from the_grain_pipeline.dialogue_scene.models import (
     BundleActor,

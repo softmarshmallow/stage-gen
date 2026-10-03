@@ -16,7 +16,6 @@ import pytest
 from PIL import Image
 
 from stage_gen.components.image_repeat.processing import _encode_png as image_repeat_encode
-from stage_gen.components.painted_terrain.canonicalize import _png as painted_terrain_encode
 from stage_gen.media.guide_lattice import png_bytes as guide_lattice_encode
 from stage_gen.media.images import _encode_png as images_encode
 from stage_gen.media.sprite_sheets import _png_bytes as sprite_sheets_encode
@@ -41,7 +40,6 @@ def _probe() -> Image.Image:
     [
         pytest.param(guide_lattice_encode, DEFAULT_LEVEL_SHA256, id="media.guide_lattice"),
         pytest.param(sprite_sheets_encode, DEFAULT_LEVEL_SHA256, id="media.sprite_sheets"),
-        pytest.param(painted_terrain_encode, DEFAULT_LEVEL_SHA256, id="painted_terrain"),
         pytest.param(images_encode, LEVEL_NINE_SHA256, id="media.images"),
         pytest.param(image_repeat_encode, LEVEL_NINE_SHA256, id="image_repeat"),
     ],

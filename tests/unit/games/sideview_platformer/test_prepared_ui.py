@@ -5,6 +5,10 @@ import io
 import pytest
 from PIL import Image, ImageDraw
 
+from demo_game_tools.kits.ui_art.inventory_nodes import (
+    canonicalize_inventory_panel_image,
+    validate_inventory_panel_image,
+)
 from demo_game_tools.media.ui import (
     INVENTORY_CANVAS_HEIGHT,
     INVENTORY_CANVAS_WIDTH,
@@ -15,10 +19,6 @@ from demo_game_tools.media.ui import (
     INVENTORY_SLOT_LEFT,
     INVENTORY_SLOT_SIZE,
     INVENTORY_SLOT_TOP,
-)
-from stage_gen.components.ui_art.inventory_nodes import (
-    canonicalize_inventory_panel_image,
-    validate_inventory_panel_image,
 )
 
 

@@ -1,7 +1,7 @@
 # LLM map-design format study
 
 > **Status: spike record.** The chunk-grammar format this study selected has since been promoted
-> to `src/stage_gen/components/sideview_map_design/`, specified in
+> to `godot/games/_shared/python/src/demo_game_tools/kits/sideview_map_design/`, specified in
 > [Platformer map design](../spec/sideview-map-design.md); the four set-aside formats and
 > the comparison harness remain unpromoted spike code, and nothing below was re-measured against
 > the promoted module. Every number is from live structured-generation runs on 2026-08-28 against

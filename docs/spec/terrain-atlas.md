@@ -10,7 +10,7 @@ atlas. It is not a 9-slice and it does not encode true smooth slopes.
 
 - `stage_gen.media.guide_lattice` owns reusable guide detection, used once to
   read the attributed template's own cells when the paint target is packed.
-- `stage_gen.components.sideview_terrain.atlas` owns the paint target, strict
+- `demo_game_tools.kits.sideview_terrain.atlas` owns the paint target, strict
   paintover prompting and admission, fixed-pitch slicing and connector
   harmonization, 47-mask lookup admission, and structural previews.
 - `maps/<map_id>.toml` owns the exact top-to-bottom binary occupancy matrix.
@@ -210,7 +210,7 @@ collision contract; this atlas must not synthesize or imply them.
 
 ## Evidence and publication state
 
-`scripts/render_terrain_atlas_qa.py` renders deterministic structural evidence
+`godot/tools/render_terrain_atlas_qa.py` renders deterministic structural evidence
 for solid, floating, stair, and concave/hole maps. That proves slicing, lookup,
 composition, and admission/rejection boundaries; it does not approve generated appearance.
 

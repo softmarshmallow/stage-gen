@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from demo_game_tools.input_formats.game_contract.package import PreparedScale
-from stage_gen.components.sideview_actor.asset_unit import (
+from demo_game_tools.kits.sideview_actor.asset_unit import (
     ASSET_UNIT_ERROR_CODE,
     DOWNSCALE_WARN_RATIO,
     ENTITY_CONSISTENCY_FACTOR,
@@ -18,9 +18,9 @@ from stage_gen.components.sideview_actor.asset_unit import (
     admit_entity_consistency,
     measure_subject_extent,
 )
-from stage_gen.components.sideview_actor.asset_unit import calibrate_subject as _calibrate
-from stage_gen.components.sideview_actor.asset_unit import resolve_declared_magnitude as _resolve
-from stage_gen.components.sideview_actor.asset_unit import sprite_scale as _sprite_scale
+from demo_game_tools.kits.sideview_actor.asset_unit import calibrate_subject as _calibrate
+from demo_game_tools.kits.sideview_actor.asset_unit import resolve_declared_magnitude as _resolve
+from demo_game_tools.kits.sideview_actor.asset_unit import sprite_scale as _sprite_scale
 
 PLAYER_HEIGHT_UNITS = 1.0
 

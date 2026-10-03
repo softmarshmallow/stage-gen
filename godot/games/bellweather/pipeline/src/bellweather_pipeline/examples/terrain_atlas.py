@@ -17,7 +17,7 @@ from typing import Any
 from PIL import Image, ImageDraw
 from pydantic import BaseModel, ConfigDict
 
-from stage_gen.components.sideview_terrain.atlas import terrain_atlas_paint_target
+from demo_game_tools.kits.sideview_terrain.atlas import terrain_atlas_paint_target
 from stage_gen.examples import (
     ImportRequest,
     index,

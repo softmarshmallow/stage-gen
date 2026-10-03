@@ -19,7 +19,7 @@ from bellweather_pipeline.prepared_world import (
     _canonicalize_map_presentation,
     _validate_map_presentation_source,
 )
-from stage_gen.components.sideview_terrain.atlas import (
+from demo_game_tools.kits.sideview_terrain.atlas import (
     CANONICAL_CELL_PX,
     GRID_COLUMNS,
     GUIDE_INSET_PX,

@@ -8,8 +8,7 @@ from collections.abc import Iterator, Mapping
 
 import pytest
 
-from gnode import StructuredOutputSchema
-from stage_gen.components.sideview_map_design import (
+from demo_game_tools.kits.sideview_map_design import (
     PlatformerProfile,
     build_chunk_prompt,
     build_chunk_schema,
@@ -18,7 +17,8 @@ from stage_gen.components.sideview_map_design import (
     translate,
     vocabulary,
 )
-from stage_gen.components.sideview_map_design import grammar as grammar_module
+from demo_game_tools.kits.sideview_map_design import grammar as grammar_module
+from gnode import StructuredOutputSchema
 
 from ._profiles import CHAINED_SHAFT_PROFILE, CLIMBLESS_PROFILE, GROUND_FOOTED_PROFILE
 

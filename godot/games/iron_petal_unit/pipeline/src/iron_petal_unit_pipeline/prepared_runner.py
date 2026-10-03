@@ -19,6 +19,44 @@ from PIL import Image
 from demo_game_tools.input_formats.game_contract.asset_scale import (
     measure_subject_extent,
 )
+from demo_game_tools.kits.actor_content import MotionPresentation
+from demo_game_tools.kits.effects_art.cut_in import validate_frame_plate, validate_portrait_plate
+from demo_game_tools.kits.effects_art.nodes import (
+    FX_CUT_IN_DRAW,
+    FX_CUT_IN_GENERATE,
+    FX_CUT_IN_PLACE,
+    FX_CUT_IN_REVIEW,
+    FX_CUT_IN_VALIDATE,
+    FX_SPRITE_DUST_GENERATE,
+    FX_SPRITE_DUST_VALIDATE,
+    FxCutInHost,
+    cut_in_generate_request,
+    cut_in_place_request,
+    cut_in_review_request,
+    sprite_dust_generate_request,
+    write_cut_in_draw,
+    write_cut_in_validation,
+    write_sprite_dust_validation,
+)
+from demo_game_tools.kits.effects_art.sprite import validate_dust_atlas
+from demo_game_tools.kits.music.nodes import SoundtrackHandlers, SoundtrackHost
+from demo_game_tools.kits.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
+from demo_game_tools.kits.sideview_actor.motion_rebase import (
+    motion_rebase_prompt,
+    motion_rebase_verification_prompt,
+)
+from demo_game_tools.kits.sideview_actor.motion_rebase_nodes import (
+    MotionRebaseHandlers,
+    MotionRebaseHost,
+    RebaseSubject,
+)
+from demo_game_tools.kits.sideview_terrain import (
+    PAINT_CANVAS_SIZE,
+    PAINT_TARGET_ID,
+    assemble_terrain_atlas,
+    require_terrain_atlas_source,
+    terrain_atlas_paint_target,
+)
 from demo_game_tools.media.soundtrack import SoundtrackTrack
 from demo_game_tools.media.soundtrack.prompt import music_track_prompt
 from gnode import (
@@ -140,38 +178,7 @@ from iron_petal_unit_pipeline.track import (
     validate_structural_ground_source,
 )
 from stage_gen.canonical import content_sha256
-from stage_gen.components.actor_content import MotionPresentation
-from stage_gen.components.effects_art.cut_in import validate_frame_plate, validate_portrait_plate
-from stage_gen.components.effects_art.nodes import (
-    FX_CUT_IN_DRAW,
-    FX_CUT_IN_GENERATE,
-    FX_CUT_IN_PLACE,
-    FX_CUT_IN_REVIEW,
-    FX_CUT_IN_VALIDATE,
-    FX_SPRITE_DUST_GENERATE,
-    FX_SPRITE_DUST_VALIDATE,
-    FxCutInHost,
-    cut_in_generate_request,
-    cut_in_place_request,
-    cut_in_review_request,
-    sprite_dust_generate_request,
-    write_cut_in_draw,
-    write_cut_in_validation,
-    write_sprite_dust_validation,
-)
-from stage_gen.components.effects_art.sprite import validate_dust_atlas
 from stage_gen.components.image_repeat import ImageRepeatValidationPolicy, validate_image_repeat
-from stage_gen.components.music.nodes import SoundtrackHandlers, SoundtrackHost
-from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
-from stage_gen.components.sideview_actor.motion_rebase import (
-    motion_rebase_prompt,
-    motion_rebase_verification_prompt,
-)
-from stage_gen.components.sideview_actor.motion_rebase_nodes import (
-    MotionRebaseHandlers,
-    MotionRebaseHost,
-    RebaseSubject,
-)
 from stage_gen.components.sideview_layers.nodes import (
     LayerGate,
     LayerHandlers,
@@ -180,13 +187,6 @@ from stage_gen.components.sideview_layers.nodes import (
 )
 from stage_gen.components.sideview_layers.pipeline import (
     layer_repeat_policies,
-)
-from stage_gen.components.sideview_terrain import (
-    PAINT_CANVAS_SIZE,
-    PAINT_TARGET_ID,
-    assemble_terrain_atlas,
-    require_terrain_atlas_source,
-    terrain_atlas_paint_target,
 )
 from stage_gen.components.sound_effect import (
     DURATION_TOLERANCE_SECONDS,

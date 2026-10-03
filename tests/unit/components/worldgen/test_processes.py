@@ -7,7 +7,7 @@ import random
 
 import pytest
 
-from stage_gen.components.worldgen import (
+from demo_game_tools.kits.worldgen import (
     LAMBDA_CELL_MAX,
     AttachedProcess,
     ClusterProcess,

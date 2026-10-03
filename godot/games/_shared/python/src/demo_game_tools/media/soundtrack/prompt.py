@@ -1,8 +1,8 @@
 """Legacy prompt spelling retained so existing generated-track cache keys stay stable."""
 
-from stage_gen.components.music.models import TrackGenerationIntent
-from stage_gen.components.music.prompt import ORIGINALITY_CLAUSE
-from stage_gen.components.music.prompt import music_track_prompt as _asset_prompt
+from demo_game_tools.kits.music.models import TrackGenerationIntent
+from demo_game_tools.kits.music.prompt import ORIGINALITY_CLAUSE
+from demo_game_tools.kits.music.prompt import music_track_prompt as _asset_prompt
 
 
 def music_track_prompt(
