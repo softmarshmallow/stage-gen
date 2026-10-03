@@ -53,8 +53,9 @@ stops the plan before anything is paid for.
    every part (each an `image.generate`, or with references an `image.edit` at the exact size
    of its aspect), crops atlases into labelled views, and submits one bundle. A reviewer judges
    the canonical and every view; a rejected bundle is drawn again, told what the review found.
-2. **Parts.** For each part role, Tripo builds a textured mesh from its views (or the supplied
-   file is taken), and Blender imports it once and exports a clean GLB with its measurements. A
+2. **Parts.** For each part role, Tripo builds a textured mesh from its front, back and side
+   views; any other view drawn (a three-quarter, a detail) goes to the part's reviewer only. Or
+   the supplied file is taken. Blender imports it once and exports a clean GLB with its measurements. A
    mesh that cannot be normalized (missing texture, an unexpected rig, geometry that changes on
    re-import) is a structural rejection, judged without a model call. A reviewer compares the
    part with its references from five sides; a rejection asks Tripo again.
@@ -140,13 +141,22 @@ Without a record a run is development and claims nothing. A record for the revie
 configuration does not admit an unreviewed run, because the review setting is part of the
 target.
 
+A record also names the calibration of the rig reviewer it relied on.
+[`calibration.yaml`](calibration.yaml) (`character-3d-calibration`) is one calibration episode:
+a frozen, labelled provider-rig export (`rig_review_subject_v2`: the export and the clips,
+numeric findings and missing weights it was labelled under) is measured, and the workflow's
+own rig review judges it at the bar, with the same node type the workflow locks. The labels
+never reach a run. Run each episode from its own project folder so it pays for its own
+answer, then compare the verdicts with the labels.
+
 ## Verification
 
 [`test_workflow.py`](../../../../tests/unit/workflows/character_3d/test_workflow.py) runs the
 whole graph offline with stand-in paid calls and a stand-in Blender: the accepted character,
 review none, supplied parts, a rejected rig that rebuilds the body from a new mesh, a rig the
 audit refuses, a rig rejected on every build, a rerun that pays for nothing, a killed run that
-resumes to the same bytes, and support admission.
+resumes to the same bytes, support admission, and a calibration episode judged by the
+workflow's own rig reviewer.
 [`test_character_rules.py`](../../../../tests/unit/workflows/character_3d/test_character_rules.py)
 holds the bars, atlases, profiles and export space. Live runs and qualification cohorts are
 separate, paid evidence.

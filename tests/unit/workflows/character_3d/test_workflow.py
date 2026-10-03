@@ -23,7 +23,15 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from gnode import CallRecord, HostServices, Route, RunOutcome, WorkflowRun, plan_async
+from gnode import (
+    CallRecord,
+    CallRefused,
+    HostServices,
+    Route,
+    RunOutcome,
+    WorkflowRun,
+    plan_async,
+)
 from stage_gen.workflows.character_3d import support
 from tests.unit.workflows.character_3d.stub_blender import glb, unglb
 
@@ -95,9 +103,18 @@ def _verdict(subject: Mapping[str, Any], criteria: list[str], accept: bool) -> d
 class StandIn:
     """Every paid call, answered; ``reject`` names reviews to reject, the first n of each."""
 
-    def __init__(self, *, reject: Mapping[str, int] | None = None, damaged: int = 0) -> None:
+    def __init__(
+        self,
+        *,
+        reject: Mapping[str, int] | None = None,
+        damaged: int = 0,
+        extra_views: tuple[str, ...] = (),
+    ) -> None:
         self.reject = Counter(reject or {})
         self.damaged = damaged
+        self.extra_views = extra_views
+        #: The view names each mesh call was given.
+        self.meshed: list[list[str]] = []
         self.calls: list[str] = []
         self.asked: Counter[str] = Counter()
         #: How many pictures each kind of episode opened with, the last time it ran.
@@ -125,6 +142,12 @@ class StandIn:
         async def mesh(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
             del route, take
             self.calls.append("mesh")
+            self.meshed.append(sorted(request["views"]))
+            # Tripo's multiview vocabulary, as the real adapter refuses it.
+            if set(request["views"]) - {"front", "back", "left", "right"}:
+                raise CallRefused(
+                    f"a multiview task takes the four sides: {sorted(request['views'])}"
+                )
             views = sorted((name, file.digest) for name, file in request["views"].items())
             asked = hashlib.sha256(json.dumps(views).encode()).hexdigest()[:12]
             self.asked[asked] += 1
@@ -166,7 +189,9 @@ class StandIn:
         if kind == "draw":
             made = [json.loads(m["content"])["asset"] for m in tools]
             wanted = [
-                (r, v) for r in opening["profile"]["required_parts"] for v in ("front", "back")
+                (r, v)
+                for r in opening["profile"]["required_parts"]
+                for v in ("front", "back", *self.extra_views)
             ]
             if not made:
                 return _call(
@@ -292,6 +317,18 @@ async def test_a_brief_becomes_an_accepted_rigged_character(tmp_path: Path, blen
     assert character["kind"] == "export" and character["height"] == 2.0
     assert (outputs / "references.png").is_file()
     assert len(list((outputs / "atlas").glob("*.png"))) == 7
+
+
+async def test_a_mesh_is_made_from_the_sides_and_its_review_sees_every_view(
+    tmp_path: Path, blender: Path
+) -> None:
+    stand_in = StandIn(extra_views=("three_quarter",))
+    outcome = await _run(tmp_path, stand_in)
+
+    assert outcome.ok, outcome.failed
+    assert stand_in.meshed == [["back", "front"]]
+    assert stand_in.shown["part"] > StandIn().shown.get("part", 0)
+    assert _result(outcome)["status"] == "accepted"
 
 
 async def test_without_review_the_character_is_delivered_unreviewed(
@@ -504,3 +541,53 @@ def test_a_cohort_dry_run_plans_every_brief_under_one_target(
         == 2
     )
     assert "at least two briefs" in capsys.readouterr().err
+
+
+async def test_a_calibration_episode_judges_a_frozen_rig_with_the_workflows_reviewer(
+    tmp_path: Path, blender: Path
+) -> None:
+    profile = json.loads((PACKAGE / "profiles/sd_human_fixed.json").read_text())
+    review = profile["review"]
+    clips = [*review["required_diagnostics"][1:], review["required_motion"]]
+    candidate = glb(
+        {
+            "kind": "export",
+            "height": 2.0,
+            "animations": [{"name": name} for name in ["rest", *clips]],
+        }
+    )
+    folder = tmp_path / "subject"
+    folder.mkdir()
+    (folder / "candidate.glb").write_bytes(candidate)
+    frozen = {
+        "schema_version": 2,
+        "kind": "rig_review_subject_v2",
+        "candidate": {"path": "candidate.glb", "sha256": hashlib.sha256(candidate).hexdigest()},
+        "required_criteria": review["rig_criteria"],
+        "numeric_findings": [],
+        "required_but_missing_weights": [],
+        "rig_facts": {"clips": [{"name": n, "duration_seconds": 2.0} for n in clips]},
+    }
+    (folder / "subject.json").write_text(json.dumps(frozen))
+    inputs = folder / "inputs.yaml"
+    inputs.write_text(json.dumps({"subject": "subject.json", "candidate": "candidate.glb"}))
+    stand_in = StandIn(reject={"rig": 1})
+    project = _project(tmp_path / "episode")
+    plan = await plan_async("character-3d-calibration", input_files=[inputs], cwd=project)
+    assert plan.ok, plan.problems
+    assert plan.planner.project.root == project.resolve()
+    services = stand_in.services(plan.planner.store)
+
+    outcome = await WorkflowRun(plan, run_dir=tmp_path / "run", services=services).run()
+
+    assert outcome.ok, outcome.failed
+    assert stand_in.calls == ["agent.rig"]
+    verdict = json.loads((outcome.run_dir / "outputs/review.json").read_text())
+    assert verdict["accepted"] is False and verdict["asset_id"] == "rig"
+    assert verdict["source_sha256"] == frozen["candidate"]["sha256"]
+    assert len(list((outcome.run_dir / "outputs/atlas").glob("*.png"))) == 7
+    main = await plan_async("character-3d", input_files=[_inputs(tmp_path)], cwd=_project(tmp_path))
+    reviewer = "./nodes/rig.py#review"
+    assert {i.type_identity for i in plan.instances if i.uses == reviewer} == {
+        i.type_identity for i in main.instances if i.uses == reviewer
+    }

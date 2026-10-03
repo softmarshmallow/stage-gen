@@ -121,3 +121,18 @@ async def test_only_a_glb_is_rigged(tmp_path: Path) -> None:
     job = rig_job(load_config(), store, factory=lambda _: FakeTripo())  # type: ignore[arg-type,return-value]
     with pytest.raises(CallRefused, match="rigs a GLB"):
         await job.start(_routes()["mesh.rig"], {"model": model}, 1, Log())
+
+
+async def test_a_view_tripo_does_not_take_is_refused_before_anything_is_sent(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path / "cache")
+    tripo = FakeTripo()
+    job = mesh_job(load_config(), store, factory=lambda _: tripo)  # type: ignore[arg-type,return-value]
+    views = {
+        name: store.put_bytes(PNG, kind="image/png", name=f"{name}.png")
+        for name in ("front", "three_quarter")
+    }
+    with pytest.raises(CallRefused, match="three_quarter"):
+        await job.start(_routes()["mesh.generate"], {"views": views}, 1, Log())
+    assert tripo.posted == []

@@ -73,6 +73,7 @@ from gnode.providers.openrouter import (
     OpenRouterStructuredRequestPolicy,
     OpenRouterToolLoopBackend,
 )
+from gnode.providers.tripo import VIEWS as TRIPO_VIEWS
 from gnode.providers.tripo import TripoBackend, TripoTaskFailed
 from stage_gen.config import StageGenConfig, load_config
 from stage_gen.image_product import ImageProvider
@@ -709,6 +710,9 @@ def _mesh_views(request: Mapping[str, Any]) -> dict[str, tuple[bytes, str]]:
     views = request.get("views")
     if not isinstance(views, Mapping) or not views:
         raise _NotSent("a mesh call needs its views, by name")
+    unknown = sorted(set(views) - set(TRIPO_VIEWS))
+    if unknown or "front" not in views:
+        raise _NotSent(f"a multiview task takes front and any of back, left, right; not {unknown}")
     found: dict[str, tuple[bytes, str]] = {}
     for name, file in views.items():
         if not isinstance(file, FileValue) or file.location is None:
@@ -1202,13 +1206,18 @@ def speech_job(
 
 
 def published_workflows() -> dict[str, Path]:
-    """Every first-party workflow written as a workflow file, by id."""
+    """Every first-party workflow written as a workflow file, by id.
+
+    A workflow folder may hold more than its ``workflow.yaml`` (character-3d's reviewer
+    calibration shares its node types); every workflow file in it is published.
+    """
 
     root = Path(__file__).resolve().parent.parent / "workflows"
     found: dict[str, Path] = {}
-    for path in sorted(root.glob("*/workflow.yaml")):
+    for path in sorted(root.glob("*/*.yaml")):
         document = yaml.safe_load(path.read_text(encoding="utf-8"))
-        found[str(document["id"])] = path
+        if isinstance(document, dict) and document.get("gnode") == "workflow/v1":
+            found[str(document["id"])] = path
     return found
 
 

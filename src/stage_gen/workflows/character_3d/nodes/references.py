@@ -192,15 +192,19 @@ async def review(ctx: Ctx) -> dict[str, Any]:
     return {"review": ctx.out.json(verdict)}
 
 
+#: The sides a mesh is generated from (``mesh.generate@1``); other views are for reviewers.
+SIDES = ("front", "back", "left", "right")
+
+
 @node(
     "role_views",
     inputs={"views": "image{}"},
     params={"role": str},
-    outputs={"views": "image{}"},
-    version=1,
+    outputs={"views": "image{}", "sides": "image{}"},
+    version=2,
 )
 def role_views(ctx: Ctx) -> dict[str, Any]:
-    """One part's views, by view name: what its mesh is generated from."""
+    """One part's views by view name, and the sides its mesh is generated from."""
 
     prefix = f"{ctx.params['role']}-"
     picked = {
@@ -210,4 +214,7 @@ def role_views(ctx: Ctx) -> dict[str, Any]:
     }
     if not {"front", "back"} <= set(picked):
         raise ctx.fail(f"the {ctx.params['role']} part has no front and back view")
-    return {"views": picked}
+    return {
+        "views": picked,
+        "sides": {view: file for view, file in picked.items() if view in SIDES},
+    }

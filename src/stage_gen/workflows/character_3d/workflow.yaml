@@ -166,7 +166,7 @@ steps:
             if: ${{ inputs.brief }}
             uses: gnode/mesh.generate@1
             with:
-              views: ${{ steps.views.outputs.views }}
+              views: ${{ steps.views.outputs.sides }}
               face_limit: ${{ inputs.mesh.face_limit }}
               quad: ${{ inputs.mesh.quad }}
               pbr: ${{ inputs.mesh.pbr }}
