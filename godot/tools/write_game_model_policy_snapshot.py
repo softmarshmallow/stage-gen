@@ -39,7 +39,6 @@ from stage_gen.model_policy_maintenance import (
     render_model_policy_snapshot,
 )
 from stage_gen.model_routes import IMAGE_ROUTE_CATALOG, image_workload_policies
-from stage_gen.workflows.storefront.storefront_executor import StorefrontExecutor
 from stage_gen.workflows.universe.universe_graph import (
     build_universe_gallery_graph,
     build_universe_semantic_graph,
@@ -63,7 +62,6 @@ PLATFORMER_FIXTURE = "godot/games/bellweather/inputs/default"
 RUNNER_FIXTURE = "godot/games/iron_petal_unit/inputs"
 DIALOGUE_FIXTURE = "godot/games/the_grain/inputs"
 POINTCLICK_FIXTURE = "godot/games/the_grain/inputs/rooms/window"
-STOREFRONT_FIXTURE = "godot/games/ember_hollow/inputs"
 SURVIVAL_FIXTURE = "godot/games/ember_hollow/inputs"
 UNIVERSE_FIXTURE = "src/stage_gen/workflows/universe/inputs/lantern_ferry"
 UNIVERSE_ADMITTED_FIXTURE = "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
@@ -71,7 +69,6 @@ UNIVERSE_ADMITTED_FIXTURE = "tests/contract/fixtures/universe/lantern_ferry.admi
 PLATFORMER_DOCUMENT = "godot/games/bellweather/docs/generation-pipeline.md"
 RUNNER_DOCUMENT = "godot/games/iron_petal_unit/docs/runner.md"
 SURVIVAL_DOCUMENT = "godot/games/ember_hollow/docs/generation-v1.md"
-STOREFRONT_DOCUMENT = "godot/games/ember_hollow/docs/storefront-integration.md"
 
 PLATFORMER_CACHE_GOLDEN = "tests/unit/games/sideview_platformer/bellweather.cache-keys.json"
 RUNNER_CACHE_GOLDEN = "tests/unit/games/sideview_runner/iron-petal-unit.cache-keys.json"
@@ -163,7 +160,6 @@ def _planned_graphs() -> tuple[dict[str, Graph], dict[str, dict[str, str]]]:
     runner = SideviewRunnerExecutor(config).plan(REPOSITORY_ROOT / RUNNER_FIXTURE).graph
     dialogue = DialogueSceneExecutor(config).plan(REPOSITORY_ROOT / DIALOGUE_FIXTURE).graph
     pointclick = PointClickRoomExecutor(config).plan(REPOSITORY_ROOT / POINTCLICK_FIXTURE).graph
-    storefront = StorefrontExecutor(config).plan(REPOSITORY_ROOT / STOREFRONT_FIXTURE).graph
 
     survival_executor = ObliqueSurvivalExecutor(config)
     survival_graphs = {
@@ -198,7 +194,6 @@ def _planned_graphs() -> tuple[dict[str, Graph], dict[str, dict[str, str]]]:
         "pointclick_room": pointclick,
         "sideview_platformer": platformer,
         "sideview_runner": runner,
-        "storefront": storefront,
         "universe_gallery": universe_gallery,
         "universe_semantic": universe_semantic,
     }
@@ -216,7 +211,6 @@ def _generated_file_checks(
     platformer = graphs["sideview_platformer"]
     runner = graphs["sideview_runner"]
     survival = graphs["oblique_survival"]
-    storefront = graphs["storefront"]
 
     # The product workflows' own contract blocks, universe's included, are checked by
     # scripts/write_workflow_contracts.py; these are the documents the games own.
@@ -250,17 +244,6 @@ def _generated_file_checks(
                 kind="oblique-survival-execution-graph-contract-v1",
                 fixture_ref=SURVIVAL_FIXTURE,
                 extra={"scope": _graph_field(survival, "scope")},
-            ),
-        ),
-        (
-            "storefront_graph_contract",
-            STOREFRONT_DOCUMENT,
-            None,
-            _graph_contract(
-                storefront,
-                kind="storefront-execution-graph-contract-v1",
-                fixture_ref=STOREFRONT_FIXTURE,
-                extra={"surface_count": _graph_field(storefront, "surface_count")},
             ),
         ),
     )
@@ -312,7 +295,6 @@ def build_snapshot() -> ModelPolicySnapshotV1:
                 "pointclick_room": POINTCLICK_FIXTURE,
                 "sideview_platformer": PLATFORMER_FIXTURE,
                 "sideview_runner": RUNNER_FIXTURE,
-                "storefront": STOREFRONT_FIXTURE,
                 "universe_gallery": UNIVERSE_FIXTURE,
                 "universe_semantic": UNIVERSE_FIXTURE,
             }[recipe_id],

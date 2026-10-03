@@ -92,7 +92,6 @@ Moving or renaming code must not move a cache key or a persisted identity, and
 
 - the bytes of the movie-sprite `pipeline.py` and `authoring.py` and of every
   `components/movie_sprite` file, which are digested into the paid generate and finish keys;
-- the portrait-motion implementation fingerprint, which hashes an explicit list of files;
 - every member of the character-3d implementation;
 - pipeline ids and cache namespaces, graph-document literals and kinds, cache record kinds,
   the node-type inventory, provenance names and the run-view schema version;

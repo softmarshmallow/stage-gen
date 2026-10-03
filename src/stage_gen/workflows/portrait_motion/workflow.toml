@@ -18,18 +18,9 @@ commands = [
   "stage-gen inspect out/portrait-try --verify",
 ]
 
-# The node-type titles are built by components/portrait_motion, part of the implementation
-# fingerprint; face_crop and face_reconstruction are stages of the parent run, not node types.
+# face_crop and face_reconstruction are stages of the parent run, not node types; only the
+# pinned example's run carries them.
 [labels]
-"2d/portrait_motion/face_location" = "Find the face"
-"2d/portrait_motion/admission" = "Decide what can move"
-"2d/portrait_motion/guide" = "Lay out the sheet"
-"2d/portrait_motion/atlas" = "Draw the new states"
-"2d/portrait_motion/registration" = "Line them up"
-"2d/portrait_motion/geometry" = "Outline eyes and mouth"
-"2d/portrait_motion/composition" = "Build every combination"
-"2d/portrait_motion/quality" = "Review the result"
-"2d/portrait_motion/terminal" = "Keep what passed"
 "2d/portrait_motion/face_crop" = "Crop the face"
 "2d/portrait_motion/face_reconstruction" = "Put it back at full size"
 

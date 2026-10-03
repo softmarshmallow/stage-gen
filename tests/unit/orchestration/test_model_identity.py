@@ -21,7 +21,6 @@ from stage_gen.model_routes import (
     configured_image_route_catalog,
 )
 from stage_gen.orchestration.services import RunServices
-from stage_gen.workflows.storefront.storefront_graph import storefront_graph_profile
 from stage_gen.workflows.universe.universe_graph import universe_graph_profile
 from the_grain_pipeline.dialogue_scene.scene_graph import dialogue_graph_profile
 from the_grain_pipeline.pointclick_room.room_graph import room_graph_profile
@@ -50,7 +49,6 @@ PROFILES: tuple[tuple[str, Callable[[StageGenConfig], BindingTable]], ...] = (
     ("pointclick-room", room_graph_profile),
     ("dialogue-scene", dialogue_graph_profile),
     ("oblique-survival", oblique_survival_graph_profile),
-    ("storefront", storefront_graph_profile),
     ("universe", lambda config: universe_graph_profile(config, images=True)),
 )
 

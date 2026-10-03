@@ -167,7 +167,7 @@ def test_workflows_do_not_import_each_other() -> None:
     declarations."""
 
     workflows = _workflow_roots()
-    assert len(workflows) >= 6, f"expected at least 6 workflow packages, found {sorted(workflows)}"
+    assert len(workflows) >= 5, f"expected at least 5 workflow packages, found {sorted(workflows)}"
     violations: list[str] = []
     for name, roots in workflows.items():
         own = (

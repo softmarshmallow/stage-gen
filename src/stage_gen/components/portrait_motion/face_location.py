@@ -100,7 +100,7 @@ def validate_location(value: object) -> dict[str, Any]:
 def locator_node_type() -> NodeType:
     return NodeType(
         type_id="2d/portrait_motion/face_location",
-        title="Locate the principal face",
+        title="Find the face",
         archetype=ViewArchetype.JUDGE,
         operation="structured_generation",
         features=("structured_output", "image_input"),

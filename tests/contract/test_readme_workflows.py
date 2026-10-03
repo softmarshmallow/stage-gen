@@ -36,7 +36,7 @@ def _table_rows() -> list[tuple[str, str, str]]:
 
 def test_readme_table_lists_every_workflow_with_its_title_and_promise() -> None:
     expected = [(w.manifest.title, w.id, w.manifest.promise) for w in discover()]
-    assert len(expected) >= 6
+    assert len(expected) >= 5
     assert _table_rows() == expected
 
 

@@ -35,14 +35,6 @@ from iron_petal_unit_pipeline.runner_graph import (
 from iron_petal_unit_pipeline.runner_request import resolve_runner_package
 from scripts.graph_contracts import document_contract, write_contract
 from stage_gen.config import StageGenConfig
-from stage_gen.workflows.storefront.storefront_graph import (
-    build_storefront_graph,
-    storefront_graph_profile,
-)
-from stage_gen.workflows.storefront.storefront_request import (
-    read_storefront_document,
-    resolve_storefront,
-)
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PIPELINE_DOCUMENT = REPOSITORY_ROOT / "godot/games/bellweather/docs/generation-pipeline.md"
@@ -55,11 +47,6 @@ OBLIQUE_SURVIVAL_DOCUMENT = REPOSITORY_ROOT / "godot/games/ember_hollow/docs/gen
 OBLIQUE_SURVIVAL_FIXTURE_REF = "godot/games/ember_hollow/inputs"
 OBLIQUE_SURVIVAL_CONTRACT_KIND = "oblique-survival-execution-graph-contract-v1"
 OBLIQUE_SURVIVAL_SCOPE = "full"
-
-
-STOREFRONT_DOCUMENT = REPOSITORY_ROOT / "godot/games/ember_hollow/docs/storefront-integration.md"
-STOREFRONT_FIXTURE_REF = "godot/games/ember_hollow/inputs"
-STOREFRONT_CONTRACT_KIND = "storefront-execution-graph-contract-v1"
 
 
 def build_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
@@ -128,35 +115,6 @@ def build_oblique_survival_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[
     }
 
 
-def build_storefront_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
-    """Derive the storefront's contract from the graph the code builds.
-
-    Planned against an empty draw ledger, which is what a first run has: a reroll
-    changes one image node's identity and nothing about the shape of the graph, so
-    the snapshot would be identical and the ledger is left out of it.
-    """
-
-    config = StageGenConfig()
-    root = repo / STOREFRONT_FIXTURE_REF
-    resolved = resolve_storefront(read_storefront_document(root), root=root)
-    graph = build_storefront_graph(
-        resolved,
-        profile=storefront_graph_profile(config),
-        config=config,
-    )
-    return {
-        "kind": STOREFRONT_CONTRACT_KIND,
-        "fixture_ref": STOREFRONT_FIXTURE_REF,
-        "surface_count": graph.surface_count,
-        "graph_schema_version": graph.schema_version,
-        "topology_sha256": graph.topology_sha256,
-        "node_count": len(graph.nodes),
-        "terminal_node_id": graph.terminal_node_id,
-        "operation_counts": graph.operation_counts(),
-        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
-    }
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -169,7 +127,6 @@ def main(argv: list[str] | None = None) -> int:
     contracts: tuple[tuple[str, Path, Any, str | None], ...] = (
         ("platformer", PIPELINE_DOCUMENT, build_graph_contract, None),
         ("runner", RUNNER_PIPELINE_DOCUMENT, build_runner_graph_contract, None),
-        ("storefront", STOREFRONT_DOCUMENT, build_storefront_graph_contract, None),
         (
             "oblique-survival",
             OBLIQUE_SURVIVAL_DOCUMENT,

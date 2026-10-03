@@ -55,7 +55,6 @@ def test_models_routes_is_credential_network_and_adapter_free(
         "pointclick_room",
         "sideview_platformer",
         "sideview_runner",
-        "storefront",
         "universe_gallery",
         "universe_semantic",
     }

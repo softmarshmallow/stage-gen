@@ -1,8 +1,8 @@
 """Each workflow's contract.md carries the checked shape of its offline sample plan.
 
 The blocks live in src/stage_gen/workflows/looping_parallax/contract.md,
-src/stage_gen/workflows/movie_sprite/contract.md, src/stage_gen/workflows/storefront/contract.md
-and src/stage_gen/workflows/universe/contract.md (two blocks, one per phase). The universe
+src/stage_gen/workflows/movie_sprite/contract.md and
+src/stage_gen/workflows/universe/contract.md (two blocks, one per phase). The universe
 vocabulary they implement is ratified in docs/spec/universe/taxonomy-v0.md, which links the
 universe contract. `scripts/write_workflow_contracts.py --write` regenerates every block.
 """
@@ -107,20 +107,6 @@ def test_universe_gallery_block_is_planned_from_the_committed_admission() -> Non
     assert semantic["terminal_node_id"] == "universe-admit"
     assert gallery["terminal_node_id"] == "gallery-close"
     assert gallery["operation_counts"]["image_generation"] > 0
-
-
-def test_storefront_block_is_the_independent_minimal_package() -> None:
-    contract = document_contract(REPOSITORY_ROOT / "src/stage_gen/workflows/storefront/contract.md")
-    # One surface: one picture, and three structured calls for one direction, one listing and
-    # one review.
-    assert contract["operation_counts"] == {
-        "local": 6,
-        "image_generation": 1,
-        "structured_generation": 3,
-    }
-    assert (
-        REPOSITORY_ROOT / "src/stage_gen/workflows/storefront/inputs/minimal/make_inputs.py"
-    ).is_file()
 
 
 def test_universe_contract_is_discoverable_from_its_taxonomy_and_the_docs_index() -> None:

@@ -148,8 +148,7 @@ executable graph contract in the same implementation change. Also review the
 [repository overview](../../README.md), [architecture](../../ARCHITECTURE.md),
 [gnode rings](../spec/gnode-rings.md),
 [asset contracts](../spec/asset-contracts.md), and the
-[survival](../../godot/games/ember_hollow/docs/generation-v1.md),
-[universe](../../src/stage_gen/workflows/universe/contract.md), and
-[storefront](../../src/stage_gen/workflows/storefront/contract.md) contracts. The
+[survival](../../godot/games/ember_hollow/docs/generation-v1.md) and
+[universe](../../src/stage_gen/workflows/universe/contract.md) contracts. The
 Sunburst successor migration updated those current-route documents without
 changing their declared topology.

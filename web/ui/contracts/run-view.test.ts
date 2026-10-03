@@ -167,16 +167,16 @@ describe("parseExecutionView", () => {
   });
 
   test("labels by ids, not counts, and reads a joined gnode view by its graph kind", () => {
-    const storefront = parseExecutionView({
+    const sample = parseExecutionView({
       ...executionViewFixture(),
-      kind: "storefront-execution-view-v1",
-      recipe: "storefront",
+      kind: "sample-execution-view-v1",
+      recipe: "sample",
       game_id: undefined,
-      storefront_id: "quiet_orbit",
-      surface_count: 4,
+      sample_id: "quiet_orbit",
+      item_count: 4,
     });
-    expect(subjectLabel(storefront.subject)).toBe("quiet_orbit");
-    expect(storefront.subject.fields.surface_count).toBe(4);
+    expect(subjectLabel(sample.subject)).toBe("quiet_orbit");
+    expect(sample.subject.fields.item_count).toBe(4);
 
     const joined = { ...executionViewFixture(), kind: "gnode-run-view-v1" } as Record<string, unknown>;
     delete joined.recipe;

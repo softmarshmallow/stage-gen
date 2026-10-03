@@ -335,8 +335,8 @@ transparent. A paid transparent-background request returned HTTP 400, and the
 adapter refuses it locally before spend. The endpoint record does not advertise
 arbitrary `size`, `resolution`, `seed`, or `output_format`; do not project a
 generic API field merely because another image model supports it. Bounded live
-canaries returned every exact canvas currently requested by the Storefront and
-Universe routes: 1024 by 1024, 1152 by 2496, 2496 by 1152, 2064 by 1008, 2560
+canaries returned every exact canvas requested by the Universe route and by the
+since-removed Storefront workflow: 1024 by 1024, 1152 by 2496, 2496 by 1152, 2064 by 1008, 2560
 by 1440, 2560 by 1712, and 1712 by 2560. Reference-conditioned maximum-quality
 costs ranged from $0.138393 to $0.294423 across those sizes. This is
 route-specific evidence, not a generic OpenRouter contract.
@@ -356,8 +356,8 @@ falls inside the upstream Sunburst geometric envelope.
 
 `STAGE_GEN_OPENROUTER_IMAGE_IPM` paces request starts inside the image adapter;
 its default is 150. It is a configurable local ceiling, not a claim about a
-universal OpenRouter account limit. Storefront budgets $0.14–0.25 for its
-verified size mix; Universe budgets $0.22–0.30 for its larger mix.
+universal OpenRouter account limit. Universe budgets $0.22–0.30 for its verified
+size mix.
 
 The provider adapter must separate provider-supported aspect/quality requests
 from deterministic output normalization. The route serves designated opaque

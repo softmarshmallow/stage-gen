@@ -58,7 +58,7 @@ viewer and the refresher never write into a run folder. The refresher derives a 
 plan, trace or own record is newer than both its own view and its cached one:
 
 - SDK runs, and runs of the SDK workflows, are joined from their plan and trace by the SDK;
-- universe and storefront runs without a view are joined by their graph document's view builder;
+- universe runs without a view are joined by their graph document's view builder;
 - a character run's `graph.json` and `trace.jsonl` are staged under gnode's names in a temporary
   folder and joined there, titled from the workflow's `[labels]`;
 - a portrait run is joined the same way from its portrait sub-run's `graph.json` and traces, with
@@ -91,8 +91,8 @@ message rather than migrated.
   graph it plans offline from its committed sample inputs (drawn as on a run page, with every node
   pending; each lane is a step), its steps, and its runs.
 - `/runs/<root>/<tag>` is one run. `<root>` is a root's folder name and a short digest of its real
-  path; `<tag>` is the run's root-relative path with `/` written as `~`. A universe gallery or a
-  storefront run shows its output as a reader would see it, with the graph one link away
+  path; `<tag>` is the run's root-relative path with `/` written as `~`. A universe gallery run
+  shows its output as a reader would see it, with the graph one link away
   (`?view=graph`); any other run with a view fills the window with its graph and node inspector; a
   run with neither shows its own record and how to get a view. `/runs/<root>/<tag>/artifacts`
   lists the declared outputs.

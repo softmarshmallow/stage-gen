@@ -26,7 +26,6 @@ from stage_gen.workflows._registry import discover
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 LANTERN_FERRY = REPOSITORY / "src/stage_gen/workflows/universe/inputs/lantern_ferry"
-STOREFRONT_INPUTS = REPOSITORY / "src/stage_gen/workflows/storefront/inputs/minimal"
 PARALLAX_INPUTS = REPOSITORY / "src/stage_gen/workflows/looping_parallax/inputs/supplied_layers"
 CREDENTIALS = ("OPENAI_API_KEY", "OPENROUTER_API_KEY", "FAL_KEY", "ELEVENLABS_API_KEY")
 WORKFLOWS = {
@@ -34,7 +33,6 @@ WORKFLOWS = {
     "looping-parallax",
     "movie-sprite",
     "portrait-motion",
-    "storefront",
     "universe",
 }
 
@@ -341,33 +339,6 @@ def test_universe_phase_flags_and_failure_injection_are_refused(
         "plan", "universe", "--phase", "gallery", "--input", str(LANTERN_FERRY)
     )
     assert status == 2 and "--phase gallery needs --semantic-run" in errors
-
-
-def test_storefront_plans_and_dry_runs(tmp_path: Path) -> None:
-    inputs = tmp_path / "inputs"
-    runpy.run_path(str(STOREFRONT_INPUTS / "make_inputs.py"))["write_inputs"](inputs)
-    status, output, errors = _stage_gen("plan", "storefront", "--input", str(inputs))
-    assert status == 0, errors
-    planned = json.loads(output)["graph"]["nodes"]
-    run_dir = tmp_path / "run"
-    status, output, errors = _stage_gen(
-        "run",
-        "storefront",
-        "--input",
-        str(inputs),
-        "--output",
-        str(run_dir),
-        "--cache-dir",
-        str(tmp_path / "cache"),
-        "--dry-run",
-        "--invocation-id",
-        "cli-storefront",
-    )
-    assert status == 0, errors
-    report = json.loads(output)
-    assert report["ok"] and report["node_count"] == len(planned)
-    status, _, errors = _stage_gen("plan", "storefront", "--input", str(inputs), "--reroll", "x")
-    assert status == 2 and "does not declare: ['x']" in errors
 
 
 @pytest.mark.parametrize(

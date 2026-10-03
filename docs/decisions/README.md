@@ -21,6 +21,8 @@ and 0066 retain their evidence requirements. Historical records below remain unc
 [0071](0071-workflows-are-the-product-unit-and-the-web-splits-into-site-and-viewer.md)
 supersedes [0069](0069-the-platformer-is-retired-and-web-is-only-the-viewer.md) only on the
 viewer being launched by the CLI, multi-root and workflow-aware.
+[0072](0072-gnode-is-one-engine-behind-text-contracts.md) removes the storefront workflow
+that 0071 listed and replaces the execution substrates 0071 left in place.
 
 | # | Title | In one line |
 | --- | --- | --- |
@@ -95,3 +97,4 @@ viewer being launched by the CLI, multi-root and workflow-aware.
 | [0069](0069-the-platformer-is-retired-and-web-is-only-the-viewer.md) | The platformer is retired, and the web is only the viewer | The last 67,356 lines go; the picture gate 0066 asked for was rejected as a harness, and playing it found seventeen defects no hash could see |
 | [0070](0070-the-game-invokes-scenario.md) | The game invokes Scenario | One Godot-owned sequence executor, data-only content and versioned game capabilities; supported v2 inputs remain |
 | [0071](0071-workflows-are-the-product-unit-and-the-web-splits-into-site-and-viewer.md) | Workflows are the product unit, and the web splits into a site and a viewer | One folder per deliverable describes itself; the site is built from the catalog and pinned examples, the viewer is the CLI's local client |
+| [0072](0072-gnode-is-one-engine-behind-text-contracts.md) | gnode is one engine behind text contracts | Four substrates become one runner; workflows become YAML over standard node types, bodies one callback, runs one event log, ported milestone by milestone with honest re-keys |

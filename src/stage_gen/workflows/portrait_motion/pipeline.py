@@ -17,7 +17,6 @@ from typing import Any, ClassVar, Literal, Self
 from PIL import Image
 from pydantic import Field, model_validator
 
-import gnode
 from gnode import (
     AbortError,
     ArtifactProvenance,
@@ -44,7 +43,6 @@ from gnode import (
     write_graph,
     write_run_summary,
 )
-from stage_gen.components import portrait_motion
 from stage_gen.components.portrait_motion import (
     PortraitMotionHandlers,
     PortraitMotionSpec,
@@ -151,47 +149,6 @@ def _image_config(
     return StageGenConfig.model_validate(values)
 
 
-def implementation() -> dict[str, str]:
-    """Bind package-relative source bytes, independent of checkout and install location."""
-    files: dict[str, str] = {}
-    assert gnode.__file__ and portrait_motion.__file__
-    gnode_root = Path(gnode.__file__).parent
-    component_root = Path(portrait_motion.__file__).parent
-    for root, prefix in (
-        (gnode_root, "gnode"),
-        (component_root, "stage_gen/components/portrait_motion"),
-    ):
-        for path in sorted(root.rglob("*.py")):
-            files[f"{prefix}/{path.relative_to(root).as_posix()}"] = sha256_hex(path.read_bytes())
-
-    application_root = Path(__file__).parents[2]
-    workflow_root = Path(__file__).parent
-    helpers = [
-        application_root / "components/_node_kit.py",
-        application_root / "config.py",
-        application_root / "image_product.py",
-        application_root / "model_routes.py",
-        application_root / "orchestration/image_routing.py",
-        # An explicit list: declaration, CLI and importer modules never enter the fingerprint.
-        *(
-            workflow_root / name
-            for name in ("face.py", "face_location.py", "pipeline.py", "services.py")
-        ),
-        application_root / "orchestration/portrait_services.py",
-        application_root / "image_binding.py",
-        application_root / "portrait_policy.py",
-        application_root / "pipeline/ports.py",
-        application_root / "provider_env.py",
-        application_root / "identity.py",
-        *sorted((application_root / "media").rglob("*.py")),
-    ]
-    for path in helpers:
-        files["stage_gen/" + path.relative_to(application_root).as_posix()] = sha256_hex(
-            path.read_bytes()
-        )
-    return files
-
-
 def graph_for(plan: dict[str, Any]) -> PortraitMotionGraph:
     profile = RuntimeProfile.model_validate(plan["profile"])
     spec = PortraitMotionSpec.model_validate(plan["spec"])
@@ -290,7 +247,6 @@ def prepare_run(
         "profile": profile.model_dump(mode="json"),
         "image_routing": _image_routing_snapshot(config),
         "request_policy": request_policy().snapshot(),
-        "implementation": implementation(),
         "dependencies": {
             name: importlib.metadata.version(name)
             for name in ("numpy", "scipy", "pillow", "pydantic", "httpx")
@@ -351,8 +307,6 @@ def load_plan(run_dir: Path) -> tuple[RunStore, dict[str, Any], PortraitMotionGr
         raise ValueError("Prepared portrait-motion plan has an unsupported identity")
     if identity == (1, "portrait-motion-plan-v1") and "image_routing" in plan:
         raise ValueError("Legacy portrait-motion plans cannot carry image routing")
-    if plan["implementation"] != implementation():
-        raise ValueError("Implementation changed after preparation; prepare a fresh run")
     if identity == (1, "portrait-motion-plan-v1"):
         raise ValueError(
             "Legacy portrait-motion plans are readable history but cannot be resumed after "

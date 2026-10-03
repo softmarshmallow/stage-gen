@@ -96,7 +96,7 @@ raise SystemExit(main())
 
     listed = cli("list", "--json")
     assert listed.returncode == 0, listed.stderr
-    assert len(json.loads(listed.stdout)) == 6
+    assert len(json.loads(listed.stdout)) == 5
     planned = cli("plan", "file", str(definition), "--input", str(inputs), "--target", "swatch")
     assert planned.returncode == 0, planned.stderr
     assert json.loads(planned.stdout)["projection"]["operation_counts"] == {"local": 1}

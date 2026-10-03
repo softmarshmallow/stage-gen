@@ -109,7 +109,6 @@ def prepare_face_run(
         "profile": profile.model_dump(mode="json"),
         "image_routing": core._image_routing_snapshot(config),
         "request_policy": core.request_policy().snapshot(),
-        "implementation": core.implementation(),
         "dependencies": {
             name: importlib.metadata.version(name)
             for name in ("numpy", "scipy", "pillow", "pydantic", "httpx")
@@ -165,8 +164,6 @@ def load_face_plan(run: Path) -> tuple[RunStore, dict[str, Any], core.PortraitMo
     plan = store.read("plan.json")
     if (plan.get("schema_version"), plan.get("kind")) != (1, KIND):
         raise ValueError("Unsupported face-motion plan")
-    if plan["implementation"] != core.implementation():
-        raise ValueError("Implementation changed after preparation; prepare a fresh run")
     if (
         plan["request_policy"] != core.request_policy().snapshot()
         or plan["required_stages"] != REQUIRED_STAGES

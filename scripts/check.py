@@ -157,7 +157,6 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
     from stage_gen.workflows._registry import discover
 
     parallax = "src/stage_gen/workflows/looping_parallax/inputs/supplied_layers"
-    storefront = "src/stage_gen/workflows/storefront/inputs/minimal"
     inputs = scratch / "parallax-inputs"
     run = scratch / "parallax-run"
     cache = ("--cache-dir", str(scratch / "asset-cache"))
@@ -176,20 +175,6 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
             )
         ),
         Step(("stage-gen", "inspect", str(run), "--verify")),
-        Step((python, f"{storefront}/make_inputs.py", str(scratch / "storefront-inputs"))),
-        Step(
-            (
-                "stage-gen",
-                "run",
-                "storefront",
-                "--input",
-                str(scratch / "storefront-inputs"),
-                "--dry-run",
-                "--output",
-                str(scratch / "storefront-run"),
-                *cache,
-            )
-        ),
         Step(
             (
                 "stage-gen",

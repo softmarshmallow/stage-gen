@@ -54,7 +54,6 @@ class Probe:
 
 
 _UNIVERSE = "stage_gen.workflows.universe.universe_executor.UniverseExecutor"
-_STOREFRONT = "stage_gen.workflows.storefront.storefront_executor.StorefrontExecutor"
 
 #: The final internal calls of every renamed command, and the calls on the way to them.
 PROBES: tuple[Probe, ...] = (
@@ -76,9 +75,6 @@ PROBES: tuple[Probe, ...] = (
     Probe(f"{_UNIVERSE}.run_semantic", "stop"),
     Probe(f"{_UNIVERSE}.dry_run_gallery", "stop"),
     Probe(f"{_UNIVERSE}.run_gallery", "stop"),
-    Probe(f"{_STOREFRONT}.__init__", "pass"),
-    Probe(f"{_STOREFRONT}.dry_run", "stop"),
-    Probe(f"{_STOREFRONT}.run", "stop"),
     Probe("stage_gen.capabilities.generate_image_artifact", "stop"),
     Probe("stage_gen.capabilities.remove_background", "stop"),
     Probe("stage_gen.capabilities.generate_music", "stop"),
@@ -88,7 +84,6 @@ PROBES: tuple[Probe, ...] = (
     Probe("stage_gen.capabilities.inspect_video", "stop"),
     Probe("stage_gen.orchestration.env_import.import_provider_env", "stop"),
     Probe("stage_gen.workflows.universe.universe_view.build_universe_view", "view"),
-    Probe("stage_gen.workflows.storefront.storefront_view.build_storefront_view", "view"),
     Probe("gnode.write_run_view", "stop"),
 )
 
@@ -363,7 +358,6 @@ def test_every_retired_entry_point_has_a_case() -> None:
     for program in (
         "stage-gen pipeline",
         "stage-gen universe",
-        "stage-gen storefront",
         "stage-gen-movie-sprite body",
         "stage-gen-movie-sprite inspect",
         "stage-gen-portrait-motion prepare",

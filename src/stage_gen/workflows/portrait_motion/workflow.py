@@ -1,7 +1,7 @@
 """What the portrait-motion workflow states about itself, read from its implementation.
 
-The node types are built by the public ``components/portrait_motion`` component, whose files
-are part of the implementation fingerprint, so their reader labels live in ``workflow.toml``.
+The node types are built by the public ``components/portrait_motion`` component, so their
+reader labels live in ``workflow.toml``.
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ def owns_run(run_dir: Path) -> bool:
 
 def inspect(run_dir: Path, verify: bool) -> dict[str, object]:
     """The run's own execution record; with ``verify``, every stage is checked against its
-    receipt and the implementation fingerprint the run was prepared with."""
+    receipt."""
     from .pipeline import verify_run
 
     if not owns_run(run_dir):
@@ -168,8 +168,4 @@ CODE = WorkflowCode(
         "its canonical provenance; no committed sample input exists to plan from"
     ),
     import_example=import_example,
-    titles_frozen_in=(
-        "stage_gen/components/portrait_motion/nodes.py",
-        "stage_gen/components/portrait_motion/face_location.py",
-    ),
 )

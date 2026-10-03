@@ -236,7 +236,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("authored", _field("workflows.universe.models", "UniverseSource")),
     ("authored", _field("recipes.oblique_survival.models", "ObliqueSurvivalSource")),
     ("authored", _constant("recipes.oblique_survival.models", "WORLD_KIND")),
-    ("authored", _field("workflows.storefront.models", "StorefrontSource")),
     # Generated documents: what the pipeline writes for a consumer or a later node.
     ("generated", _field("components.platformer_map.prepared", "PreparedMapTerrain")),
     ("generated", _field("components.sideview_map_design.design", "PlatformerChunkMapDesign")),
@@ -251,9 +250,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("generated", _field("recipes.dialogue_scene.models", "IndependentReview")),
     ("generated", _field("recipes.dialogue_scene.models", "DialogueBundle")),
     ("generated", _field("workflows.universe.models", "SampleLedger")),
-    ("generated", _field("workflows.storefront.models", "DrawLedger")),
-    ("generated", _field("workflows.storefront.models", "StorefrontDirection")),
-    ("generated", _field("workflows.storefront.models", "StoreListing")),
     (
         "generated",
         _constant("workflows.portrait_motion.pipeline", "PORTRAIT_MOTION_PLAN_KIND"),
@@ -319,14 +315,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     (
         "graph",
         _graph(
-            "workflows.storefront.storefront_graph",
-            "STOREFRONT_GRAPH_KIND",
-            "StorefrontGraph",
-        ),
-    ),
-    (
-        "graph",
-        _graph(
             "workflows.portrait_motion.pipeline",
             "PORTRAIT_MOTION_GRAPH_KIND",
             "PortraitMotionGraph",
@@ -353,7 +341,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
         "namespace",
         _constant("recipes.oblique_survival.survival_graph", "OBLIQUE_SURVIVAL_CACHE_NAMESPACE"),
     ),
-    ("namespace", _constant("workflows.storefront.storefront_graph", "STOREFRONT_CACHE_NAMESPACE")),
     # Recipe versions stamped beside a generated document's own kind.
     ("recipe", _field("recipes.dialogue_scene.models", "DialogueScenePlan", "recipe_version")),
     # Blocks a shared component builds for more than one manifest.

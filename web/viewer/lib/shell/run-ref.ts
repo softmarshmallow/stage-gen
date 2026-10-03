@@ -31,7 +31,7 @@ export function runHref(run: RunRef, sub = ""): string {
 
 /**
  * The one URL builder for a run's artifacts served by /api/assets. Every consumer —
- * the run inspector, the asset list, the gallery and storefront views — addresses an
+ * the run inspector, the asset list and the gallery view — addresses an
  * artifact the same way: the root, the tag and each path segment percent-encoded so a
  * document-supplied path can never smuggle a separator into the route.
  */

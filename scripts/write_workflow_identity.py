@@ -7,8 +7,6 @@ imports and never the fixture. Each section prices what a change to it would cos
 
   movie_sprite_sources     the digested movie-sprite sources and the three identities
                            create_pipeline derives from them (paid generate/finish keys)
-  portrait_implementation  the portrait-motion implementation() map and the face-location
-                           digest (prepared portrait runs resume and verify against it)
   character_frozen_set     every character_3d member and the package-map aliases (a change
                            needs a paid qualification cohort, not a carry-over)
   identities               pipeline ids and their observed cache namespaces, graph-document
@@ -22,7 +20,7 @@ FFmpeg, runs a provider or reads a credential; configuration is an explicit empt
 environment.
 
     uv run python scripts/write_workflow_identity.py --check
-    uv run python scripts/write_workflow_identity.py --only portrait_implementation
+    uv run python scripts/write_workflow_identity.py --only identities
 """
 
 from __future__ import annotations
@@ -47,7 +45,6 @@ import stage_gen.components.movie_sprite as movie_sprite_component
 import stage_gen.identity as provenance_identities
 import stage_gen.workflows.looping_parallax.pipeline as looping_parallax_pipeline
 import stage_gen.workflows.movie_sprite.pipeline as movie_sprite_pipeline
-import stage_gen.workflows.storefront.storefront_types as storefront_types
 import stage_gen.workflows.universe.universe_types as universe_types
 from gnode import (
     BindingTable,
@@ -85,20 +82,6 @@ from stage_gen.workflows.looping_parallax import create_pipeline as create_paral
 from stage_gen.workflows.movie_sprite import create_pipeline as create_movie_sprite_pipeline
 from stage_gen.workflows.movie_sprite.authoring import digest as movie_sprite_digest
 from stage_gen.workflows.movie_sprite.cli import build_definition
-from stage_gen.workflows.portrait_motion.face_location import _implementation_digest
-from stage_gen.workflows.portrait_motion.pipeline import implementation
-from stage_gen.workflows.storefront.storefront_executor import StorefrontExecutor
-from stage_gen.workflows.storefront.storefront_graph import (
-    STOREFRONT_CACHE_NAMESPACE,
-    STOREFRONT_CACHE_RECORD_KIND,
-    StorefrontGraph,
-)
-from stage_gen.workflows.storefront.storefront_request import (
-    apply_rerolls,
-    empty_ledger,
-    read_storefront_document,
-    resolve_storefront,
-)
 from stage_gen.workflows.universe.universe_executor import UniverseExecutor
 from stage_gen.workflows.universe.universe_graph import (
     UNIVERSE_CACHE_NAMESPACE,
@@ -119,7 +102,6 @@ CHARACTER_OWNERS = ("recipes", "orchestration", "components", "providers", "reso
 NODE_TYPE_MODULES: tuple[ModuleType, ...] = (
     looping_parallax_pipeline,
     movie_sprite_pipeline,
-    storefront_types,
     universe_types,
 )
 
@@ -146,11 +128,6 @@ def movie_sprite_sources(scratch: Path) -> Section:
             {item.name: movie_sprite_digest(item.read_bytes()) for item in component_files}
         ),
     }
-
-
-def portrait_implementation(scratch: Path) -> Section:
-    del scratch
-    return {"files": implementation(), "face_location_digest": _implementation_digest()}
 
 
 def character_frozen_set(scratch: Path) -> Section:
@@ -268,10 +245,7 @@ def identities(scratch: Path) -> Section:
     for definition in (_parallax_definition(), movie_sprite):
         namespace, record_kind = _observed_sdk_cache(definition.pipeline_id, scratch)
         pipelines[definition.pipeline_id] = {"namespace": namespace, "record_kind": record_kind}
-    graph_documents = {
-        section["recipe"]: section
-        for section in (_graph_document(UniverseGraph), _graph_document(StorefrontGraph))
-    }
+    graph_documents = {section["recipe"]: section for section in (_graph_document(UniverseGraph),)}
     inventory = {
         (node_type.type_id, node_type.cache_identity, node_type.contract_version)
         for node_type in _node_types()
@@ -295,8 +269,6 @@ def identities(scratch: Path) -> Section:
         "cache": {
             "universe_namespace": UNIVERSE_CACHE_NAMESPACE,
             "universe_record_kind": UNIVERSE_CACHE_RECORD_KIND,
-            "storefront_namespace": STOREFRONT_CACHE_NAMESPACE,
-            "storefront_record_kind": STOREFRONT_CACHE_RECORD_KIND,
             "dry_run_namespace": DRY_RUN_CACHE_NAMESPACE,
             "dry_run_record_kind": DRY_RUN_CACHE_RECORD_KIND,
             "node_cache_schema_version": NODE_CACHE_SCHEMA_VERSION,
@@ -348,14 +320,6 @@ def plan_movie_sprite_generate(scratch: Path) -> Graph:
     return plan(build_definition(args), input_root=args.input_root, targets=[args.target]).graph
 
 
-def plan_storefront(scratch: Path) -> Graph:
-    """Mirror `stage-gen run storefront` without a draw ledger or a reroll."""
-    source_root = materialize_inputs("storefront", scratch)
-    source = resolve_storefront(read_storefront_document(source_root), root=source_root)
-    draws = apply_rerolls(empty_ledger(source.storefront_id), ())
-    return StorefrontExecutor(load_config(env={}), draws=draws).plan(source_root).graph
-
-
 def plan_universe_semantic(scratch: Path) -> Graph:
     """The committed lantern_ferry package; the gallery phase needs a semantic run."""
     del scratch
@@ -366,7 +330,6 @@ def plan_universe_semantic(scratch: Path) -> Graph:
 CACHE_KEY_PLANS: dict[str, Callable[[Path], Graph]] = {
     "looping-parallax": plan_looping_parallax,
     "movie-sprite-generate": plan_movie_sprite_generate,
-    "storefront": plan_storefront,
     "universe-semantic": plan_universe_semantic,
 }
 
@@ -381,7 +344,6 @@ def cache_keys(scratch: Path) -> Section:
 
 SECTIONS: dict[str, Callable[[Path], Section]] = {
     "movie_sprite_sources": movie_sprite_sources,
-    "portrait_implementation": portrait_implementation,
     "character_frozen_set": character_frozen_set,
     "identities": identities,
     "cache_keys": cache_keys,

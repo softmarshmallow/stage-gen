@@ -38,7 +38,6 @@ WORKFLOW_MANIFESTS = {
         "looping_parallax",
         "movie_sprite",
         "portrait_motion",
-        "storefront",
         "universe",
     )
 }

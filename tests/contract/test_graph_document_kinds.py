@@ -35,11 +35,6 @@ from iron_petal_unit_pipeline.runner_graph import (
 from stage_gen.orchestration.graph_executor import GraphExecutor
 from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_handler import CachedNodeHandler
-from stage_gen.workflows.storefront.storefront_executor import StorefrontExecutor
-from stage_gen.workflows.storefront.storefront_graph import (
-    STOREFRONT_GRAPH_SCHEMA_VERSION,
-    StorefrontGraph,
-)
 from stage_gen.workflows.universe.universe_executor import UniverseExecutor
 from stage_gen.workflows.universe.universe_graph import (
     UNIVERSE_GRAPH_SCHEMA_VERSION,
@@ -69,7 +64,6 @@ GRAPHS: tuple[tuple[type[GraphDocument], str, int], ...] = (
     (DialogueSceneGraph, "dialogue-scene", DIALOGUE_GRAPH_SCHEMA_VERSION),
     (UniverseGraph, "universe", UNIVERSE_GRAPH_SCHEMA_VERSION),
     (ObliqueSurvivalGraph, "oblique-survival", OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION),
-    (StorefrontGraph, "storefront", STOREFRONT_GRAPH_SCHEMA_VERSION),
 )
 
 EXECUTORS = (
@@ -79,7 +73,6 @@ EXECUTORS = (
     DialogueSceneExecutor,
     UniverseExecutor,
     ObliqueSurvivalExecutor,
-    StorefrontExecutor,
 )
 
 #: Module-level helpers the substrate owns. A recipe defining one again is the drift.

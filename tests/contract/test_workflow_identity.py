@@ -27,7 +27,6 @@ GOLDEN = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
 #: What a change to each value-only section costs; cache_keys price themselves per node.
 COSTS = {
     "movie_sprite_sources": "moves paid movie-sprite generate/finish keys",
-    "portrait_implementation": "prepared portrait runs can no longer be resumed or verified",
     "character_frozen_set": (
         "a character_3d member changed: supported mode needs a paid qualification cohort, "
         "not a carry-over"
@@ -55,7 +54,6 @@ def test_input_bytes_are_small_constants() -> None:
     assert set(json.loads(INPUTS_PATH.read_text(encoding="utf-8"))) == {
         "looping-parallax",
         "movie-sprite-generate",
-        "storefront",
     }
 
 

@@ -1,0 +1,148 @@
+# 0072 — gnode is one engine behind text contracts
+
+*Ruled 2026-10-02 by the owner, as the epic plan for the gnode SDK. Work lands milestone by
+milestone on main; this record states the ruling and is not amended as the milestones land.*
+
+## Fact
+
+[0071](0071-workflows-are-the-product-unit-and-the-web-splits-into-site-and-viewer.md) made
+the workflow the product unit, but left everything under a workflow as it was. A census of the
+tree on 2026-10-02 found:
+
+- **Four execution substrates.** The SDK's `run()`, `GraphExecutor`, the portrait-motion
+  workflow's own scheduler and receipts, and the character-3d workflow's own scheduler and
+  recovery each plan, schedule, cache, budget and record a run their own way.
+- **Node bodies doing engine work.** Bodies write their own provenance, write atomically, check
+  their own cache, keep their own budgets, run their own schedulers and write their own run
+  views.
+- **Node types written many times.** The six workflows declare about 66 node types. The same
+  structured-call node (prompt, schema, route, validate, record) is written 11 times.
+- **An API too large and too small at once.** gnode exports 230 names and 60 have no user. No
+  first-party workflow stays inside the 19-name SDK, and the Godot games (about 62,000 lines of
+  Python) build on unexported internals.
+- **Identity that is both too weak and too strong.** Cache keys omit node parameters, while two
+  workflows hash source bytes: movie-sprite digests its `pipeline.py`, and portrait-motion
+  digested every file under gnode, so any engine edit re-keyed every portrait stage.
+- **A product that was not the product's job.** The storefront workflow and its bespoke viewer
+  page drew store pages for one game. The owner rules app-specific views out of scope.
+
+The owner's target is a Rust core behind a polyglot SDK: a text workflow format, Python, and
+later TypeScript, aligned with the owner's own Rust provider SDK. The owner also asked whether
+users need everything the SDK could expose, and whether "correct primitive nodes plus a YAML
+workflow file, like GitHub Actions" is enough.
+
+## Challenge
+
+**Rewrite in Rust now.** It would fix the substrates by replacing them. But it would port four
+inconsistent engines, and every contract that is still wrong today would be frozen into a
+second language. The simplification has to happen first, where it is cheap to change.
+
+**Bind each language through FFI** (PyO3 for Python, wasm-bindgen for TypeScript). Blender's
+`bpy` is the familiar model. But a node body written in Python would then be called from Rust
+through a binding per language, and every engine change would ship as a binding change. Pulumi
+and Terraform solved the same shape with documents and a process protocol instead.
+
+**Keep the workflows as code and add YAML as sugar.** Doctrine D10 on
+[issue #3](https://github.com/softmarshmallow/stage-gen/issues/3) said a declarative format
+should only compress proven code, and asked for TOML. A workflow file over a fixed set of
+proven node types does exactly that, and YAML is what users of GitHub Actions already write.
+The risk is a format that grows into a programming language. The ruling closes the expression
+set instead of leaving it open.
+
+**Freeze character-3d to avoid requalification.** Its qualification binds a byte hash of its
+package, so any port invalidates it, and requalifying costs provider money. The owner ruled
+that the right design matters more than the spend; HEAD is already unqualified since aededfa3.
+
+**Design the internals first.** The owner asked for the reverse: write the user documentation
+first, as if the SDK existed, rebuild a first-party workflow from it as if it did not exist,
+and add deliberately hard scenarios. Two agents then built uncovered scenarios from the docs
+alone. Every gap they hit became a decision below.
+
+## Ruling
+
+**One engine, text contracts, a small SDK.** Python now; a later Rust core replaces only the
+engine, because every contract is a document or a protocol.
+
+| # | Decision |
+| --- | --- |
+| R1 | Languages talk to one engine through text documents and a node protocol, never per-language FFI. WebAssembly is only for the core's pure parts in a browser. |
+| R2 | A step's identity is its node type's identity, all `with:` values, the content digests of declared files, its upstream identities (a Merkle chain), its route fingerprint and its take. Names, titles, order and views are excluded. Built-in types carry declared versions guarded by `gnode.lock`; local types default to source identity. |
+| R2b | Every capability call is content-addressed by capability, route fingerprint, canonical request and take. Retries, resumes, re-runs and replayed agent turns answer identical requests from this call cache. |
+| R3 | Takes: `takes: N` with `pick`, user rerolls and picks in a committed `<workflow>.takes.yaml` that pins digests, and `regenerate: {max, then}` on judged steps or `{max, until}` on groups, where `max` counts every take. |
+| R4 | Judges are node types declared as judges that report a `verdict` fact. `judges:` and `on_reject:` sit on the judging step; a judged step finishes only when its judges do; `independent_of:` refuses, offline, two steps on the same model. |
+| R5 | Phases are inferred from repeats over outputs and run-time conditions, never declared. Each is priced exactly when its inputs exist and approved against a ceiling. `at: plan` runs free deterministic local steps while planning. |
+| R6 | Expressions are a closed set: references, keyed instances, collections, arithmetic, comparisons, `??` and eleven named functions. Anything more is a node. `if:` and `assert:` work at plan time and at run time. |
+| R7 | A workflow can be a step. Typed `inputs:` generate CLI flags, the MCP schema and validation, from a shorthand that compiles to JSON Schema. |
+| R7b | `gnode.yaml` holds project defaults and never keys. Ceilings nest: `--max-usd`, then the workflow's `budget:`, then the project's, with per-step and per-instance budgets inside. `--deliver` copies outputs out of the run; steps never write outside it. |
+| R17 | `requires:` lists the route features a step needs, checked offline against the binding table. |
+| R8 | One retry owner per operation, at most six attempts. A body's own provider call declares `retry="engine"` and the call cache prevents double billing. Long provider jobs are one call with an intent record that never resubmits silently. Every paid call reserves its worst case first. |
+| R8b | A node body is one callback over `ctx`: reads, params, outputs, facts, annotations, typed capabilities, agents, external tools, declared prompts, progress, cancellation and failure. Plumbing node types (source locks, tool probes, proxies, reducers, submit/collect pairs) disappear into the engine or the standard library. |
+| R9 | `gnode` is the media-free core, SDK, capabilities and providers; a standard library holds media node types and their views; first-party workflows sit on top. |
+| R9b | The command line becomes `gnode`; `stage-gen` is removed when the migration ends. |
+| R10 | Third-party node packages (`uses: ns/type@major`) are reserved and ship later. |
+| R11 | A view is an HTML template plus a read-only context in a sandboxed iframe, shaped like MCP Apps, at node-type, step or workflow scope. Views never request actions and never enter identity. App-specific views are the user's own. |
+| R16 | Annotations are an artifact, verdicts are a fact. The annotations document is an agnostic list of marks with an optional shape (point, polygon or box), label, colour, tag and requested fields. What marks mean is set by the prompt; the harness lives in the standard library. |
+| R12 | Do the right thing even when it costs provider money. Every paid run still needs the owner's explicit go and a cap. |
+| R13 | No legacy compatibility paths. Old and new coexist only inside a milestone. |
+| R14 | Character-3d qualification binds a declared closure (lock entries, contract versions, routes, pricing, the Blender build), not a byte hash of the package. |
+| R15 | The user documentation is the specification; each milestone accepts the examples it covers as written, offline. |
+| R18 | Offline validation of provider-specific settings is not built; invalid settings fail at once. |
+
+**Six versioned documents**, JSON Schema'd under `schemas/gnode/`:
+
+1. the workflow file (`gnode-workflow-v1`, YAML or JSON), with `gnode.yaml` and the takes file;
+2. the expanded graph (`gnode-graph-v2`), computed only by the core;
+3. the node protocol (`gnode-node-protocol-v1`), in process for now;
+4. the run record (`gnode-run-events-v1`), one append-only JSONL log per run;
+5. the view context (`gnode-view-context-v1`);
+6. annotations (`gnode-annotations-v1`).
+
+**Migration order** changes one of three risky things at a time: the runner, identity keys,
+node bodies.
+
+| # | Milestone |
+| --- | --- |
+| M0 | Remove storefront and portrait's engine-wide fingerprint; record this ruling. |
+| M1 | One runner and run record, with v1 keys byte-identical. |
+| M2 | The documents, expander, identity v2, call cache, protocol host, CLI and a language-neutral conformance suite. |
+| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once by a verifying `gnode cache rekey`. |
+| M8 | Port the Godot game pipelines onto the public contract. |
+| M9 | Delete v1 identity, the rekey tool, `GraphExecutor`, the old SDK and the `stage-gen` command; publish the user guide. |
+| M10 | The paid requalification of character-3d. |
+
+A re-key never drops a cache: it pairs nodes, verifies bytes and lineage, and refuses unpaired
+provider nodes. An unpaired provider node stops the milestone.
+
+**Doctrine D10 is amended** to read "a YAML/JSON workflow file over proven node types" where it
+said TOML; the amendment is posted on issue #3 with the owner's go.
+
+## Evidence
+
+- **The census** above, measured on the tree at 4097ee6f.
+- **User documentation first.** A seven-page guide and four example projects were written
+  before any internals: a recreation of the universe workflow, a recreation of
+  looping-parallax, a deliberately hard rigged character, and a game repository that builds
+  from its own formats. Writing them forced 17 design findings and 21 design changes,
+  including takes up front, per-item budgets, keyed collections, run-time assertions and
+  matrices.
+- **Blind tests.** Two agents built a voiced scene and a portrait-motion workflow from the docs
+  alone. Each reported its friction; every item was resolved into the rulings above.
+- **M0 itself.** Removing storefront deleted about 6,200 lines and changed no other cache key:
+  the identity golden lost 185 lines and gained none. Removing portrait's fingerprint changes
+  only portrait keys, which any engine edit already changed.
+- **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
+  pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
+  USD 5.6), about double if a cohort fails.
+
+## Falsifier
+
+- A first-party workflow or game pipeline that cannot be expressed in the workflow file or
+  the Python builder without reaching past the public contract. That would mean the primitive
+  set is wrong, not that the workflow needs an exception.
+- A re-key that cannot pair a provider node. That would mean identity v2 drops something v1
+  bound, and the milestone stops until it is explained.
+- An expression the workflow file needs that is not a reference, a closed operator or one of
+  the named functions, more than once. That would mean the closed set is too small and must be
+  widened by a new ruling, not by a user-function escape hatch.
+- A Rust core that cannot pass the conformance suite without changing a document. That would
+  mean a contract still carries Python.

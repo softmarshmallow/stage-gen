@@ -36,14 +36,10 @@ RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / "godot/games/iron_petal_unit/docs/r
 RUNNER_CONTRACT_KIND = _writer.RUNNER_CONTRACT_KIND
 RUNNER_FIXTURE_REF = _writer.RUNNER_FIXTURE_REF
 SURVIVAL_DOCUMENT = REPOSITORY_ROOT / "godot/games/ember_hollow/docs/generation-v1.md"
-STOREFRONT_DOCUMENT = _writer.STOREFRONT_DOCUMENT
-STOREFRONT_CONTRACT_KIND = _writer.STOREFRONT_CONTRACT_KIND
-STOREFRONT_FIXTURE_REF = _writer.STOREFRONT_FIXTURE_REF
 SURVIVAL_CONTRACT_KIND = _writer.OBLIQUE_SURVIVAL_CONTRACT_KIND
 SURVIVAL_FIXTURE_REF = _writer.OBLIQUE_SURVIVAL_FIXTURE_REF
 SURVIVAL_SCOPE = _writer.OBLIQUE_SURVIVAL_SCOPE
 build_oblique_survival_graph_contract = _writer.build_oblique_survival_graph_contract
-build_storefront_graph_contract = _writer.build_storefront_graph_contract
 build_graph_contract = _writer.build_graph_contract
 build_runner_graph_contract = _writer.build_runner_graph_contract
 
@@ -198,38 +194,6 @@ def test_survival_documents_are_discoverable_and_name_their_siblings() -> None:
         assert SURVIVAL_DOCUMENT.parent / sibling in recipe_links
     # The host that plays the manifest is linked by the recipe, not inferred.
     assert SURVIVAL_DOCUMENT.parent / "runtime.md" in recipe_links
-
-
-def test_storefront_document_tracks_the_executable_stage_graph() -> None:
-    assert document_contract(STOREFRONT_DOCUMENT) == build_storefront_graph_contract(
-        REPOSITORY_ROOT
-    )
-
-
-def test_storefront_contract_declares_its_identity_and_its_fixture() -> None:
-    contract = document_contract(STOREFRONT_DOCUMENT)
-    assert contract["kind"] == STOREFRONT_CONTRACT_KIND
-    assert contract["fixture_ref"] == STOREFRONT_FIXTURE_REF
-    assert (REPOSITORY_ROOT / STOREFRONT_FIXTURE_REF / "storefront.toml").is_file()
-    # One picture per declared surface, and the fan-out is what the table says it
-    # is: four images, and six structured calls for one direction, one listing and
-    # one review each.
-    assert contract["surface_count"] == 4
-    assert contract["operation_counts"]["image_generation"] == contract["surface_count"]
-    assert contract["operation_counts"]["structured_generation"] == contract["surface_count"] + 2
-
-
-def test_storefront_contract_block_is_rendered_canonically() -> None:
-    source = STOREFRONT_DOCUMENT.read_text(encoding="utf-8")
-    assert render(document_contract(STOREFRONT_DOCUMENT)) in source
-
-
-def test_storefront_contract_is_discoverable_from_the_game_integration() -> None:
-    # The game's storefront integration names the product workflow whose contract it uses.
-    integration = REPOSITORY_ROOT / "godot/games/ember_hollow/docs/storefront-integration.md"
-    assert (
-        REPOSITORY_ROOT / "src/stage_gen/workflows/storefront/contract.md"
-    ).resolve() in _linked_files(integration)
 
 
 def test_generation_pipeline_document_is_discoverable_from_game_authorities() -> None:

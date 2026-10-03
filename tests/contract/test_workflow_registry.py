@@ -43,7 +43,6 @@ WORKFLOWS = {
     "looping-parallax",
     "movie-sprite",
     "portrait-motion",
-    "storefront",
     "universe",
 }
 FROZEN_CHARACTER_ROOT = REPOSITORY / "src/stage_gen/recipes/character_3d"
@@ -333,8 +332,8 @@ def test_a_model_without_a_display_name_fails(loaded: dict[str, LoadedWorkflow])
 
 
 def test_a_title_that_is_empty_or_its_raw_slug_fails(loaded: dict[str, LoadedWorkflow]) -> None:
-    raw = _with_manifest(loaded["storefront"], title="storefront")
-    assert "storefront: title 'storefront' is empty or its raw slug" in checks.structure(raw)
+    raw = _with_manifest(loaded["universe"], title="universe")
+    assert "universe: title 'universe' is empty or its raw slug" in checks.structure(raw)
     character = loaded["character-3d"]
     labels = dict(character.discovered.manifest.labels)
     del labels["3d/character/rig_select"]
@@ -433,7 +432,7 @@ def test_sample_plans_are_offline_and_every_planned_type_sits_in_a_step(
     loaded: dict[str, LoadedWorkflow],
 ) -> None:
     planned = dict(_sample_plans(loaded))
-    assert set(planned) == {"looping-parallax", "movie-sprite", "storefront", "universe"}
+    assert set(planned) == {"looping-parallax", "movie-sprite", "universe"}
     for workflow in planned.values():
         assert workflow.sample is not None
         assert {node.type_id for node in workflow.sample.nodes} <= set(workflow.code.type_ids())
@@ -453,7 +452,7 @@ def test_the_cli_exports_and_checks_the_catalog(tmp_path: Path) -> None:
     argv += ["--examples", str(tmp_path / "absent"), "--allow-missing-examples"]
     assert main([*argv, "--check"], stdout=output, stderr=errors) == 0, errors.getvalue()
     assert json.loads(output.getvalue()) == {
-        "workflows": 6,
+        "workflows": 5,
         "catalog": None,
         "cli": None,
         "problems": [],
@@ -462,7 +461,7 @@ def test_the_cli_exports_and_checks_the_catalog(tmp_path: Path) -> None:
     output = io.StringIO()
     assert main(argv, stdout=output, stderr=errors) == 0
     written = json.loads((tmp_path / "site/catalog.json").read_text(encoding="utf-8"))
-    assert written["kind"] == "stage-gen-catalog-v1" and len(written["workflows"]) == 6
+    assert written["kind"] == "stage-gen-catalog-v1" and len(written["workflows"]) == 5
     reference = json.loads((tmp_path / "site/cli.json").read_text(encoding="utf-8"))
     assert reference["kind"] == "stage-gen-cli-v1" and reference["prog"] == "stage-gen"
     assert json.loads(output.getvalue())["cli"] == str(tmp_path / "site/cli.json")

@@ -43,7 +43,7 @@ from stage_gen.components.portrait_motion.face_location import (
 )
 from stage_gen.components.portrait_motion.storage import RunStore, json_bytes
 
-from .pipeline import implementation, request_policy
+from .pipeline import request_policy
 from .services import PortraitServiceFactory
 
 TOOL = SoftwareIdentity(name="stage-gen", version="0.0.0")
@@ -52,14 +52,6 @@ BUDGET_USD = 3.0
 ATTEMPT_RESERVATION_USD = 0.5
 MAX_TOKENS = 2500
 TIMEOUT_SECONDS = 600.0
-
-
-def _implementation_digest() -> str:
-    files = implementation()
-    files["stage_gen/workflows/portrait_motion/face_location.py"] = sha256_hex(
-        Path(__file__).read_bytes()
-    )
-    return sha256_hex(json_bytes(files))
 
 
 def _graph(plan: dict[str, Any]) -> Graph:
@@ -134,7 +126,6 @@ def prepare_locator(source: Path, run: Path) -> dict[str, Any]:
     plan = {
         "schema_version": 1,
         "kind": "face-locator-plan-v1",
-        "implementation_sha256": _implementation_digest(),
         "source": {
             "ref": "inputs/source.png",
             "sha256": sha256_hex(original),
@@ -187,7 +178,6 @@ def load_locator_plan(run: Path) -> tuple[RunStore, dict[str, Any], Graph]:
     expected = {
         "schema_version": 1,
         "kind": "face-locator-plan-v1",
-        "implementation_sha256": _implementation_digest(),
         "provider": "openrouter",
         "model": ROUTE_MODEL,
         "prompt": locator_prompt(),
@@ -307,7 +297,7 @@ def _result(
 
 
 def verify_locator(run: Path) -> dict[str, Any]:
-    """Verify source, implementation, graph, request lineage and completed decision."""
+    """Verify source, graph, request lineage and completed decision."""
     store, plan, graph = load_locator_plan(run)
     return _result(store, plan, graph, 0)
 

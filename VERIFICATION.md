@@ -17,8 +17,8 @@ uv run --group games python scripts/check.py --scope godot
 ```
 
 The default product gate requires Python tools only. Among its steps it runs a real
-offline looping-parallax run and its `inspect --verify`, the universe and storefront dry
-runs, `stage-gen catalog export --check --allow-missing-examples`, and `--help` for every
+offline looping-parallax run and its `inspect --verify`, the universe dry run,
+`stage-gen catalog export --check --allow-missing-examples`, and `--help` for every
 workflow verb.
 
 ## Web

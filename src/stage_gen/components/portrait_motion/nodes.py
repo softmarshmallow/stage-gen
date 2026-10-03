@@ -65,6 +65,16 @@ STAGES = (
     "terminal",
 )
 _PROVIDER_STAGES = {"admission", "atlas", "geometry", "quality"}
+_TITLES = {
+    "admission": "Decide what can move",
+    "guide": "Lay out the sheet",
+    "atlas": "Draw the new states",
+    "registration": "Line them up",
+    "geometry": "Outline eyes and mouth",
+    "composition": "Build every combination",
+    "quality": "Review the result",
+    "terminal": "Keep what passed",
+}
 
 
 def portrait_motion_node_types(max_attempts: int = 6) -> tuple[NodeType, ...]:
@@ -87,7 +97,7 @@ def portrait_motion_node_types(max_attempts: int = 6) -> tuple[NodeType, ...]:
         result.append(
             NodeType(
                 type_id=f"2d/portrait_motion/{stage}",
-                title=f"Portrait motion {stage}",
+                title=_TITLES[stage],
                 archetype=ViewArchetype.IMAGE
                 if stage == "atlas"
                 else ViewArchetype.JUDGE

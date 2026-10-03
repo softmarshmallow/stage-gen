@@ -164,7 +164,7 @@ def test_product_gate_runs_the_workflows_through_the_one_verb_set() -> None:
         for command in commands
         if command[:2] == ("stage-gen", "run") and command[-1] != "--help"
     ]
-    assert {command[2] for command in runs} == {"looping-parallax", "storefront", "universe"}
+    assert {command[2] for command in runs} == {"looping-parallax", "universe"}
     assert all("--dry-run" in command for command in runs if command[2] != "looping-parallax")
     assert ("stage-gen", "list") in commands
     assert any(command[:3] == ("stage-gen", "catalog", "export") for command in commands)

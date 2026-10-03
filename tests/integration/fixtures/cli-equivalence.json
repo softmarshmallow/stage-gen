@@ -7,13 +7,10 @@
   "profile.json": "{\"structured_model\":\"openai/gpt-6-astra\",\"max_provider_operations\":24,\"max_tokens\":8000,\"timeout_seconds\":900.0,\"budget_usd\":4.0,\"attempt_reservation_usd\":1.5}",
   "runs/portrait/plan.json": "{\"kind\": \"portrait-motion-plan-v2\"}",
   "runs/universe/execution-plan.json": "{\"kind\": \"universe-execution-graph-v2\"}",
-  "runs/storefront/execution-plan.json": "{\"kind\": \"storefront-execution-graph-v2\"}",
   "runs/sdk/execution-plan.json": "{\"kind\": \"pipeline-execution-graph-v1\"}",
   "runs/ms/execution-plan.json": "{\"kind\": \"pipeline-execution-graph-v1\"}"
  },
- "identity_inputs": [
-  "storefront"
- ],
+ "identity_inputs": [],
  "cases": {
   "sdk-plan": {
    "old_argv": [
@@ -1584,116 +1581,6 @@
    },
    "before": []
   },
-  "storefront-dry": {
-   "old_argv": [
-    "stage-gen",
-    "storefront",
-    "generate",
-    "--input",
-    "inputs/storefront",
-    "--output",
-    "out/sf",
-    "--cache-dir",
-    "cache",
-    "--dry-run",
-    "--invocation-id",
-    "s-1"
-   ],
-   "new_argv": [
-    "stage-gen",
-    "run",
-    "storefront",
-    "--input",
-    "inputs/storefront",
-    "--output",
-    "out/sf",
-    "--cache-dir",
-    "cache",
-    "--dry-run",
-    "--invocation-id",
-    "s-1"
-   ],
-   "target": "stage_gen.workflows.storefront.storefront_executor.StorefrontExecutor.dry_run",
-   "kwargs": {
-    "input_path": "inputs/storefront",
-    "run_dir": "out/sf",
-    "cache_dir": "cache",
-    "invocation_id": "s-1",
-    "failure_node_id": null,
-    "time_scale": 0.0001
-   },
-   "before": [
-    {
-     "target": "stage_gen.workflows.storefront.storefront_executor.StorefrontExecutor.__init__",
-     "kwargs": {
-      "config": "<StageGenConfig>",
-      "draws": {
-       "schema_version": 1,
-       "kind": "storefront-draw-ledger-v1",
-       "storefront_id": "quiet_orbit",
-       "draws": {}
-      }
-     }
-    }
-   ]
-  },
-  "storefront-live-reroll": {
-   "old_argv": [
-    "stage-gen",
-    "storefront",
-    "generate",
-    "--input",
-    "inputs/storefront",
-    "--output",
-    "out/sf2",
-    "--cache-dir",
-    "cache",
-    "--live",
-    "--invocation-id",
-    "s-2",
-    "--reroll",
-    "app_icon"
-   ],
-   "new_argv": [
-    "stage-gen",
-    "run",
-    "storefront",
-    "--input",
-    "inputs/storefront",
-    "--output",
-    "out/sf2",
-    "--cache-dir",
-    "cache",
-    "--live",
-    "--invocation-id",
-    "s-2",
-    "--reroll",
-    "app_icon"
-   ],
-   "target": "stage_gen.workflows.storefront.storefront_executor.StorefrontExecutor.run",
-   "kwargs": {
-    "input_path": "inputs/storefront",
-    "run_dir": "out/sf2",
-    "cache_dir": "cache",
-    "invocation_id": "s-2"
-   },
-   "before": [
-    {
-     "target": "stage_gen.workflows.storefront.storefront_executor.StorefrontExecutor.__init__",
-     "kwargs": {
-      "config": "<StageGenConfig>",
-      "draws": {
-       "schema_version": 1,
-       "kind": "storefront-draw-ledger-v1",
-       "storefront_id": "quiet_orbit",
-       "draws": {
-        "app_icon": 1
-       }
-      }
-     }
-    }
-   ]
-  },
   "capability-image": {
    "old_argv": [
     "demo-games",
@@ -2056,34 +1943,6 @@
      "target": "stage_gen.workflows.universe.universe_view.build_universe_view",
      "kwargs": {
       "run_dir": "runs/universe"
-     }
-    }
-   ]
-  },
-  "export-view-storefront": {
-   "old_argv": [
-    "demo-games",
-    "export-view",
-    "--run",
-    "runs/storefront"
-   ],
-   "new_argv": [
-    "stage-gen",
-    "inspect",
-    "runs/storefront",
-    "--write-view",
-    "runs/storefront"
-   ],
-   "target": "gnode.write_run_view",
-   "kwargs": {
-    "path": "runs/storefront/execution-view.json",
-    "view": "<view>"
-   },
-   "before": [
-    {
-     "target": "stage_gen.workflows.storefront.storefront_view.build_storefront_view",
-     "kwargs": {
-      "run_dir": "runs/storefront"
      }
     }
    ]

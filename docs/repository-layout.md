@@ -143,8 +143,6 @@ src/stage_gen/workflows/
 │   └── inputs/supplied_clip/          # Original procedural clip; no provider calls
 ├── portrait_motion/                   # Generation, qualification, budgets and recovery
 │   └── inputs/                        # The four-card and face-crop specifications
-├── storefront/                        # No example.py; executor modules, not pipeline.py
-│   └── inputs/minimal/                # Original procedural input and offline planning
 ├── universe/                          # No example.py; executor modules, not pipeline.py
 │   └── inputs/lantern_ferry/          # Existing self-contained storyworld input
 └── character_3d/                      # Declaration, CLI and importer only; no inputs/
@@ -170,11 +168,11 @@ hidden layers from one finished reference image. That operation can be added as 
 upstream generation stage with its own validation, while the repeat/composition/preview
 stages remain reusable.
 
-The universe and storefront workflows keep their own scoped TOML. Portrait motion's
-pipeline belongs to its workflow; component-level crop/render/reconstruction remains in the
-component. Universe and storefront seal a `GraphDocument` (`stage_gen.pipeline.graph_document`)
-and run through `GraphExecutor` (`stage_gen.orchestration.graph_executor`) at the
-composition root, because it builds `RunServices`; neither defines the SDK.
+The universe workflow keeps its own scoped TOML. Portrait motion's pipeline belongs to its
+workflow; component-level crop/render/reconstruction remains in the component. Universe seals
+a `GraphDocument` (`stage_gen.pipeline.graph_document`) and runs through `GraphExecutor`
+(`stage_gen.orchestration.graph_executor`) at the composition root, because it builds
+`RunServices`; it does not define the SDK.
 
 Examples are not committed. `stage-gen example promote` and `demo-games example export`
 write frozen exports into the local, gitignored store `out/examples/<owner>/<id>/`, and each

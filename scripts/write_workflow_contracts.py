@@ -103,7 +103,6 @@ def _universe_gallery(scratch: Path, repo: Path) -> Graph:
 BLOCKS: tuple[ContractBlock, ...] = (
     ContractBlock("looping-parallax", None, _sample_plan("looping-parallax")),
     ContractBlock("movie-sprite", None, _sample_plan("movie-sprite")),
-    ContractBlock("storefront", None, _sample_plan("storefront")),
     ContractBlock("universe", "semantic", _sample_plan("universe")),
     ContractBlock("universe", "gallery", _universe_gallery),
 )

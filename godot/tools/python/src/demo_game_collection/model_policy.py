@@ -31,7 +31,6 @@ def build_repository_model_policy_projection(
     from stage_gen.config import StageGenConfig
     from stage_gen.image_product import ImageProvider
     from stage_gen.model_routes import IMAGE_ROUTE_CATALOG, image_workload_policies
-    from stage_gen.workflows.storefront.storefront_executor import StorefrontExecutor
     from stage_gen.workflows.universe.universe_graph import (
         build_universe_gallery_graph,
         build_universe_semantic_graph,
@@ -57,7 +56,6 @@ def build_repository_model_policy_projection(
         "pointclick_room": "godot/games/the_grain/inputs/rooms/window",
         "sideview_platformer": "godot/games/bellweather/inputs/default",
         "sideview_runner": "godot/games/iron_petal_unit/inputs",
-        "storefront": "godot/games/ember_hollow/inputs",
         "universe_gallery": "src/stage_gen/workflows/universe/inputs/lantern_ferry",
         "universe_semantic": "src/stage_gen/workflows/universe/inputs/lantern_ferry",
     }
@@ -91,10 +89,6 @@ def build_repository_model_policy_projection(
     if "sideview_runner" in selected:
         graphs["sideview_runner"] = (
             SideviewRunnerExecutor(config).plan(root / fixture_by_recipe["sideview_runner"]).graph
-        )
-    if "storefront" in selected:
-        graphs["storefront"] = (
-            StorefrontExecutor(config).plan(root / fixture_by_recipe["storefront"]).graph
         )
     if selected & {"universe_gallery", "universe_semantic"}:
         universe_root = root / fixture_by_recipe["universe_gallery"]

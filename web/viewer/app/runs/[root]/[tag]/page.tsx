@@ -1,7 +1,7 @@
 // One run. What it renders depends on what the run carries:
 //
-// - a universe gallery or a storefront is shown as the reader would see it, with the
-//   run's graph one link away (`?view=graph`);
+// - a universe gallery is shown as the reader would see it, with the run's graph one
+//   link away (`?view=graph`);
 // - otherwise its execution view — the run's own, or the one `stage-gen view` derived
 //   into the cache — fills the window as a graph, and refreshes while the run is live;
 // - a run with neither says what its own record says and how a view is made. A game
@@ -23,10 +23,8 @@ import { type ReadView, readExecutionView } from "@/lib/shell/execution-view";
 import { readRunEntry, type RunIndexEntry } from "@/lib/shell/run-index";
 import { type RunRef, relativeOf } from "@/lib/shell/run-ref";
 import { isRealRunDirectory, isSafeRunTag, rootFor, runDirFor } from "@/lib/shell/runs";
-import { readStorefront, type Storefront } from "@/lib/shell/storefront";
 import { readUniverseGallery, type UniverseGallery } from "@/lib/shell/universe";
 import RunViewer from "./RunViewer";
-import StorefrontView from "./StorefrontView";
 import UniverseViewer from "./UniverseViewer";
 
 export const dynamic = "force-dynamic";
@@ -133,10 +131,8 @@ export default async function RunPage({
 
   if (!graphOnly) {
     let gallery: UniverseGallery | null = null;
-    let storefront: Storefront | null = null;
     try {
       gallery = await readUniverseGallery(run);
-      storefront = gallery === null ? await readStorefront(run) : null;
     } catch (error) {
       return <Refused run={run} refusal={message(error)} />;
     }
@@ -155,7 +151,6 @@ export default async function RunPage({
         />
       );
     }
-    if (storefront !== null) return <StorefrontView storefront={storefront} runDir={runDir} />;
   }
 
   let read: ReadView | null = null;

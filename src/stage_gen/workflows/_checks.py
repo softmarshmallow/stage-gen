@@ -335,7 +335,6 @@ def frozen_files(golden: Mapping[str, Any]) -> frozenset[str]:
     return frozenset(
         {
             *movie,
-            *golden["portrait_implementation"]["files"],
             *golden["character_frozen_set"]["files"],
         }
     )

@@ -23,7 +23,6 @@ contract and examples. This table is checked against each folder's `workflow.tom
 | [Looping parallax](src/stage_gen/workflows/looping_parallax/page.mdx) | `looping-parallax` | Layer pictures in. Repeating layers and their scroll placement out. |
 | [Movie sprite](src/stage_gen/workflows/movie_sprite/page.mdx) | `movie-sprite` | One character picture in. A transparent idle loop out. |
 | [Portrait motion](src/stage_gen/workflows/portrait_motion/page.mdx) | `portrait-motion` | One finished sprite in. Eyes and mouth a game can drive separately out. |
-| [Storefront](src/stage_gen/workflows/storefront/page.mdx) | `storefront` | A game's own art and a short brief in. Store icon, stills, banner and listing copy out. |
 | [Universe](src/stage_gen/workflows/universe/page.mdx) | `universe` | A poster, a synopsis and a direction in. A reviewed storyworld and one concept image per entity out. |
 <!-- workflows:end -->
 

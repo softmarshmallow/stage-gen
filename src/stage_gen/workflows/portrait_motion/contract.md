@@ -98,18 +98,17 @@ the allowlisted key loader, the `STAGE_GEN_RUN_LIVE=1` requirement, exact route
 credentials, and durable per-attempt budget reservation before transport. Ordinary
 component services remain the sole retry owners.
 
-Preparation is immutable. Content digests, implementation fingerprints, dependency
-versions, exact route snapshots, stage receipts, submission markers, and source
-provenance keep their admission semantics. An unresolved provider submission is not
+Preparation is immutable. Content digests, dependency versions, exact route snapshots,
+stage receipts, submission markers, and source provenance keep their admission semantics. An unresolved provider submission is not
 automatically dispatched again. Local reconstruction cannot expand an upstream semantic
 acceptance decision. The parent run preflights all downstream keys before locating a
 face.
 
-The implementation fingerprint hashes `pipeline.py`, `face.py`, `face_location.py` and
-`services.py` by their package paths, so a preparation binds the code that made it. Any
-change to those files, or to their move, requires a fresh preparation; existing
-artifacts stay on disk, and their plans and traces remain historical evidence. The
-contract identity/version pairs and artifact layouts are not rewritten.
+A preparation binds the code that made it through its node types' declared versions, not
+through source bytes: a change that alters what a stage produces bumps that stage's node
+type, and only its keys and those downstream move. Existing artifacts stay on disk, and their
+plans and traces remain historical evidence. The contract identity/version pairs and artifact
+layouts are not rewritten.
 
 For provider-free experimentation, the SDK sample
 [`docs/sdk/pipelines/portrait_processing.py`](../../../../docs/sdk/pipelines/portrait_processing.py)

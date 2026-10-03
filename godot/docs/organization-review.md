@@ -124,10 +124,9 @@ Package mechanism tests move with extracted code, while game integration and
 replay tests remain with the game.
 
 The [game graph writer](../tools/write_game_graph_contract.py) still imports a
-helper from a root executable script and also writes product storefront evidence
-using game inputs. Separate those responsibilities: Godot owns its game graphs;
-the product owns recipe evidence with independent fixtures. Neutral formatting
-helpers can be shared through a small explicit tooling module.
+helper from a root executable script. Godot owns its game graphs; the product owns
+recipe evidence with independent fixtures. Neutral formatting helpers can be shared
+through a small explicit tooling module.
 
 ## Promote bounded runtime capabilities
 

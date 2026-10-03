@@ -183,8 +183,8 @@ descriptor, so these canaries support the repository's bounded current route;
 they do not justify projecting arbitrary size support onto other OpenRouter
 models. Decode and inspect returned bytes in all cases.
 
-Five additional one-reference canaries covered the remaining exact Storefront
-and Universe canvases. All returned the requested PNG dimensions:
+Five additional one-reference canaries covered the remaining exact canvases of
+the Universe workflow and of the since-removed Storefront workflow. All returned the requested PNG dimensions:
 1152-by-2496 and 2496-by-1152 cost $0.154773 each, 2064-by-1008 cost $0.138393,
 and 2560-by-1712 and 1712-by-2560 cost $0.294423 each. No canary image or
 credential was persisted.
