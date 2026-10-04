@@ -3,7 +3,7 @@
   "character-3d": {
    "references.draw#1.1": "6b13ec9a57249fa35d2ef9d2f5111c8de9bb97489544b26e6fd67a8147612ef3",
    "references.draw#2.1": "19cacce05b1f057b19e889ebd35c1486397909fa7bb85e8e04795015438a136b",
-   "setup#1": "7fdb22c44990e4905576a59964a3975fad0e22960df7465a37153cd4b0535676"
+   "setup#1": "47187fcc60ad95bbc263f5d3f655c2f5ef9a766df8d38b78bfc4525835442376"
   },
   "looping-parallax": {
    "compose#1": "868e6478e5c8364d35ada5644830246b4b2678f50a0fa28483195115e3259662",
@@ -196,7 +196,7 @@
    [
     "character_3d/build/rig/review",
     "character_3d/build/rig/review",
-    "nodes/rig.py#review@1"
+    "nodes/rig.py#review@3"
    ],
    [
     "character_3d/build/rig/task",
@@ -221,7 +221,7 @@
    [
     "character_3d/setup",
     "character_3d/setup",
-    "nodes/setup.py#setup@1"
+    "nodes/setup.py#setup@3"
    ],
    [
     "looping_parallax/compose",

@@ -14,7 +14,7 @@ import pytest
 from PIL import Image
 
 from stage_gen.components.character_3d import quality_bar as qb
-from stage_gen.components.character_3d.atlas import AtlasCell, build_atlas
+from stage_gen.components.character_3d.atlas import AtlasCell, build_atlas, build_torso_strip
 from stage_gen.components.character_3d.io import digest
 from stage_gen.components.character_3d.partitions import (
     CORE_REGIONS,
@@ -86,9 +86,14 @@ def test_levels_map_to_gameplay_heights_and_high_is_refused_offline() -> None:
     assert qb.verdict_height(PROFILE, "medium") == 180
     low = qb.quality_bar({}, PROFILE)
     assert low["level"] == "low" and low["verdict_character_height_pixels"] == 120
-    assert low["evidence_kind"] == "labeled_atlas_rows_v1"
+    assert low["evidence_kind"] == "labeled_atlas_rows_v2" and low["schema_version"] == 4
     assert low["cell_character_height_pixels"] == 240
     assert "usable in a game" in low["policy"]
+    for bar in (low, qb.quality_bar({"review_quality_bar": "medium"}, PROFILE)):
+        assert bar["torso_character_height_pixels"] == 1024
+        assert "torso image" in bar["policy"] and "past the body's outline" in bar["policy"]
+        assert "inside the outline is not a spike" in bar["policy"]
+        assert f"report it at {bar['verdict_character_height_pixels']} px" in bar["policy"]
     medium = qb.quality_bar({"review_quality_bar": "medium"}, PROFILE)
     assert medium["verdict_character_height_pixels"] == 180
     assert "attachment boundary" in medium["policy"]
@@ -161,6 +166,29 @@ def test_atlas_cuts_native_pixels_and_labels_every_cell(tmp_path: Path) -> None:
         build_atlas(cells[:3])
 
 
+def test_torso_strip_cuts_the_same_band_of_every_pose_at_native_pixels(tmp_path: Path) -> None:
+    cells = []
+    for row, pose in enumerate(("rest", "shoulder_raise 0.75s")):
+        for column, view in enumerate(("front", "back")):
+            # A 120 px figure, its top at y=40: the band is y=85..136 of each render.
+            path = _cell_image(tmp_path / f"{row}{column}.png", box=(70, 40, 130 + column, 160))
+            cells.append(AtlasCell(pose, view, path))
+    strip, manifest = build_torso_strip(cells)
+    assert manifest["kind"] == "torso_strip" and manifest["resampled"] is False
+    assert manifest["rows"] == ["rest", "shoulder_raise 0.75s"]
+    assert manifest["columns"] == ["front", "back"]
+    assert manifest["cell_pixels"] == [72 + 16, 50]
+    assert (strip.width, strip.height) == (manifest["width"], manifest["height"])
+    for cell, source in zip(manifest["cells"], cells, strict=True):
+        assert cell["source_sha256"] == digest(source.path)
+        assert cell["source_crop"][1] == 40 + int(120 * 0.38)
+        crop = strip.crop(tuple(cell["atlas_box"]))
+        original = Image.open(source.path).crop(tuple(cell["source_crop"]))
+        assert list(crop.getdata()) == list(original.getdata())
+    with pytest.raises(ValueError, match="complete grid"):
+        build_torso_strip(cells[:3])
+
+
 def test_atlas_evidence_renders_each_pose_once_at_the_bar_height(tmp_path: Path) -> None:
     run_root = tmp_path / "run"
     (run_root / "observations").mkdir(parents=True)
@@ -210,8 +238,10 @@ def test_atlas_evidence_renders_each_pose_once_at_the_bar_height(tmp_path: Path)
         (None, 240),
         ({"clip": "cheer", "time_seconds": 1.5, "fps": 24}, 240),
         (None, 600),
+        (None, 1024),
+        ({"clip": "cheer", "time_seconds": 1.5, "fps": 24}, 1024),
     ]
-    assert evidence["kind"] == "labeled_atlas_rows_v1"
+    assert evidence["kind"] == "labeled_atlas_rows_v2"
     assert [row["label"] for row in evidence["rows"]] == ["rest", "cheer 1.5s"]
     assert evidence["columns"] == ["front", "left"]
     assert evidence["verdict_character_height_pixels"] == 120
@@ -224,7 +254,16 @@ def test_atlas_evidence_renders_each_pose_once_at_the_bar_height(tmp_path: Path)
     face = run_root / evidence["face_strip"]["path"]
     assert digest(face) == evidence["face_strip"]["sha256"]
     assert evidence["face_strip"]["source_character_height_pixels"] == 600
-    assert files == [*(run_root / row["path"] for row in evidence["rows"]), face]
+    torso = evidence["torso"]
+    assert torso["source_character_height_pixels"] == 1024 and torso["columns"] == ["front"]
+    assert [row["label"] for row in torso["rows"]] == ["rest", "cheer 1.5s"]
+    for row in torso["rows"]:
+        assert digest(run_root / row["path"]) == row["sha256"]
+    assert files == [
+        *(run_root / row["path"] for row in evidence["rows"]),
+        face,
+        *(run_root / row["path"] for row in torso["rows"]),
+    ]
 
 
 @pytest.mark.parametrize("preset", ["whole", "head_body_hair"])

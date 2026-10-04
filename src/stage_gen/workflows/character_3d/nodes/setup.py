@@ -31,7 +31,7 @@ from stage_gen.workflows.character_3d.harness import (
     },
     outputs={"profile": "json", "bar": "json"},
     resources=list(PROFILE_FILES.values()),
-    version=1,
+    version=3,
 )
 def setup(ctx: Ctx) -> dict[str, Any]:
     """Compile the profile and the bars its reviews are held to."""

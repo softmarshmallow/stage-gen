@@ -316,7 +316,7 @@ async def test_a_brief_becomes_an_accepted_rigged_character(tmp_path: Path, blen
     character = unglb((outputs / "character.glb").read_bytes())
     assert character["kind"] == "export" and character["height"] == 2.0
     assert (outputs / "references.png").is_file()
-    assert len(list((outputs / "atlas").glob("*.png"))) == 7
+    assert len(list((outputs / "atlas").glob("*.png"))) == 13
 
 
 async def test_a_mesh_is_made_from_the_sides_and_its_review_sees_every_view(
@@ -585,7 +585,7 @@ async def test_a_calibration_episode_judges_a_frozen_rig_with_the_workflows_revi
     verdict = json.loads((outcome.run_dir / "outputs/review.json").read_text())
     assert verdict["accepted"] is False and verdict["asset_id"] == "rig"
     assert verdict["source_sha256"] == frozen["candidate"]["sha256"]
-    assert len(list((outcome.run_dir / "outputs/atlas").glob("*.png"))) == 7
+    assert len(list((outcome.run_dir / "outputs/atlas").glob("*.png"))) == 13
     main = await plan_async("character-3d", input_files=[_inputs(tmp_path)], cwd=_project(tmp_path))
     reviewer = "./nodes/rig.py#review"
     assert {i.type_identity for i in plan.instances if i.uses == reviewer} == {

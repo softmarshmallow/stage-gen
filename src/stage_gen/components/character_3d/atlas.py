@@ -164,3 +164,85 @@ def build_face_strip(
         "cells": manifest_cells,
     }
     return (strip, manifest)
+
+
+def build_torso_strip(
+    cells: list[AtlasCell],
+    *,
+    band: tuple[float, float] = (0.38, 0.80),
+    width_fraction: float = 0.6,
+) -> tuple[Image.Image, JsonObject]:
+    """Chest to mid-thigh of each pose and view, cut at native pixels, every cell labeled.
+
+    The band is a fraction of each render's figure height from the top of its content
+    box (an SD figure's chest to mid-thigh); its width is a fraction of that height,
+    centred on the figure, so raised arms do not widen the crop. Rows are poses,
+    columns are views, as in the atlas; a reviewer gets one row per image, so the
+    image stays small enough to reach the model at its native pixels.
+    """
+    if not cells:
+        raise ValueError("A torso strip needs at least one cell")
+    rows = list(dict.fromkeys(cell.row_label for cell in cells))
+    columns = list(dict.fromkeys(cell.column_label for cell in cells))
+    if len(cells) != len(rows) * len(columns):
+        raise ValueError("Torso strip cells must form a complete grid")
+    sources = []
+    cell_width = cell_height = 0
+    for cell in cells:
+        image = Image.open(cell.path).convert("RGB")
+        box = _content_box(image)
+        figure = box[3] - box[1]
+        cell_width = max(cell_width, int(figure * width_fraction))
+        cell_height = max(cell_height, int(figure * (band[1] - band[0])))
+        sources.append((cell, image, box, figure))
+    cell_width = min(cell_width + 2 * CELL_PADDING, max(i.width for _, i, _, _ in sources))
+    cell_height = min(cell_height, max(i.height for _, i, _, _ in sources))
+    font = ImageFont.load_default(size=11)
+    slot = cell_width + GUTTER
+    width = len(columns) * slot
+    height = len(rows) * (cell_height + LABEL_HEIGHT)
+    strip = Image.new("RGB", (width, height), (236, 236, 236))
+    draw = ImageDraw.Draw(strip)
+    manifest_cells = []
+    for cell, image, box, figure in sources:
+        row, column = (rows.index(cell.row_label), columns.index(cell.column_label))
+        center_x = (box[0] + box[2]) // 2
+        x0 = min(max(center_x - cell_width // 2, 0), max(image.width - cell_width, 0))
+        y0 = min(max(box[1] + int(figure * band[0]), 0), max(image.height - cell_height, 0))
+        crop = image.crop((x0, y0, x0 + cell_width, y0 + cell_height))
+        left = column * slot
+        top = row * (cell_height + LABEL_HEIGHT)
+        draw.text(
+            (left + 4, top + 2),
+            f"{cell.row_label} / {cell.column_label}",
+            fill=(20, 20, 20),
+            font=font,
+        )
+        strip.paste(crop, (left, top + LABEL_HEIGHT))
+        manifest_cells.append(
+            {
+                "row": cell.row_label,
+                "column": cell.column_label,
+                "source_sha256": hashlib.sha256(cell.path.read_bytes()).hexdigest(),
+                "source_crop": [x0, y0, x0 + cell_width, y0 + cell_height],
+                "atlas_box": [
+                    left,
+                    top + LABEL_HEIGHT,
+                    left + cell_width,
+                    top + LABEL_HEIGHT + cell_height,
+                ],
+            }
+        )
+    manifest = {
+        "schema_version": 1,
+        "kind": "torso_strip",
+        "rows": rows,
+        "columns": columns,
+        "band": list(band),
+        "cell_pixels": [cell_width, cell_height],
+        "width": width,
+        "height": height,
+        "resampled": False,
+        "cells": manifest_cells,
+    }
+    return (strip, manifest)

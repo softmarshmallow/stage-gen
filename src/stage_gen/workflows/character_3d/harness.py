@@ -410,12 +410,18 @@ async def atlas_evidence(
     asset_id: str,
     poses: Sequence[tuple[str | None, float]],
 ) -> tuple[Record, list[Path]]:
-    """Every pose at the bar's presentation height cut into one labeled row per pose, and a
-    face strip at inspection height: the evidence record and the picture files."""
+    """Every pose at the bar's presentation height cut into one labeled row per pose, a face
+    strip at inspection height, and chest to mid-thigh of every pose at the torso height, one
+    image per pose: the evidence record and the picture files."""
 
     import asyncio
 
-    from stage_gen.components.character_3d.atlas import AtlasCell, build_atlas, build_face_strip
+    from stage_gen.components.character_3d.atlas import (
+        AtlasCell,
+        build_atlas,
+        build_face_strip,
+        build_torso_strip,
+    )
 
     review = profile.get("review", {})
     views = review.get("required_views", ["front", "back", "left", "right", "three_quarter"])
@@ -466,6 +472,39 @@ async def atlas_evidence(
     strip_path = folder / "face.png"
     strip.save(strip_path, format="PNG")
     files.append(strip_path)
+    # Chest to mid-thigh at the torso height, front and back, at rest and in every motion, one
+    # image per pose: a one-sided hem or panel that tears out as a joint moves is a few pixels
+    # in a row cell and tens of pixels here.
+    torso_views = [view for view in ("front", "back") if view in views]
+    torso_height = int(bar["torso_character_height_pixels"])
+    torso_rows: list[Record] = []
+    for index, (clip, seconds) in enumerate(
+        [(None, 0.0), *((c, s) for c, s in unique if c)], start=1
+    ):
+        record, _ = await studio.render(
+            asset_id,
+            views=torso_views,
+            pose={"clip": clip, "time_seconds": seconds, "fps": 24} if clip else None,
+            character_height_pixels=torso_height,
+        )
+        label = f"{clip} {seconds:g}s" if clip else "rest"
+        torso_cells = [
+            AtlasCell(label, view, confined(studio.worker.run_root, item["path"]))
+            for view, item in zip(torso_views, record["images"], strict=True)
+        ]
+        torso, torso_manifest = await asyncio.to_thread(build_torso_strip, torso_cells)
+        torso_path = folder / f"torso-{index:02d}.png"
+        torso.save(torso_path, format="PNG")
+        files.append(torso_path)
+        torso_rows.append(
+            {
+                "label": label,
+                "path": f"{directory}/torso-{index:02d}.png",
+                "sha256": digest(torso_path),
+                "band": torso_manifest["band"],
+                "cells": torso_manifest["cells"],
+            }
+        )
     evidence = {
         "kind": bar["evidence_kind"],
         "asset_id": asset_id,
@@ -478,6 +517,11 @@ async def atlas_evidence(
             "sha256": digest(strip_path),
             "source_character_height_pixels": inspection,
             "cells": strip_manifest["cells"],
+        },
+        "torso": {
+            "source_character_height_pixels": torso_height,
+            "columns": torso_views,
+            "rows": torso_rows,
         },
     }
     return evidence, files

@@ -1,16 +1,20 @@
 # gnode.lock: the source behind each versioned node type; commit it
 nodes:
-  nodes/assembly.py#assemble@1: 8aae880c538783eef899a8d3e5cbebe71002d87791d1795b1f0aa789c65874a1
-  nodes/assembly.py#review@1: 2bc0ecdd12ae950ed06a9a678ccae2d5788d010a783934937d3417fc32e17c78
-  nodes/calibration.py#subject@1: 52c73d228f326143c0df74f656694623c5f6023e1d471d515c78f6961e913af6
-  nodes/parts.py#normalize@1: 0f1d4dbbd19a95633a530e50c6266a76604e29f21ec454ee042cc4b6603224d3
-  nodes/parts.py#review@1: 2da97c130f3414f4f537f321da0c72973365fce727d13ff063961d4b79194fa5
-  nodes/references.py#draw@1: 905df48a584823e4767d827788d58f40c58fe1ac5044e176016fe1e3e19bdd27
-  nodes/references.py#review@1: 3f8485fe611a2e7e044fcb250b132001cb09914cf258dd2a193c2e7a2b13b6d6
+  nodes/assembly.py#assemble@1: a34e6c62e011e5627de8ade020ec874bd8ee5867f79b65c40a7e9baacfada670
+  nodes/assembly.py#review@1: 5aece031a004b387d3a0028c3d15648cadc1dd0cba1c3c8e7c31628922cc8c3b
+  nodes/calibration.py#subject@1: 22268e03d6043ce62771c44c644ba32f33f5bdbb46b482e45734e14549f631d6
+  nodes/parts.py#normalize@1: 678fd9f01cdb825759eda256ec35a971c3ed12e317dfec8550fd8251089e430b
+  nodes/parts.py#review@1: 6a88beb109cda4fb2cdb01fe68fec4d3b91909481242b602db5ecba63c03d55d
+  nodes/references.py#draw@1: 6cbd33d2749a7554a5842508ed7776b1626a01e745ca6898cd853449fdec3cc4
+  nodes/references.py#review@1: 23825f7d5be559029c3a6cca08930d8ead61d6334016b96c59e3bb429c74b782
   nodes/references.py#role_views@1: ec2668849078894177d7de9456ba1a3b08835dceac2e23e36a47b49d90c3b31e
-  nodes/references.py#role_views@2: 6f1a69b5b6299171d1c9d41ffee371402fa39f50c0cbfec1334f675f8b7fa0c5
-  nodes/result.py#result@1: 9f8d4fc4ba3525068ee615c19cb53bc0265e55d9abf77401d0ef9c49b16f410e
-  nodes/rig.py#agent@1: f3598c0748345e886402464320087d42f29f4a7ce3e6c10c15235c4b03d278b2
-  nodes/rig.py#finish@1: 2fc566eda59fe239741157d96135e62e414c55fefc5215f60f98fb6ab1e2f86e
+  nodes/references.py#role_views@2: 705cf93f3a3b22779f7550e396824ce464866f97b791dd9eb76d261a80eae9e0
+  nodes/result.py#result@1: c67eed30e91fd4a48827dc1e6440d4244727caef9d5e1ad1ed5b59d91caa89de
+  nodes/rig.py#agent@1: 95bde33b036705e43fef511b0d6cca1d89e149d9ec5bce789401a2d3f6105927
+  nodes/rig.py#finish@1: ec1ef6c31ce394beb033628faa5565e71b3994831ce20dfb7024da31c91d6f19
   nodes/rig.py#review@1: af2ea7e534093bb3ee83d00ae136594f73262a34afcb73d10fc4f5716a78e9cd
+  nodes/rig.py#review@2: 0041cb4123729342deb932fc6e002067c4efd37678bc939d5aa5c45a608e9825
+  nodes/rig.py#review@3: b75e1bd4535ac2756ca65d991f1656b16c9c720b589f6cfa9503572a39108d92
   nodes/setup.py#setup@1: 58a3e8aade995efd0dae0e4d0bb7db90509654030ed906a6fa30b24c9eb87b1b
+  nodes/setup.py#setup@2: 49e6be829eb00e5488c30230629f964a8d2899b7c1575f76aae9fddf15715a30
+  nodes/setup.py#setup@3: 4a6d1b864ec54ba3832d5ef9b0d6f9fbcd660a577d6e65b1b77da8ae31c020c4

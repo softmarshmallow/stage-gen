@@ -262,7 +262,7 @@ async def agent(ctx: Ctx) -> dict[str, Any]:
     calls={"agent.turn": 2},
     tools=BLENDER,
     resources=["prompts/review_rig.md"],
-    version=1,
+    version=3,
 )
 async def review(ctx: Ctx) -> dict[str, Any]:
     """Judge the rig in one turn from a labeled atlas of every diagnostic pose."""

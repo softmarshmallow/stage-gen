@@ -105,15 +105,18 @@ reviewer decides at:
 | `medium` | largest declared gameplay height, 180 px | Same evidence with an explicit per-boundary rest-versus-motion policy. Uncalibrated. |
 | `high` | not implemented | Refused while planning. |
 
-At `low`, `texture_integrity` blocks only for scrambled, missing or wrong-object texture. The
-rig reviewer receives one labeled atlas (rows are pose samples, columns are the required views,
-every cell native pixels cut from a render at twice the verdict height) and a face strip at
-inspection height, with the numeric `inspect_asset` tool, and must submit in one turn. Each
-issue states the smallest declared height at which it is visible; a blocking issue must be
-visible at the verdict height, and missing required weights or numeric rig findings block at
-every level. Reviews before export render with the `matte_policy` material when the profile's
-surface is matte, so raw provider gloss is never judged as a defect of something the workflow
-does not ship.
+At `low`, `texture_integrity` blocks only for scrambled, missing or wrong-object texture. The rig
+reviewer receives one labeled atlas (rows are pose samples, columns are the required views, every
+cell native pixels cut from a render at twice the verdict height), a face strip at inspection
+height, and one torso image per pose sample (chest to mid-thigh at 1024 px character height, front
+and back), with the numeric `inspect_asset` tool, and must submit in one turn. The face strip is
+read for the face only and the torso images only to compare the two sides: a hem, flap or panel
+that juts out past the body's outline on one side only as a joint moves is a spike, which fails at
+every bar; a crease or pinch inside the outline is minor. Each issue states the smallest declared
+height at which it is visible; a blocking issue must be visible at the verdict height, and missing
+required weights or numeric rig findings block at every level. Reviews before export render with
+the `matte_policy` material when the profile's surface is matte, so raw provider gloss is never
+judged as a defect of something the workflow does not ship.
 
 ## Export space
 

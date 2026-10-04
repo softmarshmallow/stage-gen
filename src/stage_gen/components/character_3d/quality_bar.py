@@ -16,8 +16,11 @@ from typing import Any
 JsonObject = dict[str, Any]
 LEVELS = ("low", "medium", "high")
 DEFAULT_LEVEL = "low"
-EVIDENCE_KIND = "labeled_atlas_rows_v1"
+EVIDENCE_KIND = "labeled_atlas_rows_v2"
 PRESENTATION_SCALE = 2
+#: The torso images' character height: the worker's largest, so a one-sided hem flap of a
+#: few gameplay pixels is tens of pixels here.
+TORSO_HEIGHT_PIXELS = 1024
 
 
 def quality_bar_level(experiment: JsonObject) -> str:
@@ -52,12 +55,13 @@ def quality_bar(experiment: JsonObject, profile: JsonObject) -> JsonObject:
     inspection = int(profile.get("review", {}).get("inspection_height_pixels", 512))
     presented = min(height * PRESENTATION_SCALE, max(inspection, height))
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "level": level,
         "verdict_character_height_pixels": height,
         "cell_character_height_pixels": presented,
         "declared_review_heights_pixels": [height],
         "evidence_kind": EVIDENCE_KIND,
+        "torso_character_height_pixels": TORSO_HEIGHT_PIXELS,
         "policy": _policy(level, height, presented),
     }
 
@@ -65,7 +69,8 @@ def quality_bar(experiment: JsonObject, profile: JsonObject) -> JsonObject:
 def _policy(level: str, height: int, presented: int) -> str:
     common = [
         f"Quality bar '{level}': the verdict is decided at {height} px character height.",
-        "You receive one labeled image per pose sample, then a face strip.",
+        ("You receive one labeled image per pose sample, a face strip, then one torso image"),
+        "per pose sample.",
         ("In each pose image every cell is one required view of the same exported model."),
         f"Cells are rendered at {presented} px so you can see what a player sees at {height} px.",
         f"Judge as a player would at {height} px: what you can see here, a player can see.",
@@ -73,6 +78,13 @@ def _policy(level: str, height: int, presented: int) -> str:
         ("Use the face strip only for the face: smeared, missing, duplicated, misplaced or"),
         ("asymmetric eyes or facial paint fail rest_shape at every bar, because the face is"),
         "what a player looks at even when the figure is small.",
+        f"Each torso image shows chest to mid-thigh at {TORSO_HEIGHT_PIXELS} px character",
+        "height, front and back, of one pose sample: rest, then every motion sample.",
+        ("Use the torso images only to compare the character's left and right sides: a hem,"),
+        ("flap or panel that juts out past the body's outline on one side only as a joint"),
+        f"moves is a spike; report it at {height} px, because a spike fails at every bar.",
+        ("A crease, fold, pinch or dark shading line inside the outline is not a spike, and"),
+        "anything else you can see only in the torso images is a minor issue.",
         ("There are no other renders and no second turn: submit your complete verdict now."),
         "Every issue states smallest_visible_character_height_pixels.",
         f"That value is {height} for anything you can see in the atlas.",
