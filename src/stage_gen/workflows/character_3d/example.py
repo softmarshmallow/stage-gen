@@ -76,6 +76,25 @@ def _glb_contents(
     return [a.get("name", "") for a in document.get("animations", [])], parts
 
 
+def _pose_rows(run: GnodeRun) -> int | None:
+    """How many atlas pictures are pose rows; the face strip and torso images follow them.
+
+    The rig review's own evidence counts its rows; every review in a run judges the same
+    poses, so the last one says it for the delivered atlas.
+    """
+    reviews = [
+        event["outputs"]["review"]["file"]["digest"]
+        for event in run.events
+        if event.get("event") == "node_finished"
+        and str(event.get("id", "")).startswith("build.rig.review")
+        and "review" in (event.get("outputs") or {})
+    ]
+    if not reviews:
+        return None
+    review = run.request.reader.json(run.file(reviews[-1]))
+    return len(review["initial_evidence"]["rows"])
+
+
 def deliver(run: GnodeRun) -> Delivered:
     """The brief or parts it started from, and the character it delivered, posed."""
 
@@ -93,9 +112,12 @@ def deliver(run: GnodeRun) -> Delivered:
         }
     export = run.output("character")
     result = reader.json(run.output("result"))
-    atlas = sorted((run.run_dir / "outputs" / "atlas").glob("*.png"))
+    atlas = sorted(
+        (run.run_dir / "outputs" / "atlas").glob("*.png"), key=lambda path: int(path.stem)
+    )
     if atlas:
-        poster = media.cycle("export-poses.webp", atlas, 720, 800, aspect=1.0)
+        poses = atlas[: _pose_rows(run)]
+        poster = media.cycle("export-poses.webp", poses, 720, 800, aspect=1.0)
     else:
         poster = media.still("export-poses.webp", run.output("references"), 720)
     glb = media.copy("export.glb", export, "local build only, never published")

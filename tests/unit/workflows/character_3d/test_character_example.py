@@ -48,6 +48,10 @@ async def test_an_accepted_character_run_imports_as_an_example(
     assert example.metrics["numeric_findings"] == 0 and example.metrics["missing_weights"] == 0
     assert example.metrics["provider_operations"] == 15
     assert currency(example, code.type_ids(), code.graph_kinds()) == "current"
+    # The poster turns through the pose rows only, in pose order: the face strip and the
+    # torso close-ups that follow them in the atlas are the reviewer's, not the page's.
+    poster = request.figures(example).latest()["media/export-poses.webp"]
+    assert [Path(s.path).name for s in poster.sources] == [f"{n}.png" for n in range(6)]
     pin = write_example(request.out, example, request.figures(example))
     assert verify(request.out, pin) == []
 
