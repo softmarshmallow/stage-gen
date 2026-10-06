@@ -19,6 +19,8 @@ dependencies = [
   "scipy>=1.15,<2",
   "opencv-python-headless>=4.13,<5",
   "pyyaml>=6.0.2,<7",
+  # Grida FX, gnode's successor, from the submodule at third_party/fx (its overview, decision 11).
+  "grida",
 ]
 
 [project.scripts]
@@ -61,6 +63,7 @@ members = [
 [tool.uv.sources]
 demo-game-collection = { workspace = true }
 stage-gen-concept = { workspace = true }
+grida = { path = "third_party/fx/python", editable = true }
 
 [tool.hatch.build]
 exclude = [
@@ -133,6 +136,8 @@ markers = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# third_party/fx is gridaco/fx: its own rules and gates check it (third_party/fx/AGENTS.md).
+extend-exclude = ["third_party"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]

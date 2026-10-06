@@ -151,6 +151,26 @@ requires-dist = [
 ]
 
 [[package]]
+name = "grida"
+version = "0.1.0a1"
+source = { editable = "third_party/fx/python" }
+dependencies = [
+    { name = "pillow" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pillow", specifier = "==12.3.0" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "jsonschema", specifier = ">=4.23" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "pyyaml", specifier = ">=6" },
+    { name = "rfc8785", specifier = ">=0.1.4" },
+    { name = "ruff", specifier = ">=0.6" },
+]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1011,6 +1031,7 @@ name = "stage-gen"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "grida" },
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "numpy" },
@@ -1042,6 +1063,7 @@ games = [
 
 [package.metadata]
 requires-dist = [
+    { name = "grida", editable = "third_party/fx/python" },
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "jsonschema", specifier = ">=4.26,<5" },
     { name = "numpy", specifier = ">=2.2,<3" },

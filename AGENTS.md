@@ -41,6 +41,15 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
   asset dependencies, consumed inputs, operation counts or cache/scheduling semantics update that evidence together.
   Whole-game graph specifications apply only to their owning game consumers, not every future asset pipeline.
 
+## Grida FX submodule
+
+- `third_party/fx` is [gridaco/fx](https://github.com/gridaco/fx), a separate public product, pinned as a
+  submodule. Stage Gen uses it only through `grida.fx` imports and the `grida-fx` command (`python -m grida.fx`),
+  as a path dependency on `third_party/fx/python`. Changes to FX follow its own `AGENTS.md` and gates, make sense
+  without Stage Gen, are committed in the submodule, and reach gridaco/fx before Stage Gen's pointer moves
+  (`push.recurseSubmodules=check` refuses a push that would pin an unpushed FX commit). Stage Gen's own linters
+  skip `third_party/`.
+
 ## Schema naming
 
 - Schema definitions and persisted/public contract fields use `lower_snake_case`; do not add camelCase aliases for

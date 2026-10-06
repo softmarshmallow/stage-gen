@@ -52,6 +52,19 @@ gate() {
 		echo "pre-push: could not check out ${sha:0:12}" >&2
 		return 1
 	fi
+	# A worktree checks out no submodule, and `uv sync` installs grida from third_party/fx.
+	# Copy the FX commit this commit pins out of the local submodule: no network, no clone.
+	local fx
+	fx="$(git -C "$scratch" rev-parse --verify --quiet "HEAD:third_party/fx" || true)"
+	if [ -n "$fx" ]; then
+		mkdir -p "$scratch/third_party/fx"
+		if ! git -C "$repository/third_party/fx" archive "$fx" | tar -x -C "$scratch/third_party/fx"; then
+			cleanup "$scratch"
+			trap - EXIT
+			echo "pre-push: third_party/fx pins ${fx:0:12}, which the local submodule lacks (git submodule update --init)" >&2
+			return 1
+		fi
+	fi
 	(
 		cd "$scratch"
 		uv sync --all-groups --frozen --quiet

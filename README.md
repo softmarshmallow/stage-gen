@@ -36,9 +36,14 @@ The [3D character](src/stage_gen/workflows/character_3d/page.mdx) and
 
 ## Install and try it
 
-Python 3.12 or newer and [uv](https://docs.astral.sh/uv/) are required. From this checkout:
+Python 3.12 or newer and [uv](https://docs.astral.sh/uv/) are required. gnode's successor,
+[Grida FX](https://github.com/gridaco/fx), is a submodule at `third_party/fx`, which `uv sync`
+installs from: clone with `--recurse-submodules`, or run `git submodule update --init` once. Its
+engine is Rust: `python3 third_party/fx/tools/build_engine.py` builds it (cargo from
+[rustup.rs](https://rustup.rs)) once anything here uses FX. From this checkout:
 
 ```sh
+git submodule update --init
 uv sync --frozen
 uv run gnode schema looping-parallax
 uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py out/looping-parallax-input

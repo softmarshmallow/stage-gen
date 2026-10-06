@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true   # third_party/fx: uv sync installs grida from it
       - uses: astral-sh/setup-uv@v5
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: uv sync --frozen
@@ -22,6 +24,8 @@ jobs:
         scope: [games, apps, docs]
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true   # third_party/fx: uv sync installs grida from it
       - uses: astral-sh/setup-uv@v5
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: uv sync --all-groups --frozen
@@ -31,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true   # third_party/fx: uv sync installs grida from it
       - uses: astral-sh/setup-uv@v5
       - uses: oven-sh/setup-bun@v2
         with:
@@ -44,6 +50,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true   # third_party/fx: uv sync installs grida from it
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --all-groups --frozen
       - run: uv run --all-groups ruff format --check .
@@ -80,6 +88,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true   # third_party/fx: uv sync installs grida from it
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --all-groups --frozen
       - name: Install Godot
